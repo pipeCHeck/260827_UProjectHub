@@ -10,6 +10,21 @@ public sealed class AtomicJsonFileWriter
         JsonSerializerOptions serializerOptions,
         CancellationToken cancellationToken = default)
     {
+        await WriteAsync(
+            targetFilePath,
+            value,
+            serializerOptions,
+            preserveBackup: true,
+            cancellationToken);
+    }
+
+    public async Task WriteAsync<T>(
+        string targetFilePath,
+        T value,
+        JsonSerializerOptions serializerOptions,
+        bool preserveBackup,
+        CancellationToken cancellationToken = default)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(targetFilePath);
         ArgumentNullException.ThrowIfNull(value);
         ArgumentNullException.ThrowIfNull(serializerOptions);
@@ -37,7 +52,7 @@ public sealed class AtomicJsonFileWriter
                 File.Replace(
                     temporaryFilePath,
                     fullTargetPath,
-                    $"{fullTargetPath}.bak",
+                    preserveBackup ? $"{fullTargetPath}.bak" : null,
                     ignoreMetadataErrors: true);
             }
             else
