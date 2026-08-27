@@ -1,6 +1,9 @@
+using UProjectHub.Core.Activity;
+using UProjectHub.Core.Cache;
 using UProjectHub.Core.Catalog;
 using UProjectHub.Core.Discovery;
 using UProjectHub.Core.Models;
+using UProjectHub.Core.Parsing;
 using UProjectHub.Core.Settings;
 
 namespace UProjectHub.Core.Tests.Discovery;
@@ -82,7 +85,8 @@ public sealed class ProjectRescanServiceTests
         var cache = new RecordingProjectCacheRepository();
         using var cancellation = new CancellationTokenSource();
         var progress = new RecordingProjectProgress(cancellation.Cancel);
-        var service = DiscoveryTestServices.CreateRescan(catalog, cache);
+        var parser = new CountingProjectParser();
+        var service = CreateRescan(catalog, cache, parser);
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
             service.RescanAsync(
@@ -93,6 +97,39 @@ public sealed class ProjectRescanServiceTests
 
         Assert.HasCount(1, progress.Updates);
         Assert.HasCount(1, catalog.GetSnapshot().Projects);
+        Assert.AreEqual(1, parser.ParseCallCount);
         Assert.AreEqual(0, cache.SaveCallCount);
+    }
+
+    private static ProjectRescanService CreateRescan(
+        ProjectCatalog catalog,
+        IProjectCacheRepository cacheRepository,
+        IUProjectParser parser)
+    {
+        var metadataLoader = new ProjectMetadataLoader(
+            parser,
+            new ProjectActivityDetector(new ProjectActivityPolicy()));
+        var discoveryService = new ProjectDiscoveryService(
+            new ProjectRootScanner(new SystemProjectDirectoryEnumerator()),
+            metadataLoader);
+        return new ProjectRescanService(
+            catalog,
+            discoveryService,
+            cacheRepository);
+    }
+
+    private sealed class CountingProjectParser : IUProjectParser
+    {
+        private readonly UProjectParser _inner = new();
+
+        public int ParseCallCount { get; private set; }
+
+        public Task<UProjectParseResult> ParseAsync(
+            string projectFilePath,
+            CancellationToken cancellationToken = default)
+        {
+            ParseCallCount++;
+            return _inner.ParseAsync(projectFilePath, cancellationToken);
+        }
     }
 }

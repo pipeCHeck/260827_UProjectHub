@@ -32,26 +32,22 @@ public sealed class ProjectRescanService
         ArgumentNullException.ThrowIfNull(rootPaths);
         ArgumentNullException.ThrowIfNull(settings);
 
+        var updates = new List<ProjectRefreshUpdate>();
         var discoveryResult = await _discoveryService.DiscoverAsync(
             rootPaths,
             settings,
-            cancellationToken).ConfigureAwait(false);
-        var updates = new List<ProjectRefreshUpdate>();
-
-        foreach (var project in discoveryResult.Projects)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var issue = FindProjectIssue(
-                discoveryResult.Issues,
-                project.ProjectFilePath.Value);
-            _catalog.Upsert(project);
-            var update = new ProjectRefreshUpdate(
-                project.ProjectFilePath,
-                project,
-                issue);
-            updates.Add(update);
-            progress?.Report(update);
-        }
+            cancellationToken,
+            loadResult =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                _catalog.Upsert(loadResult.Project);
+                var update = new ProjectRefreshUpdate(
+                    loadResult.Project.ProjectFilePath,
+                    loadResult.Project,
+                    loadResult.Issue);
+                updates.Add(update);
+                progress?.Report(update);
+            }).ConfigureAwait(false);
 
         cancellationToken.ThrowIfCancellationRequested();
         await _cacheRepository.SaveAsync(
@@ -62,14 +58,4 @@ public sealed class ProjectRescanService
             Array.AsReadOnly(updates.ToArray()),
             discoveryResult.Issues);
     }
-
-    private static ProjectDiscoveryIssue? FindProjectIssue(
-        IReadOnlyList<ProjectDiscoveryIssue> issues,
-        string projectFilePath) =>
-        issues.FirstOrDefault(issue =>
-            issue.Kind == ProjectDiscoveryIssueKind.MetadataLoad
-            && string.Equals(
-                issue.Path,
-                projectFilePath,
-                StringComparison.OrdinalIgnoreCase));
 }

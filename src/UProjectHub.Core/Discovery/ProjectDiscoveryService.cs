@@ -21,7 +21,8 @@ public sealed class ProjectDiscoveryService
     public async Task<ProjectDiscoveryResult> DiscoverAsync(
         IEnumerable<string> rootPaths,
         AppSettings settings,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Action<ProjectMetadataLoadResult>? projectLoaded = null)
     {
         ArgumentNullException.ThrowIfNull(rootPaths);
         ArgumentNullException.ThrowIfNull(settings);
@@ -44,6 +45,9 @@ public sealed class ProjectDiscoveryService
             {
                 issues.Add(loadResult.Issue);
             }
+
+            projectLoaded?.Invoke(loadResult);
+            cancellationToken.ThrowIfCancellationRequested();
         }
 
         return new ProjectDiscoveryResult(
