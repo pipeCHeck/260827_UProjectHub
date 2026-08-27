@@ -1,0 +1,44 @@
+{
+  "InstallationList": [
+    {
+      "AppName": "UE_5.8",
+      "InstallLocation": "__UE58_ROOT__",
+      "AppVersion": "5.8.0-12345678+++UE5+Release-5.8"
+    },
+    {
+      "AppName": "UE_5.10",
+      "InstallLocation": "__UE510_ROOT__",
+      "AppVersion": "5.10.0-23456789+++UE5+Release-5.10"
+    },
+    {
+      "AppName": "Fortnite",
+      "InstallLocation": "__NON_UNREAL_ROOT__",
+      "AppVersion": "1.0"
+    },
+    {
+      "AppName": "UE_5.9",
+      "InstallLocation": "__MISSING_EDITOR_ROOT__",
+      "AppVersion": "5.9.0-34567890+++UE5+Release-5.9"
+    },
+    {
+      "AppName": "UE_preview",
+      "InstallLocation": "__INVALID_VERSION_ROOT__",
+      "AppVersion": "preview"
+    },
+    {
+      "AppName": "UE_5.7",
+      "InstallLocation": null,
+      "AppVersion": "5.7.0"
+    },
+    {
+      "AppName": "UE_5.5",
+      "InstallLocation": 42,
+      "AppVersion": "5.5.0"
+    },
+    {
+      "AppName": "UE_5.6",
+      "InstallLocation": "relative\\UE_5.6",
+      "AppVersion": "5.6.0"
+    }
+  ]
+}
