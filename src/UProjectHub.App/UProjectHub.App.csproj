@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\UProjectHub.Core\UProjectHub.Core.csproj" />
+    <ProjectReference Include="..\UProjectHub.Windows\UProjectHub.Windows.csproj" />
+  </ItemGroup>
+
+</Project>
