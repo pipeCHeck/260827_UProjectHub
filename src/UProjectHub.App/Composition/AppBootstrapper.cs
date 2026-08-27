@@ -7,6 +7,7 @@ public sealed class AppBootstrapper
     public MainViewModel Build()
     {
         var statusBar = new StatusBarViewModel();
-        return new MainViewModel(statusBar);
+        var projectList = new ProjectListViewModel();
+        return new MainViewModel(statusBar, projectList: projectList);
     }
 }

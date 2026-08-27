@@ -1,6 +1,7 @@
 ﻿<Window x:Class="UProjectHub.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:UProjectHub.App.Controls"
         Title="{Binding Title}"
         Width="1120"
         Height="700"
@@ -37,19 +38,25 @@
                     Content="Settings" />
         </Grid>
 
-        <Grid Grid.Row="1" Margin="24,8,24,16">
-            <TextBlock HorizontalAlignment="Center"
-                       VerticalAlignment="Center"
-                       Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"
-                       Text="Project list will appear here." />
-        </Grid>
+        <controls:ProjectList Grid.Row="1"
+                              Margin="24,8,24,16"
+                              DataContext="{Binding ProjectList}" />
 
         <Border Grid.Row="2"
                 Padding="24,10"
                 BorderBrush="{DynamicResource {x:Static SystemColors.ControlDarkBrushKey}}"
                 BorderThickness="0,1,0,0">
-            <TextBlock Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"
-                       Text="{Binding StatusBar.StatusText}" />
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"
+                           Text="{Binding StatusBar.StatusText}" />
+                <TextBlock Grid.Column="1"
+                           Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"
+                           Text="{Binding ProjectList.ShowingCountText}" />
+            </Grid>
         </Border>
     </Grid>
 </Window>
