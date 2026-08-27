@@ -1,0 +1,412 @@
+# UProject Hub — UI Specification
+
+## 1. Design Direction
+
+The UI combines three references:
+
+- **Windows File Explorer Details view** for sorting and scanability;
+- **Unity Hub project list** for project-centered rows with path/metadata;
+- **One UI** for visual calm, spacing, rounded surfaces, hierarchy, and restrained use of color.
+
+One UI is not a pixel-perfect target.
+
+Priority order:
+
+1. usability;
+2. information density and scanability;
+3. consistency;
+4. visual polish.
+
+If a One UI-inspired treatment makes the project list slower to scan or harder to operate, choose the more usable design.
+
+## 2. Main Window
+
+Conceptual layout:
+
+    Unreal Projects                                      [Settings]
+
+    28 projects
+
+    [ Search projects...                                ]
+
+    [ Engine: All ] [ Type: All ] [ Favorites ]   [Refresh]
+
+    ★   Project                   Engine   Type       Last Modified
+    ----------------------------------------------------------------
+
+    ★   ue260826_SMB              5.8.2    C++        18 min ago
+        D:\Unreal\ue260826_SMB
+
+        SMOcopy                   5.8.1    C++        Yesterday
+        D:\Study\SMOcopy
+
+        Day03                     5.8.2    Blueprint  Aug 25
+        D:\Study\Day03
+
+    ----------------------------------------------------------------
+    Showing 3 of 28                                  Last Modified ↓
+
+The design should feel like a refined desktop utility, not a game launcher storefront.
+
+## 3. Window Chrome and Header
+
+The main content starts with:
+
+- large page title: `Unreal Projects`;
+- smaller project-count subtitle;
+- settings action aligned away from the title.
+
+Do not add a traditional `File / Edit / View / Tools` menu bar unless a future feature specifically requires it.
+
+## 4. Search
+
+Search is a primary interaction and should receive strong visual prominence.
+
+Recommended characteristics:
+
+- full/large width;
+- approximately 44–48 px high in Normal density;
+- rounded surface;
+- search icon;
+- placeholder text;
+- clear button appears when text exists.
+
+Examples:
+
+    [ Search projects...                              ]
+
+    [ version:5.8 type:cpp                         × ]
+
+    [ path:"D:\Game Academy" modified:7d          × ]
+
+`modified:7d` uses a rolling window beginning exactly `7 * 24` hours before the current instant. Double quotes group structured values containing spaces.
+
+Unknown prefixes and malformed structured tokens behave as plain-text terms. Search remains usable and evaluates the resulting terms with normal AND semantics instead of showing a query failure.
+
+`Ctrl+F` focuses search.
+
+`Esc` clears search when search owns the current transient state.
+
+Search results update from in-memory data while typing.
+
+## 5. Filter Controls
+
+Common filters use compact rounded chips/buttons rather than visually heavy default ComboBoxes.
+
+Examples:
+
+    [ Engine: All ▾ ]
+    [ Type: All ▾ ]
+    [ ☆ Favorites ]
+
+Active filters should be visible but not brightly colored.
+
+Avoid a separate large filter panel for MVP.
+
+## 6. Project List
+
+The main list is vertical and details-oriented.
+
+Do not use a thumbnail/card grid as the primary screen.
+
+Recommended visible information:
+
+- favorite;
+- project;
+- engine;
+- type;
+- last modified;
+- row actions/status as needed.
+
+Project path is secondary text under project name.
+
+Example:
+
+    ★  ue260826_SMB              5.8.2   [ C++ ]       18 min ago    ⋮
+       D:\Unreal\ue260826_SMB
+
+## 7. Row Density
+
+Two supported density modes:
+
+### Normal
+
+Target row height: approximately 56–64 px.
+
+Shows project name and path comfortably.
+
+### Compact
+
+Target row height: approximately 42–48 px.
+
+Designed for users with large project collections.
+
+Density is a user setting.
+
+Do not make Normal density excessively spacious.
+
+## 8. Selection and Hover
+
+Avoid the classic strongly colored full-row DataGrid selection.
+
+Use:
+
+- subtle hover surface;
+- slightly stronger selected surface;
+- rounded row/selection treatment when practical;
+- clear text contrast.
+
+Selection must remain obvious in both Light and Dark themes.
+
+## 9. Dividers and Grid Lines
+
+Avoid spreadsheet-style vertical grid lines.
+
+Horizontal separators should be subtle or represented through spacing/surfaces.
+
+Column alignment still needs to be visually precise.
+
+The list should retain DataGrid/ListView efficiency without looking like Excel.
+
+## 10. Project Type
+
+Project type may be displayed as a small low-emphasis badge:
+
+    [ C++ ]
+    [ Blueprint ]
+
+The badge exists for quick classification, not decoration.
+
+Do not use saturated colors that make the list visually noisy.
+
+## 11. Warnings
+
+Normal projects show no redundant "Healthy" status.
+
+Problems are shown only when actionable.
+
+Examples:
+
+    OldProject        5.6.1   Blueprint   3 months ago     ⚠
+
+or secondary text:
+
+    OldProject
+    ⚠ Connected Unreal Engine could not be found
+
+A cached project whose `.uproject` file is absent remains in the default list and shows:
+
+    MissingProject
+    ⚠ Missing
+
+The `Missing` label may be localized as `찾을 수 없음` in Korean.
+
+Warnings should:
+
+- be visible;
+- remain calm;
+- provide a tooltip or detail action;
+- not turn the entire row bright red.
+
+## 12. Relative Time
+
+Internally store exact timestamps.
+
+Display human-friendly values such as:
+
+- Just now;
+- 18 min ago;
+- Today 11:42;
+- Yesterday 16:20;
+- Aug 21;
+- 2025-12-03.
+
+Hover/tooltip may show the exact local timestamp.
+
+## 13. Sorting
+
+Sortable column headers behave similarly to File Explorer.
+
+Examples:
+
+    Engine ▲
+    Engine ▼
+
+Default:
+
+    Last Modified ↓
+
+Sort state should survive restart through settings.
+
+## 14. Context Menu and Row Actions
+
+Single click:
+
+- select row.
+
+Double click:
+
+- open project.
+
+Favorite icon:
+
+- toggle favorite without opening project.
+
+Overflow button (`⋮`) and right-click use the same context actions:
+
+    Open Project
+    Open in Visual Studio
+    Open Folder
+    -------------------
+    Reveal .uproject
+    Copy Path
+    Toggle Favorite
+    -------------------
+    Project Information
+    Remove from List
+
+`Open in Visual Studio` is available only for a C++ project with an existing `.sln` file. It is hidden or disabled otherwise. The MVP does not generate project files or modify `.uproject` or project settings.
+
+`Remove from List` is shown only for a missing project. It removes the entry from UProject Hub's managed list/cache and never deletes the project directory or files.
+
+## 15. Keyboard
+
+Required:
+
+- `Up` / `Down`: change selected project;
+- `Enter`: open selected project;
+- `Ctrl+F`: focus search;
+- `F5`: refresh known projects;
+- `Esc`: clear transient search/menu state.
+
+`Delete` does not delete projects.
+
+## 16. Empty States
+
+No projects discovered:
+
+    No Unreal projects found.
+
+    Add a project search root or rescan configured locations.
+
+No search results:
+
+    No projects match these filters.
+
+    [ Reset search and filters ]
+
+These are distinct states.
+
+## 17. Background Refresh State
+
+Do not block the entire window with a loading overlay during normal refresh.
+
+Use a quiet status indicator:
+
+    Checking projects…
+
+Rows may update incrementally.
+
+Cached projects remain interactive.
+
+Startup always loads settings, displays cached projects immediately, and begins background Refresh. The MVP has no startup option for a full Rescan; Rescan runs only through an explicit user action.
+
+## 18. Responsive Desktop Behavior
+
+This is a desktop development tool, not a mobile layout.
+
+When width decreases:
+
+1. hide/deprioritize low-value optional columns;
+2. preserve project name, engine, and last modified;
+3. enforce a sensible minimum window width.
+
+Suggested progression:
+
+Wide:
+
+    Project | Engine | Type | Last Modified | Last Launched
+
+Medium:
+
+    Project | Engine | Type | Last Modified
+
+Narrow:
+
+    Project | Engine | Last Modified
+
+Do not turn the list into stacked mobile cards.
+
+## 19. Settings UI
+
+Settings use a vertical One UI-inspired grouping style.
+
+Example:
+
+    Settings
+
+    Projects
+    ---------------------------
+    Search locations
+
+    D:\Unreal
+    D:\Study
+
+    [ + Add search root ]    [ Rescan projects ]
+
+    Appearance
+    ---------------------------
+    Theme
+    [ System ▾ ]
+
+    Row density
+    (●) Normal
+    ( ) Compact
+
+Settings should remain simple and avoid a complex tree/navigation structure unless the app grows substantially.
+
+The folder picker and folder drag-and-drop always add a persistent project search root. The app does not change that meaning based on whether the selected folder currently contains a `.uproject` directly. Discovery and explicit Rescan search within the root.
+
+## 20. Themes
+
+Support semantic Light and Dark theme resources.
+
+Default theme setting:
+
+    System
+
+One UI-inspired traits:
+
+- clean neutral surfaces;
+- comfortable but not wasteful spacing;
+- rounded search/filter controls;
+- strong hierarchy between primary and secondary text;
+- restrained accent color;
+- calm warning states.
+
+Do not copy Samsung assets or attempt exact visual reproduction.
+
+## 21. WPF Implementation Guidance
+
+Prefer using a built-in WPF list/DataGrid foundation for:
+
+- virtualization;
+- keyboard navigation;
+- scrolling;
+- column behavior;
+- selection.
+
+Then replace default visual styling through local XAML styles/templates.
+
+Do not build an entire table control from scratch solely for appearance.
+
+Theme resources should be centralized under `Themes/`.
+
+Avoid large all-in-one `MainWindow.xaml` files. Extract reusable controls when that improves clarity, for example:
+
+    Controls/
+    ├─ ProjectList.xaml
+    ├─ SearchBox.xaml
+    └─ FilterChip.xaml
+
+Do not split trivial one-use markup into tiny controls without a readability benefit.
