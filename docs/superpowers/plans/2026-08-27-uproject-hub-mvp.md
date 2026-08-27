@@ -54,6 +54,8 @@ WPF 또는 Windows 통합 Task도 가능한 순수 로직은 `UProjectHub.Core.T
 - `Windows`는 WPF View/ViewModel을 알지 못한다.
 - WPF code-behind는 `InitializeComponent`, drag/drop 및 focus 같은 presentation event 전달만 담당한다.
 - 검색, 필터, 정렬은 메모리의 `UnrealProject` 컬렉션만 소비한다.
+- Motion resource와 system-preference adapter는 `UProjectHub.App`에만 두며 Core/Windows domain service에 animation 상태를 전달하지 않는다.
+- 검색, 필터, 정렬, list reorder의 data state는 Motion을 기다리지 않고 즉시 반영한다.
 - 재귀 파일 탐색, 엔진 검색, cache 검증은 UI thread 밖에서 실행하고 `CancellationToken`을 받는다.
 - 프로젝트 파일을 수정하거나 삭제하는 API는 제품 코드에 만들지 않는다.
 - 런타임 외부 패키지는 추가하지 않는다. 테스트 인프라에는 SDK 템플릿이 선택한 MSTest 패키지만 사용한다.
@@ -111,6 +113,7 @@ Task 사이의 이름과 책임은 아래 계약을 사용한다.
 | App | `SettingsViewModel` | root/manual engine/theme/density 설정 편집 |
 | App | `ProjectActionService` | context action을 Core/Windows 서비스에 위임 |
 | App | `ThemeService` | semantic resource dictionary와 density 적용 |
+| App | `MotionService` | centralized motion token과 Windows animation preference를 App presentation에 적용 |
 | App | `BackgroundRefreshService` | 장시간 작업과 짧은 Dispatcher update 분리 |
 
 ## 3. Task 계획
@@ -899,15 +902,16 @@ Task 사이의 이름과 책임은 아래 계약을 사용한다.
 
 **커밋 경계:** row commands와 project information만 포함한다.
 
-### Task 25. Semantic themes, density, responsive columns
+### Task 25. Semantic themes, motion, density, responsive columns
 
-**목표:** One UI 참고를 semantic resource로 구현하되 scanability와 desktop density를 우선한다.
+**목표:** One UI 참고를 semantic theme/motion resource로 구현하되 usability, scanability, input responsiveness, desktop density를 우선한다.
 
 **생성 파일**
 
 - `src/UProjectHub.App/Themes/Colors.xaml`
 - `src/UProjectHub.App/Themes/Typography.xaml`
 - `src/UProjectHub.App/Themes/Spacing.xaml`
+- `src/UProjectHub.App/Themes/Motion.xaml`
 - `src/UProjectHub.App/Themes/Buttons.xaml`
 - `src/UProjectHub.App/Themes/DataGrid.xaml`
 - `src/UProjectHub.App/Themes/Light.xaml`
@@ -915,8 +919,12 @@ Task 사이의 이름과 책임은 아래 계약을 사용한다.
 - `src/UProjectHub.App/Themes/NormalDensity.xaml`
 - `src/UProjectHub.App/Themes/CompactDensity.xaml`
 - `src/UProjectHub.App/Services/ThemeService.cs`
+- `src/UProjectHub.App/Services/ISystemAnimationPreference.cs`
+- `src/UProjectHub.App/Services/WpfSystemAnimationPreference.cs`
+- `src/UProjectHub.App/Services/MotionService.cs`
 - `src/UProjectHub.App/Behaviors/ResponsiveColumnsBehavior.cs`
 - `tests/UProjectHub.Core.Tests/App/ThemeServiceTests.cs`
+- `tests/UProjectHub.Core.Tests/App/MotionServiceTests.cs`
 
 **수정 파일**
 
@@ -925,21 +933,35 @@ Task 사이의 이름과 책임은 아래 계약을 사용한다.
 - `src/UProjectHub.App/Controls/ProjectList.xaml`
 - `src/UProjectHub.App/Controls/SearchBox.xaml`
 - `src/UProjectHub.App/Controls/FilterChip.xaml`
+- `src/UProjectHub.App/Views/ProjectInformationWindow.xaml`
 - `src/UProjectHub.App/Composition/AppBootstrapper.cs`
+- `src/UProjectHub.App/ViewModels/StatusBarViewModel.cs`
 
-**소비:** `ThemeMode`, `RowDensity`, `ColumnLayoutState`.
+**소비:** `ThemeMode`, `RowDensity`, `ColumnLayoutState`, WPF `SystemParameters.ClientAreaAnimation`.
 
-**제공:** System/Light/Dark switching, 56~64px Normal, 42~48px Compact, semantic warning/selection resources, wide/medium/narrow column progression.
+**제공:** System/Light/Dark switching, 56~64px Normal, 42~48px Compact, semantic warning/selection resources, wide/medium/narrow column progression, centralized Fast 약 90ms / Normal 약 140ms / Slow 약 180ms Ease-Out motion token, Windows preference가 꺼졌을 때의 immediate state transition.
+
+`MotionService`는 App-layer의 좁은 presentation service로 유지한다. `WpfSystemAnimationPreference`는 `SystemParameters.ClientAreaAnimation`과 preference change notification만 감싼다. animation setting을 `AppSettings`에 추가하지 않으며 외부 animation package를 사용하지 않는다.
+
+허용 구현은 hover/selection의 brush·foreground transition, button/filter chip의 미세한 `RenderTransform` press feedback, favorite의 짧은 scale/opacity feedback, active operation 동안만 보이는 refresh rotation, 작은 dialog의 짧은 opacity/scale transition으로 제한한다. Favorite/search/filter/sort의 실제 state/data 변경은 animation 시작 전에 즉시 완료한다.
 
 **테스트 및 검증**
 
-1. resource switch와 persisted mode/density state 테스트 작성 → 실패.
-2. theme service/resource dictionaries/behavior 구현 → focused test 통과.
-3. 수동 matrix: Light/Dark × Normal/Compact × wide/narrow; project/engine/last modified 유지, selection contrast, virtualization 확인.
-4. `rg -n "#[0-9A-Fa-f]{6,8}" src/UProjectHub.App --glob "*.xaml"` 결과가 color dictionaries 밖에 없는지 확인.
-5. 전체 test/build → 통과.
+1. resource switch, persisted mode/density, enabled/disabled system animation preference, effective duration 테스트 작성 → 실패.
+2. theme/motion services, resource dictionaries, responsive behavior 구현 → focused test 통과.
+3. hover/selection brush transition과 button/filter chip press feedback이 90~140ms token을 참조하는지 수동 확인.
+4. favorite state는 즉시 바뀌고 scale/opacity micro-interaction만 짧게 실행되는지 확인.
+5. `StatusBarViewModel`의 operation-active 상태에서만 refresh indicator가 움직이고 false 전환 즉시 멈추는지 확인. Task 27은 이 상태를 실제 Refresh/Rescan lifecycle에 연결한다.
+6. search/filter/sort 결과가 entrance/reorder animation을 기다리지 않고 즉시 적용되는지 확인.
+7. 1,000-row virtualized list에서 hover/selection motion이 scrolling과 container virtualization을 해치지 않는지 확인.
+8. Windows animation preference가 disabled이면 non-essential motion이 즉시 전환되고 layout/functionality는 동일한지 확인.
+9. Project Information surface가 짧은 opacity/scale token만 사용하고 과한 window zoom을 사용하지 않는지 확인.
+10. Light/Dark × Normal/Compact × wide/narrow에서 project/engine/last modified 유지, selection contrast, virtualization 확인.
+11. `Motion.xaml` 밖의 control에 duration/easing literal이 없고 `rg -n "#[0-9A-Fa-f]{6,8}" src/UProjectHub.App --glob "*.xaml"` 결과가 color dictionaries 밖에 없는지 확인.
+12. Width/Height/Margin/GridLength/layout-position animation, full-list/row-entrance/reorder animation이 없음을 XAML review.
+13. 전체 test/build → 통과.
 
-**커밋 경계:** semantic styling, density, responsive columns만 포함한다.
+**커밋 경계:** semantic styling/motion, Windows motion preference, density, responsive columns만 포함한다.
 
 ### Task 26. Settings UI, search roots, manual engines
 
@@ -1001,6 +1023,8 @@ Task 사이의 이름과 책임은 아래 계약을 사용한다.
 **소비:** settings/cache repositories, catalog, refresh/rescan, known roots, engine discovery/resolver, logger, Dispatcher, cancellation token.
 
 **제공:** `ApplicationCoordinator.StartAsync/RefreshAsync/RescanAsync/StopAsync`, quiet status, incremental row/engine updates, shutdown cancellation.
+
+`ApplicationCoordinator`는 `StatusBarViewModel`의 operation-active 상태만 관리한다. indicator의 motion token과 system-preference 동작은 Task 25의 presentation layer가 소유한다.
 
 **고정 startup 순서**
 
@@ -1070,6 +1094,17 @@ Startup에서는 full Rescan을 호출하지 않는다. F5는 `RefreshAsync`, se
 
 `docs/VERIFICATION.md`에는 Light/Dark, Normal/Compact, narrow width, keyboard, Missing/Broken, engine states, Refresh/Rescan 구분, settings persistence, log rotation 확인 결과를 기록한다.
 
+Motion UI matrix에는 최소한 다음 상태를 포함한다.
+
+- Windows animations enabled;
+- Windows animations disabled;
+- row/button/filter hover와 selection;
+- favorite micro-interaction과 즉시 state update;
+- Refresh/Rescan indicator가 작업 중에만 동작하고 종료 즉시 정지;
+- search/filter/sort 결과의 즉시 update와 entrance/reorder animation 부재;
+- 1,000-row scrolling 및 virtualization 유지;
+- animations disabled 상태에서도 동일 functionality/layout과 정적인 operation status 유지.
+
 **커밋 경계:** integration tests, verification script/document, 실제 build/run 설명만 포함한다.
 
 ## 4. Task별 focused 검증 명령
@@ -1102,7 +1137,7 @@ Task 2~27은 아래 명령을 테스트 작성 직후 실행해 red를 확인하
 | 22 | `dotnet test UProjectHub.sln --filter "FullyQualifiedName~ProjectListViewModelTests\|FullyQualifiedName~RelativeTimeConverterTests"` | list/relative time 테스트 통과 |
 | 23 | `dotnet test UProjectHub.sln --filter "FullyQualifiedName~SearchFilterViewModelTests"` | UI query/filter/sort state 테스트 통과 |
 | 24 | `dotnet test UProjectHub.sln --filter "FullyQualifiedName~ProjectActionServiceTests\|FullyQualifiedName~ProjectContextActionsViewModelTests"` | context/favorite/launch/removal 테스트 통과 |
-| 25 | `dotnet test UProjectHub.sln --filter "FullyQualifiedName~ThemeServiceTests"` | theme/density state 테스트 통과 |
+| 25 | `dotnet test UProjectHub.sln --filter "FullyQualifiedName~ThemeServiceTests\|FullyQualifiedName~MotionServiceTests"` | theme/motion/density/system-preference 테스트 통과 |
 | 26 | `dotnet test UProjectHub.sln --filter "FullyQualifiedName~SettingsViewModelTests\|FullyQualifiedName~ProjectOperationsTests"` | settings/root/manual engine 테스트 통과 |
 | 27 | `dotnet test UProjectHub.sln --filter "FullyQualifiedName~ApplicationCoordinatorTests\|FullyQualifiedName~BackgroundRefreshServiceTests"` | startup/background/cancellation 테스트 통과 |
 | 28 | `pwsh -File scripts/verify.ps1` | restore, 전체 test, Release build, safety 검사 통과 |
@@ -1133,7 +1168,7 @@ Tasks 1~20 ─ Task 21 WPF Shell
 Task 11 ─ Task 22 Project List
 Tasks 5~7 ─ Task 23 Search/Filter/Sort UI
 Tasks 9/11/19 ─ Task 24 Actions
-Task 9 ─ Task 25 Themes/Density
+Tasks 9/21~24 ─ Task 25 Themes/Motion/Density
 Tasks 9/13/18/25 ─ Task 26 Settings UI
 Tasks 10/13/15/18/20/21~26 ─ Task 27 Startup/Refresh
 Tasks 1~27 ─ Task 28 Final Verification
@@ -1165,6 +1200,7 @@ Tasks 1~27 ─ Task 28 Final Verification
 | 5 | settings/cache 분리와 atomic storage | 9, 10, 15 |
 | 6 | bounded human-readable logs | 20, 27 |
 | 7 | main details UI | 21, 22, 23, 24, 25 |
+| 7.1 | subtle motion, Windows preference, immediate search/filter/sort/reorder | 25, 28 |
 | 8 | MVP non-goals 준수 | 모든 Task의 금지-pattern 검토, 28 |
 | 9 | build/test/docs/UI matrix | 각 Task, 28 |
 
@@ -1177,5 +1213,8 @@ Tasks 1~27 ─ Task 28 Final Verification
 - Windows provider는 Core resolver보다 뒤에 있고, WPF integration은 필요한 Core/Windows use case 이후에 있어 숨은 product dependency가 없다.
 - UI thread에는 collection mutation만 짧게 전달하고 scan/activity/engine/cache 검증은 background/cancellable 작업으로 계획했다.
 - Git, project 삭제, cache-folder 삭제, version conversion, project generation, watcher, card grid, plugin management, tagging을 포함하지 않는다.
-- UI를 shell, list, search/filter/sort, actions, themes, settings, startup integration의 7개 독립 Task로 나누었다.
+- Motion은 Task 25의 App presentation resource/service에만 두고, Task 27은 animation 지식 없이 operation-active state만 제공한다.
+- search/filter/sort/list reorder는 Motion과 무관하게 즉시 갱신되며 full-list entrance, per-row entrance, layout animation은 계획에 포함하지 않는다.
+- Task 28의 수동 matrix는 Windows animations enabled/disabled와 virtualization 유지 상태를 모두 포함한다.
+- UI를 shell, list, search/filter/sort, actions, themes/motion, settings, startup integration의 7개 독립 Task로 나누었다.
 - 총 구현 Task는 28개이며 각 Task는 focused 검증, 전체 test/build, diff review 후 독립 커밋 가능한 경계로 끝난다.

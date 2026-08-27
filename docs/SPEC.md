@@ -376,6 +376,14 @@ The main screen is a vertical details list with:
 
 See `UI.md` for detailed layout and interaction rules.
 
+### 7.1 Motion
+
+The MVP may use subtle motion when it communicates user interaction or a meaningful state change. Motion is optional visual feedback and must never take priority over usability, information density, scanability, keyboard operation, or input responsiveness.
+
+UProject Hub must respect the Windows system animation preference. When system animations are disabled, non-essential custom motion must become immediate state changes while functionality and layout remain unchanged.
+
+Search, filtering, sorting, and project-list reordering must update immediately. Their results must never wait for entrance, fade, movement, or reorder animations.
+
 ## 8. Non-Goals for MVP
 
 The MVP shall not include:
@@ -417,3 +425,4 @@ UI changes additionally require checking:
 - Compact row density;
 - narrow supported window width;
 - keyboard interaction for affected controls.
+- Windows system animations enabled and disabled when affected motion is present.

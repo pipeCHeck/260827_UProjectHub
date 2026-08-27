@@ -386,7 +386,111 @@ One UI-inspired traits:
 
 Do not copy Samsung assets or attempt exact visual reproduction.
 
-## 21. WPF Implementation Guidance
+## 21. Motion & Animation
+
+### 21.1 Purpose and Priority
+
+Motion exists only to:
+
+- provide short feedback for user input;
+- make a state change perceptible;
+- keep small UI transitions from feeling unnecessarily rigid;
+- reference the soft interaction character of One UI in a restrained way.
+
+Priority order:
+
+1. usability;
+2. information density and scanability;
+3. consistency;
+4. motion and visual polish.
+
+Remove motion when it slows project navigation, searching, filtering, sorting, scrolling, or keyboard interaction, or when it makes information harder to read.
+
+### 21.2 Motion Tokens
+
+Centralize duration and easing resources in `Themes/Motion.xaml`.
+
+Recommended duration tokens:
+
+- Fast: approximately 90 ms;
+- Normal: approximately 140 ms;
+- Slow: approximately 180 ms.
+
+Use an Ease-Out family for the primary easing token. Exact WPF easing types may be selected during implementation, but controls must not hard-code duration or easing values locally.
+
+### 21.3 Permitted Motion
+
+**Hover and selection**
+
+Project rows, buttons, and filter chips may use short 90–140 ms transitions for background, border, or foreground state. Selection must remain immediately identifiable.
+
+**Press feedback**
+
+Clickable buttons and filter chips may use a very small `RenderTransform` scale response, such as `1.0 → 0.98 → 1.0`. Do not use bounce or elastic easing.
+
+**Favorite feedback**
+
+The favorite star may use a short scale or opacity micro-interaction so the toggle result is perceptible. It must not delay the favorite state change.
+
+**Refresh and Rescan feedback**
+
+A small refresh indicator or icon may rotate only while Refresh or Rescan is active. It must stop immediately when the operation ends, must not introduce a full-window loading animation, and must not block interaction with the cached list.
+
+**Dialogs and small surfaces**
+
+Settings and Project Information surfaces may use a very short opacity or subtle scale transition. Do not add prominent window zoom or long opening/closing animations.
+
+### 21.4 Immediate List Operations
+
+Search, filter, and sort results update immediately. Project rows must not wait for animation before appearing in their correct result set or order.
+
+Do not use:
+
+- full project-list entrance animation;
+- staggered project-row entrance;
+- per-row fade-in for search results;
+- row-position movement during sorting;
+- row rearrangement during filtering;
+- project-list reorder animation;
+- continuously moving decorative animation;
+- Light/Dark full-window crossfade;
+- scroll-linked decorative effects;
+- parallax;
+- bounce or elastic animation;
+- large zoom transitions.
+
+### 21.5 Performance and Layout
+
+Prefer compositor/render-adjacent properties:
+
+- `Opacity`;
+- brush/color transitions;
+- `RenderTransform`.
+
+Avoid animating layout properties:
+
+- `Width`;
+- `Height`;
+- `Margin`;
+- `GridLength`;
+- layout position.
+
+Motion must preserve DataGrid/ListView virtualization and must not create per-row animation work that degrades scrolling in large project collections.
+
+### 21.6 Windows Animation Preference
+
+UProject Hub follows the Windows system animation preference. The WPF implementation should observe `SystemParameters.ClientAreaAnimation` and respond to preference changes for the running application.
+
+When system animations are disabled:
+
+- non-essential custom motion becomes an immediate state change;
+- all functionality remains available;
+- layout remains identical;
+- Refresh/Rescan state remains visible without relying on movement.
+
+The MVP does not provide a separate Animations On/Off setting.
+
+## 22. WPF Implementation Guidance
 
 Prefer using a built-in WPF list/DataGrid foundation for:
 

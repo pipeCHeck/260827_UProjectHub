@@ -316,6 +316,7 @@ Recommended shape:
     ├─ Colors.xaml
     ├─ Typography.xaml
     ├─ Spacing.xaml
+    ├─ Motion.xaml
     ├─ Buttons.xaml
     ├─ DataGrid.xaml
     ├─ Light.xaml
@@ -332,6 +333,14 @@ Use semantic resources such as:
 - Accent;
 - Warning;
 - Divider.
+
+Motion durations and easing are semantic presentation tokens and belong in `Motion.xaml`, alongside other centralized theme resources. Controls must reference those tokens rather than hard-code local durations or easing functions.
+
+Motion is an `UProjectHub.App` presentation concern. It must not enter `UProjectHub.Core` domain logic or `UProjectHub.Windows` engine, Registry, storage, or launching logic. A narrowly scoped App-layer `MotionService` may observe WPF's Windows animation preference and expose whether non-essential motion is enabled; no separate application animation setting is required for MVP.
+
+Prefer motion based on `Opacity`, brush/color transitions, and `RenderTransform`. Avoid animating `Width`, `Height`, `Margin`, `GridLength`, layout position, or other layout-heavy properties. Motion must not disable or reduce project-list virtualization.
+
+Search, filter, sort, and list reorder operations update their data immediately and do not wait for motion. Full-list entrance, per-row result entrance, and reorder animations are excluded.
 
 Do not hard-code visual values repeatedly in page XAML.
 

@@ -98,6 +98,14 @@ Any future destructive or mutating feature must be specified separately and requ
 - Use centralized theme resources; do not scatter literal colors, corner radii, or spacing values across Views.
 - Light and dark themes must share the same semantic design tokens.
 - Do not trade information density for large decorative cards.
+- Motion must communicate interaction or state, not decorate.
+- Motion must never reduce scanability or input responsiveness.
+- Do not animate list reordering caused by search, filter, or sort.
+- Do not add full-list entrance animations.
+- Avoid animations of layout properties such as width, height, margin, grid length, or layout position.
+- Centralize motion durations and easing in `Themes/Motion.xaml`; do not hard-code them per control.
+- Respect the Windows system animation preference.
+- When system animations are disabled, non-essential motion must become immediate state changes without changing functionality or layout.
 
 ## Testing Rules
 
