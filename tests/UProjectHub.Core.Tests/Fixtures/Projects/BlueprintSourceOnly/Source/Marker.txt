@@ -1,0 +1,1 @@
+This folder intentionally exists without descriptor modules.
