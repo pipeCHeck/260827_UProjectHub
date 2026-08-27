@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\UProjectHub.App\UProjectHub.App.csproj" />
     <ProjectReference Include="..\..\src\UProjectHub.Core\UProjectHub.Core.csproj" />
     <ProjectReference Include="..\..\src\UProjectHub.Windows\UProjectHub.Windows.csproj" />
   </ItemGroup>
