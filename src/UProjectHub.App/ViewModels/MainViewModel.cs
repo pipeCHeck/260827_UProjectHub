@@ -1,5 +1,6 @@
 using System.Windows.Input;
 using UProjectHub.App.Infrastructure;
+using UProjectHub.App.Services;
 using UProjectHub.Core.Catalog;
 
 namespace UProjectHub.App.ViewModels;
@@ -12,11 +13,16 @@ public sealed class MainViewModel : ObservableObject
         StatusBarViewModel statusBar,
         Action? settingsAction = null,
         ProjectListViewModel? projectList = null,
-        SearchFilterViewModel? searchFilter = null)
+        SearchFilterViewModel? searchFilter = null,
+        ProjectActionService? projectActions = null)
     {
         StatusBar = statusBar ?? throw new ArgumentNullException(nameof(statusBar));
         ProjectList = projectList ?? new ProjectListViewModel();
         SearchFilter = searchFilter;
+        if (projectActions is not null)
+        {
+            projectActions.CatalogChanged += SetProjects;
+        }
         SettingsCommand = new RelayCommand(
             () => settingsAction!(),
             () => settingsAction is not null);

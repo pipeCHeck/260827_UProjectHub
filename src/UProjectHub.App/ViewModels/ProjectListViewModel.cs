@@ -8,11 +8,16 @@ namespace UProjectHub.App.ViewModels;
 public sealed class ProjectListViewModel : ObservableObject
 {
     private readonly ObservableCollection<ProjectRowViewModel> _rows = [];
+    private readonly Func<UnrealProject, ProjectContextActionsViewModel>?
+        _contextActionsFactory;
     private int _totalCount;
     private int _visibleCount;
 
-    public ProjectListViewModel()
+    public ProjectListViewModel(
+        Func<UnrealProject, ProjectContextActionsViewModel>?
+            contextActionsFactory = null)
     {
+        _contextActionsFactory = contextActionsFactory;
         Rows = new ReadOnlyObservableCollection<ProjectRowViewModel>(_rows);
     }
 
@@ -46,7 +51,11 @@ public sealed class ProjectListViewModel : ObservableObject
 
     private void SetRows(IEnumerable<UnrealProject> projects, int totalCount)
     {
-        var rows = projects.Select(project => new ProjectRowViewModel(project)).ToArray();
+        var rows = projects
+            .Select(project => new ProjectRowViewModel(
+                project,
+                _contextActionsFactory?.Invoke(project)))
+            .ToArray();
 
         _rows.Clear();
         foreach (var row in rows)

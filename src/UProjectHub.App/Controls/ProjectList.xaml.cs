@@ -2,6 +2,8 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using UProjectHub.App.ViewModels;
 using UProjectHub.Core.Sorting;
 
 namespace UProjectHub.App.Controls;
@@ -56,6 +58,92 @@ public partial class ProjectList : UserControl
         {
             SortRequested?.Invoke(this, new ProjectSortRequestedEventArgs(column));
         }
+    }
+
+    private void OnProjectDataGridMouseDoubleClick(
+        object sender,
+        MouseButtonEventArgs eventArgs)
+    {
+        if (FindAncestor<Button>(eventArgs.OriginalSource as DependencyObject) is not null)
+        {
+            return;
+        }
+
+        ExecuteOpenSelectedProject();
+        eventArgs.Handled = true;
+    }
+
+    private void OnProjectDataGridPreviewKeyDown(
+        object sender,
+        KeyEventArgs eventArgs)
+    {
+        if (eventArgs.Key == Key.Delete)
+        {
+            eventArgs.Handled = true;
+            return;
+        }
+
+        if (eventArgs.Key == Key.Enter)
+        {
+            ExecuteOpenSelectedProject();
+            eventArgs.Handled = true;
+        }
+    }
+
+    private void OnProjectDataGridPreviewMouseRightButtonDown(
+        object sender,
+        MouseButtonEventArgs eventArgs)
+    {
+        var row = FindAncestor<DataGridRow>(
+            eventArgs.OriginalSource as DependencyObject);
+        if (row is not null)
+        {
+            row.IsSelected = true;
+            ProjectDataGrid.SelectedItem = row.DataContext;
+        }
+    }
+
+    private void OnOverflowClick(object sender, RoutedEventArgs eventArgs)
+    {
+        if (sender is Button { ContextMenu: { } contextMenu } button)
+        {
+            contextMenu.PlacementTarget = button;
+            contextMenu.IsOpen = true;
+        }
+
+        eventArgs.Handled = true;
+    }
+
+    private void ExecuteOpenSelectedProject()
+    {
+        if (ProjectDataGrid.SelectedItem is not ProjectRowViewModel
+            {
+                ContextActions.OpenProjectCommand: var command,
+            })
+        {
+            return;
+        }
+
+        if (command.CanExecute(null))
+        {
+            command.Execute(null);
+        }
+    }
+
+    private static T? FindAncestor<T>(DependencyObject? current)
+        where T : DependencyObject
+    {
+        while (current is not null)
+        {
+            if (current is T ancestor)
+            {
+                return ancestor;
+            }
+
+            current = VisualTreeHelper.GetParent(current);
+        }
+
+        return null;
     }
 
     private void UpdateSortIndicators(ProjectSortDefinition? sort)

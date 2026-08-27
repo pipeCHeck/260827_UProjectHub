@@ -7,6 +7,30 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <converters:ProjectStateMessageConverter x:Key="ProjectStateMessageConverter" />
         <converters:RelativeTimeConverter x:Key="RelativeTimeConverter" />
+
+        <ContextMenu x:Key="ProjectContextMenu"
+                     x:Shared="False"
+                     DataContext="{Binding PlacementTarget.DataContext.ContextActions, RelativeSource={RelativeSource Self}}">
+            <MenuItem Header="Open Project"
+                      Command="{Binding OpenProjectCommand}" />
+            <MenuItem Header="Open in Visual Studio"
+                      Command="{Binding OpenInVisualStudioCommand}" />
+            <MenuItem Header="Open Folder"
+                      Command="{Binding OpenProjectFolderCommand}" />
+            <Separator />
+            <MenuItem Header="Reveal .uproject"
+                      Command="{Binding RevealProjectFileCommand}" />
+            <MenuItem Header="Copy Path"
+                      Command="{Binding CopyPathCommand}" />
+            <MenuItem Header="{Binding ToggleFavoriteLabel}"
+                      Command="{Binding ToggleFavoriteCommand}" />
+            <Separator />
+            <MenuItem Header="Project Information"
+                      Command="{Binding ProjectInformationCommand}" />
+            <MenuItem Header="Remove from List"
+                      Command="{Binding RemoveFromListCommand}"
+                      Visibility="{Binding CanRemoveFromList, Converter={StaticResource BooleanToVisibilityConverter}}" />
+        </ContextMenu>
     </UserControl.Resources>
 
     <Grid>
@@ -30,14 +54,25 @@
                   RowHeight="60"
                   SelectionMode="Single"
                   SelectionUnit="FullRow"
+                  MouseDoubleClick="OnProjectDataGridMouseDoubleClick"
+                  PreviewKeyDown="OnProjectDataGridPreviewKeyDown"
+                  PreviewMouseRightButtonDown="OnProjectDataGridPreviewMouseRightButtonDown"
                   Sorting="OnSorting">
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Setter Property="ContextMenu"
+                            Value="{StaticResource ProjectContextMenu}" />
+                </Style>
+            </DataGrid.RowStyle>
             <DataGrid.Columns>
                 <DataGridTemplateColumn Header="★" Width="48" CanUserSort="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <TextBlock HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       Text="{Binding FavoriteGlyph}" />
+                            <Button Padding="6,3"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Command="{Binding ContextActions.ToggleFavoriteCommand}"
+                                    Content="{Binding FavoriteGlyph}" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
@@ -96,6 +131,20 @@
                                     CanUserSort="True"
                                     SortMemberPath="LastLaunched"
                                     Binding="{Binding LastLaunched, Converter={StaticResource RelativeTimeConverter}}" />
+                <DataGridTemplateColumn Header=""
+                                        Width="48"
+                                        CanUserSort="False">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Padding="7,2"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Content="⋮"
+                                    ContextMenu="{StaticResource ProjectContextMenu}"
+                                    Click="OnOverflowClick" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
 

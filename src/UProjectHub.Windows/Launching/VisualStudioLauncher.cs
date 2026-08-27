@@ -13,20 +13,40 @@ public sealed class VisualStudioLauncher : IVisualStudioLauncher
         _processLauncher = processLauncher;
     }
 
+    public bool CanOpenSolution(UnrealProject project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        return SelectSolution(project).SolutionPath is not null;
+    }
+
     public LaunchResult OpenSolution(UnrealProject project)
     {
         ArgumentNullException.ThrowIfNull(project);
 
+        var selection = SelectSolution(project);
+        if (selection.SolutionPath is null)
+        {
+            return LaunchResult.Failed(selection.ErrorMessage!);
+        }
+
+        return _processLauncher.Launch(new ProcessRequest(
+            fileName: selection.SolutionPath,
+            useShellExecute: true));
+    }
+
+    private static SolutionSelection SelectSolution(UnrealProject project)
+    {
         if (project.ProjectType != ProjectType.Cpp)
         {
-            return LaunchResult.Failed(
+            return SolutionSelection.Unavailable(
                 "Open in Visual Studio is available only for C++ projects.");
         }
 
         if (string.IsNullOrWhiteSpace(project.ProjectDirectory)
             || !Directory.Exists(project.ProjectDirectory))
         {
-            return LaunchResult.Failed("The project directory was not found.");
+            return SolutionSelection.Unavailable(
+                "The project directory was not found.");
         }
 
         string[] solutions;
@@ -46,7 +66,7 @@ public sealed class VisualStudioLauncher : IVisualStudioLauncher
         }
         catch (Exception exception) when (IsExpectedEnumerationFailure(exception))
         {
-            return LaunchResult.Failed(exception.Message);
+            return SolutionSelection.Unavailable(exception.Message);
         }
 
         var namedSolution = solutions.FirstOrDefault(solution =>
@@ -54,20 +74,19 @@ public sealed class VisualStudioLauncher : IVisualStudioLauncher
                 Path.GetFileNameWithoutExtension(solution),
                 project.Name,
                 StringComparison.OrdinalIgnoreCase));
-        var selectedSolution = namedSolution
-            ?? (solutions.Length == 1 ? solutions[0] : null);
-
-        if (selectedSolution is null)
+        if (namedSolution is not null)
         {
-            return LaunchResult.Failed(
-                solutions.Length == 0
-                    ? "No existing Visual Studio solution was found."
-                    : "More than one Visual Studio solution is available.");
+            return SolutionSelection.Available(namedSolution);
         }
 
-        return _processLauncher.Launch(new ProcessRequest(
-            fileName: selectedSolution,
-            useShellExecute: true));
+        return solutions.Length switch
+        {
+            1 => SolutionSelection.Available(solutions[0]),
+            0 => SolutionSelection.Unavailable(
+                "No existing Visual Studio solution was found."),
+            _ => SolutionSelection.Unavailable(
+                "More than one Visual Studio solution is available."),
+        };
     }
 
     private static bool IsExpectedEnumerationFailure(Exception exception) =>
@@ -76,4 +95,15 @@ public sealed class VisualStudioLauncher : IVisualStudioLauncher
             or SecurityException
             or ArgumentException
             or NotSupportedException;
+
+    private sealed record SolutionSelection(
+        string? SolutionPath,
+        string? ErrorMessage)
+    {
+        public static SolutionSelection Available(string solutionPath) =>
+            new(solutionPath, null);
+
+        public static SolutionSelection Unavailable(string errorMessage) =>
+            new(null, errorMessage);
+    }
 }

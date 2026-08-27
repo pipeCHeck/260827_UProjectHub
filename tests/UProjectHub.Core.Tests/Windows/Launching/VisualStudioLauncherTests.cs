@@ -16,6 +16,8 @@ public sealed class VisualStudioLauncherTests
         var process = new FakeProcessLauncher(LaunchResult.Succeeded());
         IVisualStudioLauncher launcher = new VisualStudioLauncher(process);
 
+        Assert.IsTrue(launcher.CanOpenSolution(fixture.Project));
+
         var result = launcher.OpenSolution(fixture.Project);
 
         Assert.IsTrue(result.IsSuccess);
@@ -35,6 +37,8 @@ public sealed class VisualStudioLauncherTests
         var process = new FakeProcessLauncher(LaunchResult.Succeeded());
         var launcher = new VisualStudioLauncher(process);
 
+        Assert.IsTrue(launcher.CanOpenSolution(fixture.Project));
+
         var result = launcher.OpenSolution(fixture.Project);
 
         Assert.IsTrue(result.IsSuccess);
@@ -50,6 +54,8 @@ public sealed class VisualStudioLauncherTests
         var emptyProcess = new FakeProcessLauncher(LaunchResult.Succeeded());
         var emptyLauncher = new VisualStudioLauncher(emptyProcess);
 
+        Assert.IsFalse(emptyLauncher.CanOpenSolution(emptyFixture.Project));
+
         var emptyResult = emptyLauncher.OpenSolution(emptyFixture.Project);
 
         Assert.IsFalse(emptyResult.IsSuccess);
@@ -62,6 +68,8 @@ public sealed class VisualStudioLauncherTests
         multipleFixture.CreateSolution("Second.sln", "second");
         var multipleProcess = new FakeProcessLauncher(LaunchResult.Succeeded());
         var multipleLauncher = new VisualStudioLauncher(multipleProcess);
+
+        Assert.IsFalse(multipleLauncher.CanOpenSolution(multipleFixture.Project));
 
         var multipleResult = multipleLauncher.OpenSolution(
             multipleFixture.Project);
@@ -80,6 +88,8 @@ public sealed class VisualStudioLauncherTests
         fixture.CreateSolution("BlueprintProject.sln", "solution");
         var process = new FakeProcessLauncher(LaunchResult.Succeeded());
         var launcher = new VisualStudioLauncher(process);
+
+        Assert.IsFalse(launcher.CanOpenSolution(fixture.Project));
 
         var result = launcher.OpenSolution(fixture.Project);
 

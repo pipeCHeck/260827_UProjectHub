@@ -5,12 +5,17 @@ namespace UProjectHub.App.ViewModels;
 
 public sealed class ProjectRowViewModel
 {
-    public ProjectRowViewModel(UnrealProject project)
+    public ProjectRowViewModel(
+        UnrealProject project,
+        ProjectContextActionsViewModel? contextActions = null)
     {
         Project = project ?? throw new ArgumentNullException(nameof(project));
+        ContextActions = contextActions;
     }
 
     public UnrealProject Project { get; }
+
+    public ProjectContextActionsViewModel? ContextActions { get; }
 
     public bool IsFavorite => Project.IsFavorite;
 
