@@ -387,7 +387,7 @@ Start with:
 
 Add external packages only when they provide clear value that would otherwise require significant, fragile custom code.
 
-Do not pull in a large UI theme framework solely to mimic One UI.
+Do not pull in a large UI theme framework solely to mimic Samsung One UI 7.
 
 The visual system should remain understandable from local XAML resources.
 

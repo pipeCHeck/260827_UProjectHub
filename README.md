@@ -12,9 +12,9 @@ The main list combines:
 
 - File Explorer "Details" view: sortable columns and compact scanning.
 - Unity Hub: project-centered vertical rows with path and metadata.
-- One UI-inspired visual language: calm surfaces, rounded controls, clear hierarchy, and restrained use of color.
+- Samsung One UI 7-inspired visual language: rounded geometry, clear hierarchy, calm layered surfaces, restrained translucency or blur where appropriate, and subtle interaction motion.
 
-Usability and information density take priority over visual imitation.
+One UI 7 is interpreted for a desktop project-management tool rather than reproduced pixel for pixel. The priority order remains usability, information density and scanability, consistency, then visual polish and motion; the vertical details/list layout must not become a mobile-style, card-centric interface.
 
 ## MVP
 

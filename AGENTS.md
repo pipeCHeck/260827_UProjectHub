@@ -10,9 +10,9 @@ The app should feel like:
 
 - Windows File Explorer "Details" view for information density and sorting.
 - Unity Hub project list for project-oriented navigation.
-- Samsung One UI as a visual reference for spacing, surfaces, rounded controls, typography hierarchy, and quiet states.
+- Samsung One UI 7 as a visual reference for rounded geometry, clear hierarchy, calm layered surfaces, restrained translucency or blur where appropriate, and smooth but subtle interaction motion.
 
-One UI is a design reference, not a pixel-perfect target. Usability, scanability, and information density always take priority over visual imitation.
+One UI 7 is a design reference, not a pixel-perfect target. Interpret it for a desktop project-management tool: preserve the vertical details/list experience and do not adopt mobile-scale spacing or a card-centric layout. Usability, information density and scanability, consistency, then visual polish and motion remain the priority order.
 
 ## Source of Truth
 

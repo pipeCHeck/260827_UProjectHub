@@ -6,18 +6,18 @@ The UI combines three references:
 
 - **Windows File Explorer Details view** for sorting and scanability;
 - **Unity Hub project list** for project-centered rows with path/metadata;
-- **One UI** for visual calm, spacing, rounded surfaces, hierarchy, and restrained use of color.
+- **Samsung One UI 7** for rounded geometry, clear visual hierarchy, calm layered surfaces, restrained translucency or blur where appropriate, and smooth but subtle interaction motion.
 
-One UI is not a pixel-perfect target.
+One UI 7 is not a pixel-perfect target. Interpret it for a desktop project-management tool while preserving the vertical details/list experience. Do not adopt mobile-scale whitespace or turn the project list into a card-centric layout.
 
 Priority order:
 
 1. usability;
 2. information density and scanability;
 3. consistency;
-4. visual polish.
+4. visual polish and motion.
 
-If a One UI-inspired treatment makes the project list slower to scan or harder to operate, choose the more usable design.
+If a One UI 7-inspired treatment makes the project list slower to scan or harder to operate, choose the more usable design.
 
 ## 2. Main Window
 
@@ -339,7 +339,7 @@ Do not turn the list into stacked mobile cards.
 
 ## 19. Settings UI
 
-Settings use a vertical One UI-inspired grouping style.
+Settings use a vertical One UI 7-inspired grouping style.
 
 Example:
 
@@ -375,7 +375,7 @@ Default theme setting:
 
     System
 
-One UI-inspired traits:
+One UI 7-inspired traits:
 
 - clean neutral surfaces;
 - comfortable but not wasteful spacing;
@@ -395,7 +395,7 @@ Motion exists only to:
 - provide short feedback for user input;
 - make a state change perceptible;
 - keep small UI transitions from feeling unnecessarily rigid;
-- reference the soft interaction character of One UI in a restrained way.
+- reference the soft interaction character of One UI 7 in a restrained way.
 
 Priority order:
 

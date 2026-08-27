@@ -904,7 +904,7 @@ Task 사이의 이름과 책임은 아래 계약을 사용한다.
 
 ### Task 25. Semantic themes, motion, density, responsive columns
 
-**목표:** One UI 참고를 semantic theme/motion resource로 구현하되 usability, scanability, input responsiveness, desktop density를 우선한다.
+**목표:** Samsung One UI 7 참고를 semantic theme/motion resource로 구현하되 usability, scanability, input responsiveness, desktop density를 우선한다.
 
 **생성 파일**
 

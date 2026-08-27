@@ -38,7 +38,7 @@ The primary use case is a developer with many Unreal projects who wants to find 
    Business logic, OS integration, and UI are separated and independently testable.
 
 7. **Design serves utility**  
-   One UI is a visual reference. Usability and information density are higher priorities.
+   Samsung One UI 7 is a non-pixel-perfect design reference interpreted for a desktop project-management tool. Usability, information density and scanability, consistency, then visual polish and motion are the priority order; the vertical details/list experience must not become a mobile-style, card-centric interface.
 
 ### 2.1 Implementation Platform
 
