@@ -11,10 +11,12 @@ public sealed class MainViewModel : ObservableObject
     public MainViewModel(
         StatusBarViewModel statusBar,
         Action? settingsAction = null,
-        ProjectListViewModel? projectList = null)
+        ProjectListViewModel? projectList = null,
+        SearchFilterViewModel? searchFilter = null)
     {
         StatusBar = statusBar ?? throw new ArgumentNullException(nameof(statusBar));
         ProjectList = projectList ?? new ProjectListViewModel();
+        SearchFilter = searchFilter;
         SettingsCommand = new RelayCommand(
             () => settingsAction!(),
             () => settingsAction is not null);
@@ -30,13 +32,23 @@ public sealed class MainViewModel : ObservableObject
 
     public ProjectListViewModel ProjectList { get; }
 
+    public SearchFilterViewModel? SearchFilter { get; }
+
     public ICommand SettingsCommand { get; }
 
     public void SetProjects(ProjectCatalogSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
 
-        ProjectList.SetSnapshot(snapshot);
+        if (SearchFilter is null)
+        {
+            ProjectList.SetSnapshot(snapshot);
+        }
+        else
+        {
+            SearchFilter.SetSnapshot(snapshot);
+        }
+
         SetProjectCount(ProjectList.TotalCount);
     }
 

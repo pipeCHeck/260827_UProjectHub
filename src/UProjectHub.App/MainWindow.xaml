@@ -7,9 +7,11 @@
         Height="700"
         MinWidth="800"
         MinHeight="520"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        PreviewKeyDown="OnPreviewKeyDown">
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
@@ -38,11 +40,68 @@
                     Content="Settings" />
         </Grid>
 
-        <controls:ProjectList Grid.Row="1"
-                              Margin="24,8,24,16"
-                              DataContext="{Binding ProjectList}" />
+        <Grid Grid.Row="1"
+              Margin="24,0,24,12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-        <Border Grid.Row="2"
+            <controls:SearchBox x:Name="ProjectSearchBox"
+                                Text="{Binding SearchFilter.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                ClearCommand="{Binding SearchFilter.ClearSearchCommand}" />
+
+            <StackPanel Grid.Row="1"
+                        Margin="0,8,0,0"
+                        Orientation="Horizontal">
+                <controls:FilterChip Label="Engine">
+                    <controls:FilterChip.ChipContent>
+                        <ComboBox Width="160"
+                                  ItemsSource="{Binding SearchFilter.EngineFilterOptions}"
+                                  DisplayMemberPath="Label"
+                                  SelectedValuePath="Value"
+                                  SelectedValue="{Binding SearchFilter.SelectedEngine, Mode=TwoWay}" />
+                    </controls:FilterChip.ChipContent>
+                </controls:FilterChip>
+
+                <controls:FilterChip Margin="8,0,0,0"
+                                     Label="Type">
+                    <controls:FilterChip.ChipContent>
+                        <ComboBox Width="120"
+                                  ItemsSource="{Binding SearchFilter.ProjectTypeOptions}"
+                                  DisplayMemberPath="Label"
+                                  SelectedValuePath="Value"
+                                  SelectedValue="{Binding SearchFilter.SelectedProjectType, Mode=TwoWay}" />
+                    </controls:FilterChip.ChipContent>
+                </controls:FilterChip>
+
+                <controls:FilterChip Margin="8,0,0,0"
+                                     Label="Favorites"
+                                     IsActive="{Binding SearchFilter.FavoritesOnly}">
+                    <controls:FilterChip.ChipContent>
+                        <CheckBox VerticalAlignment="Center"
+                                  Content="Only"
+                                  IsChecked="{Binding SearchFilter.FavoritesOnly, Mode=TwoWay}" />
+                    </controls:FilterChip.ChipContent>
+                </controls:FilterChip>
+
+                <Button Margin="12,0,0,0"
+                        Padding="12,6"
+                        VerticalAlignment="Center"
+                        Command="{Binding SearchFilter.ResetCommand}"
+                        Content="Reset"
+                        IsEnabled="{Binding SearchFilter.HasActiveSearchOrFilters}" />
+            </StackPanel>
+        </Grid>
+
+        <controls:ProjectList Grid.Row="2"
+                              Margin="24,8,24,16"
+                              DataContext="{Binding ProjectList}"
+                              ActiveSort="{Binding DataContext.SearchFilter.ActiveSort, RelativeSource={RelativeSource AncestorType=Window}}"
+                              ResetCommand="{Binding DataContext.SearchFilter.ResetCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                              SortRequested="OnProjectSortRequested" />
+
+        <Border Grid.Row="3"
                 Padding="24,10"
                 BorderBrush="{DynamicResource {x:Static SystemColors.ControlDarkBrushKey}}"
                 BorderThickness="0,1,0,0">
