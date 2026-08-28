@@ -1,6 +1,7 @@
 <Window x:Class="UProjectHub.App.Views.ProjectInformationWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:behaviors="clr-namespace:UProjectHub.App.Behaviors"
         Title="Project Information"
         Width="620"
         Height="520"
@@ -10,7 +11,14 @@
         Foreground="{DynamicResource Brush.TextPrimary}"
         ResizeMode="CanResize"
         ShowInTaskbar="False"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        Opacity="0"
+        behaviors:MotionFeedbackBehavior.Duration="{DynamicResource Motion.SlowDuration}"
+        behaviors:MotionFeedbackBehavior.EasingFunction="{DynamicResource Motion.EaseOut}"
+        behaviors:MotionFeedbackBehavior.IsOpacityFeedbackEnabled="True"
+        behaviors:MotionFeedbackBehavior.RestingOpacity="0"
+        behaviors:MotionFeedbackBehavior.ActiveOpacity="1"
+        behaviors:MotionFeedbackBehavior.IsOpacityFeedbackActive="{Binding IsVisible, RelativeSource={RelativeSource Self}}">
     <Grid Margin="{DynamicResource Thickness.DialogContent}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />

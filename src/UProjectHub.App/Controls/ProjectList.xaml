@@ -72,7 +72,7 @@
                 <DataGridTemplateColumn Header="★" Width="48" CanUserSort="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <Button Style="{DynamicResource Button.Icon}"
+                            <Button Style="{DynamicResource Button.Favorite}"
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     Command="{Binding ContextActions.ToggleFavoriteCommand}"

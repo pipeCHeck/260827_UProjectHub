@@ -1,9 +1,10 @@
 <UserControl x:Class="UProjectHub.App.Controls.FilterChip"
              x:Name="Root"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Border Height="{DynamicResource Metric.FilterControlHeight}"
-            Padding="{DynamicResource Thickness.FilterPadding}"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:behaviors="clr-namespace:UProjectHub.App.Behaviors">
+    <Border x:Name="ChipChrome"
+            Height="{DynamicResource Metric.FilterControlHeight}"
             BorderThickness="1"
             CornerRadius="{DynamicResource CornerRadius.Small}">
         <Border.Style>
@@ -15,30 +16,40 @@
                         <Setter Property="Background" Value="{DynamicResource Brush.AccentSubtle}" />
                         <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
                     </DataTrigger>
-                    <Trigger Property="IsMouseOver" Value="True">
-                        <Setter Property="Background" Value="{DynamicResource Brush.HoverSurface}" />
-                    </Trigger>
                 </Style.Triggers>
             </Style>
         </Border.Style>
-        <StackPanel Orientation="Horizontal">
-            <TextBlock Margin="0,0,6,0"
-                       VerticalAlignment="Center"
-                       Foreground="{DynamicResource Brush.TextPrimary}"
-                       Text="{Binding Label, ElementName=Root}">
-                <TextBlock.Style>
-                    <Style TargetType="TextBlock">
-                        <Setter Property="FontWeight" Value="Normal" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsActive, ElementName=Root}" Value="True">
-                                <Setter Property="FontWeight" Value="SemiBold" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </TextBlock.Style>
-            </TextBlock>
-            <ContentPresenter VerticalAlignment="Center"
-                              Content="{Binding ChipContent, ElementName=Root}" />
-        </StackPanel>
+        <Grid>
+            <Border Background="{DynamicResource Brush.HoverSurface}"
+                    CornerRadius="{DynamicResource CornerRadius.Small}"
+                    IsHitTestVisible="False"
+                    Opacity="0"
+                    behaviors:MotionFeedbackBehavior.Duration="{DynamicResource Motion.NormalDuration}"
+                    behaviors:MotionFeedbackBehavior.EasingFunction="{DynamicResource Motion.EaseOut}"
+                    behaviors:MotionFeedbackBehavior.IsOpacityFeedbackEnabled="True"
+                    behaviors:MotionFeedbackBehavior.RestingOpacity="0"
+                    behaviors:MotionFeedbackBehavior.ActiveOpacity="0.55"
+                    behaviors:MotionFeedbackBehavior.IsOpacityFeedbackActive="{Binding IsMouseOver, ElementName=ChipChrome}" />
+            <StackPanel Margin="{DynamicResource Thickness.FilterPadding}"
+                        Orientation="Horizontal">
+                <TextBlock Margin="0,0,6,0"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource Brush.TextPrimary}"
+                           Text="{Binding Label, ElementName=Root}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="FontWeight" Value="Normal" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsActive, ElementName=Root}" Value="True">
+                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <ContentPresenter VerticalAlignment="Center"
+                                  Content="{Binding ChipContent, ElementName=Root}" />
+            </StackPanel>
+        </Grid>
     </Border>
 </UserControl>
