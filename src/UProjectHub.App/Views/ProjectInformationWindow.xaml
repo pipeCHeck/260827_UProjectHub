@@ -6,22 +6,23 @@
         Height="520"
         MinWidth="520"
         MinHeight="420"
+        Background="{DynamicResource Brush.WindowBackground}"
+        Foreground="{DynamicResource Brush.TextPrimary}"
         ResizeMode="CanResize"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner">
-    <Grid Margin="24">
+    <Grid Margin="{DynamicResource Thickness.DialogContent}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock FontSize="24"
-                   FontWeight="SemiBold"
+        <TextBlock Style="{DynamicResource Text.DialogTitle}"
                    Text="{Binding Name}" />
 
         <ScrollViewer Grid.Row="1"
-                      Margin="0,20,0,20"
+                      Margin="{DynamicResource Thickness.DialogSectionGap}"
                       VerticalScrollBarVisibility="Auto">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -44,30 +45,29 @@
 
                 <TextBlock Grid.Row="0" FontWeight="SemiBold" Text="Project file" />
                 <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ProjectPath}" TextWrapping="Wrap" />
-                <TextBlock Grid.Row="1" Margin="0,12,0,0" FontWeight="SemiBold" Text="Directory" />
-                <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,12,0,0" Text="{Binding ProjectDirectory}" TextWrapping="Wrap" />
-                <TextBlock Grid.Row="2" Margin="0,12,0,0" FontWeight="SemiBold" Text="Engine association" />
-                <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,12,0,0" Text="{Binding EngineAssociation}" />
-                <TextBlock Grid.Row="3" Margin="0,12,0,0" FontWeight="SemiBold" Text="Engine version" />
-                <TextBlock Grid.Row="3" Grid.Column="1" Margin="0,12,0,0" Text="{Binding EngineDisplayVersion}" />
-                <TextBlock Grid.Row="4" Margin="0,12,0,0" FontWeight="SemiBold" Text="Project type" />
-                <TextBlock Grid.Row="4" Grid.Column="1" Margin="0,12,0,0" Text="{Binding ProjectType}" />
-                <TextBlock Grid.Row="5" Margin="0,12,0,0" FontWeight="SemiBold" Text="Project state" />
-                <TextBlock Grid.Row="5" Grid.Column="1" Margin="0,12,0,0" Text="{Binding ProjectState}" />
-                <TextBlock Grid.Row="6" Margin="0,12,0,0" FontWeight="SemiBold" Text="Engine state" />
-                <TextBlock Grid.Row="6" Grid.Column="1" Margin="0,12,0,0" Text="{Binding EngineState}" />
-                <TextBlock Grid.Row="7" Margin="0,12,0,0" FontWeight="SemiBold" Text="Favorite" />
-                <TextBlock Grid.Row="7" Grid.Column="1" Margin="0,12,0,0" Text="{Binding IsFavorite}" />
-                <TextBlock Grid.Row="8" Margin="0,12,0,0" FontWeight="SemiBold" Text="Last modified" />
-                <TextBlock Grid.Row="8" Grid.Column="1" Margin="0,12,0,0" Text="{Binding LastModified}" />
-                <TextBlock Grid.Row="9" Margin="0,12,0,0" FontWeight="SemiBold" Text="Last launched" />
-                <TextBlock Grid.Row="9" Grid.Column="1" Margin="0,12,0,0" Text="{Binding LastLaunched}" />
+                <TextBlock Grid.Row="1" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="Directory" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Margin="{DynamicResource Thickness.DialogRowGap}" Text="{Binding ProjectDirectory}" TextWrapping="Wrap" />
+                <TextBlock Grid.Row="2" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="Engine association" />
+                <TextBlock Grid.Row="2" Grid.Column="1" Margin="{DynamicResource Thickness.DialogRowGap}" Text="{Binding EngineAssociation}" />
+                <TextBlock Grid.Row="3" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="Engine version" />
+                <TextBlock Grid.Row="3" Grid.Column="1" Margin="{DynamicResource Thickness.DialogRowGap}" Text="{Binding EngineDisplayVersion}" />
+                <TextBlock Grid.Row="4" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="Project type" />
+                <TextBlock Grid.Row="4" Grid.Column="1" Margin="{DynamicResource Thickness.DialogRowGap}" Text="{Binding ProjectType}" />
+                <TextBlock Grid.Row="5" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="Project state" />
+                <TextBlock Grid.Row="5" Grid.Column="1" Margin="{DynamicResource Thickness.DialogRowGap}" Text="{Binding ProjectState}" />
+                <TextBlock Grid.Row="6" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="Engine state" />
+                <TextBlock Grid.Row="6" Grid.Column="1" Margin="{DynamicResource Thickness.DialogRowGap}" Text="{Binding EngineState}" />
+                <TextBlock Grid.Row="7" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="Favorite" />
+                <TextBlock Grid.Row="7" Grid.Column="1" Margin="{DynamicResource Thickness.DialogRowGap}" Text="{Binding IsFavorite}" />
+                <TextBlock Grid.Row="8" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="Last modified" />
+                <TextBlock Grid.Row="8" Grid.Column="1" Margin="{DynamicResource Thickness.DialogRowGap}" Text="{Binding LastModified}" />
+                <TextBlock Grid.Row="9" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="Last launched" />
+                <TextBlock Grid.Row="9" Grid.Column="1" Margin="{DynamicResource Thickness.DialogRowGap}" Text="{Binding LastLaunched}" />
             </Grid>
         </ScrollViewer>
 
         <Button Grid.Row="2"
                 MinWidth="88"
-                Padding="14,7"
                 HorizontalAlignment="Right"
                 IsCancel="True"
                 Content="Close" />

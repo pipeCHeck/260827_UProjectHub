@@ -2,11 +2,12 @@
              x:Name="Root"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Height="46">
-    <Border Padding="12,0"
-            BorderBrush="{DynamicResource {x:Static SystemColors.ControlDarkBrushKey}}"
+             Height="{DynamicResource Metric.SearchControlHeight}">
+    <Border Padding="{DynamicResource Thickness.SearchPadding}"
+            Background="{DynamicResource Brush.Surface}"
+            BorderBrush="{DynamicResource Brush.BorderSubtle}"
             BorderThickness="1"
-            CornerRadius="6">
+            CornerRadius="{DynamicResource CornerRadius.Control}">
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
@@ -14,21 +15,23 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <TextBlock Margin="0,0,10,0"
+            <TextBlock Margin="{DynamicResource Thickness.IconGap}"
                        VerticalAlignment="Center"
-                       Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"
+                       Foreground="{DynamicResource Brush.TextSecondary}"
                        Text="⌕" />
 
             <Grid Grid.Column="1">
                 <TextBox x:Name="SearchInput"
                          Padding="0"
                          VerticalContentAlignment="Center"
-                         Background="Transparent"
+                         Background="{DynamicResource Brush.Transparent}"
+                         Foreground="{DynamicResource Brush.TextPrimary}"
+                         CaretBrush="{DynamicResource Brush.TextPrimary}"
                          BorderThickness="0"
                          Text="{Binding Text, ElementName=Root, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock IsHitTestVisible="False"
                            VerticalAlignment="Center"
-                           Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"
+                           Foreground="{DynamicResource Brush.TextSecondary}"
                            Text="Search projects...">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
@@ -44,13 +47,11 @@
             </Grid>
 
             <Button Grid.Column="2"
-                    MinWidth="28"
                     Margin="8,0,0,0"
-                    Padding="4,0"
                     Command="{Binding ClearCommand, ElementName=Root}"
                     Content="×">
                 <Button.Style>
-                    <Style TargetType="Button">
+                    <Style TargetType="Button" BasedOn="{StaticResource Button.Icon}">
                         <Setter Property="Visibility" Value="Visible" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding Text, ElementName=SearchInput}" Value="">

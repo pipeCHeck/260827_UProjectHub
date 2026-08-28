@@ -13,7 +13,9 @@ using UProjectHub.Core.Sorting;
 using UProjectHub.Core.Storage;
 using UProjectHub.Core.Time;
 using UProjectHub.Windows.Launching;
+using UProjectHub.Windows.Registry;
 using UProjectHub.Windows.Storage;
+using AppThemeMode = UProjectHub.Core.Settings.ThemeMode;
 
 namespace UProjectHub.App.Composition;
 
@@ -22,6 +24,22 @@ public sealed class AppBootstrapper
     public MainViewModel Build()
     {
         var statusBar = new StatusBarViewModel();
+        var applicationResources = Application.Current?.Resources
+            ?? new ResourceDictionary();
+        var registryReader = new WindowsRegistryReader();
+        var themeService = new ThemeService(
+            applicationResources,
+            () => ResolveSystemTheme(registryReader));
+        themeService.ApplySettings(new AppSettings());
+
+        var animationPreference = new WpfSystemAnimationPreference();
+        var motionService = new MotionService(
+            applicationResources,
+            animationPreference);
+        statusBar.SetAnimationsEnabled(motionService.AreAnimationsEnabled);
+        motionService.PreferenceChanged += (_, _) =>
+            statusBar.SetAnimationsEnabled(motionService.AreAnimationsEnabled);
+
         var clock = new SystemClock();
         var paths = new LocalAppDataPathProvider().GetPaths();
         var writer = new AtomicJsonFileWriter();
@@ -65,6 +83,23 @@ public sealed class AppBootstrapper
             projectList: projectList,
             searchFilter: searchFilter,
             projectActions: projectActions);
+    }
+
+    private static AppThemeMode ResolveSystemTheme(IRegistryReader registryReader)
+    {
+        const string personalizeKey =
+            @"SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize";
+        var value = registryReader
+            .ReadCurrentUserValues(personalizeKey)
+            .FirstOrDefault(entry => string.Equals(
+                entry.Name,
+                "AppsUseLightTheme",
+                StringComparison.OrdinalIgnoreCase))
+            ?.Value;
+
+        return value is int appsUseLightTheme && appsUseLightTheme == 0
+            ? AppThemeMode.Dark
+            : AppThemeMode.Light;
     }
 
     private static void ShowProjectInformation(

@@ -7,6 +7,8 @@
         Height="700"
         MinWidth="800"
         MinHeight="520"
+        Background="{DynamicResource Brush.WindowBackground}"
+        Foreground="{DynamicResource Brush.TextPrimary}"
         WindowStartupLocation="CenterScreen"
         PreviewKeyDown="OnPreviewKeyDown">
     <Grid>
@@ -17,31 +19,29 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Grid Margin="24,20,24,12">
+        <Grid Margin="{DynamicResource Thickness.WindowHeaderMargin}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <StackPanel>
-                <TextBlock FontSize="28"
-                           FontWeight="SemiBold"
+                <TextBlock Style="{DynamicResource Text.PageTitle}"
                            Text="{Binding Title}" />
                 <TextBlock Margin="0,4,0,0"
-                           Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"
+                           Style="{DynamicResource Text.Secondary}"
                            Text="{Binding ProjectCountText}" />
             </StackPanel>
 
             <Button Grid.Column="1"
                     MinWidth="88"
-                    Padding="14,7"
                     VerticalAlignment="Top"
                     Command="{Binding SettingsCommand}"
                     Content="Settings" />
         </Grid>
 
         <Grid Grid.Row="1"
-              Margin="24,0,24,12">
+              Margin="{DynamicResource Thickness.ToolbarMargin}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -52,7 +52,7 @@
                                 ClearCommand="{Binding SearchFilter.ClearSearchCommand}" />
 
             <StackPanel Grid.Row="1"
-                        Margin="0,8,0,0"
+                        Margin="{DynamicResource Thickness.SectionTopGap}"
                         Orientation="Horizontal">
                 <controls:FilterChip Label="Engine">
                     <controls:FilterChip.ChipContent>
@@ -64,7 +64,7 @@
                     </controls:FilterChip.ChipContent>
                 </controls:FilterChip>
 
-                <controls:FilterChip Margin="8,0,0,0"
+                <controls:FilterChip Margin="{DynamicResource Thickness.ChipGap}"
                                      Label="Type">
                     <controls:FilterChip.ChipContent>
                         <ComboBox Width="120"
@@ -75,18 +75,18 @@
                     </controls:FilterChip.ChipContent>
                 </controls:FilterChip>
 
-                <controls:FilterChip Margin="8,0,0,0"
+                <controls:FilterChip Margin="{DynamicResource Thickness.ChipGap}"
                                      Label="Favorites"
                                      IsActive="{Binding SearchFilter.FavoritesOnly}">
                     <controls:FilterChip.ChipContent>
                         <CheckBox VerticalAlignment="Center"
+                                  Foreground="{DynamicResource Brush.TextPrimary}"
                                   Content="Only"
                                   IsChecked="{Binding SearchFilter.FavoritesOnly, Mode=TwoWay}" />
                     </controls:FilterChip.ChipContent>
                 </controls:FilterChip>
 
-                <Button Margin="12,0,0,0"
-                        Padding="12,6"
+                <Button Margin="{DynamicResource Thickness.ResetGap}"
                         VerticalAlignment="Center"
                         Command="{Binding SearchFilter.ResetCommand}"
                         Content="Reset"
@@ -95,25 +95,59 @@
         </Grid>
 
         <controls:ProjectList Grid.Row="2"
-                              Margin="24,8,24,16"
+                              Margin="{DynamicResource Thickness.ProjectListMargin}"
                               DataContext="{Binding ProjectList}"
                               ActiveSort="{Binding DataContext.SearchFilter.ActiveSort, RelativeSource={RelativeSource AncestorType=Window}}"
                               ResetCommand="{Binding DataContext.SearchFilter.ResetCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                               SortRequested="OnProjectSortRequested" />
 
         <Border Grid.Row="3"
-                Padding="24,10"
-                BorderBrush="{DynamicResource {x:Static SystemColors.ControlDarkBrushKey}}"
+                Padding="{DynamicResource Thickness.StatusPadding}"
+                Background="{DynamicResource Brush.Surface}"
+                BorderBrush="{DynamicResource Brush.BorderSubtle}"
                 BorderThickness="0,1,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"
-                           Text="{Binding StatusBar.StatusText}" />
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Margin="0,0,8,0"
+                               Foreground="{DynamicResource Brush.Accent}"
+                               Text="↻"
+                               RenderTransformOrigin="0.5,0.5">
+                        <TextBlock.RenderTransform>
+                            <RotateTransform />
+                        </TextBlock.RenderTransform>
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Secondary}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding StatusBar.IsOperationActive}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding StatusBar.IsOperationActive}" Value="True" />
+                                            <Condition Binding="{Binding StatusBar.AreAnimationsEnabled}" Value="True" />
+                                        </MultiDataTrigger.Conditions>
+                                        <MultiDataTrigger.EnterActions>
+                                            <BeginStoryboard x:Name="ActivityRotation"
+                                                             Storyboard="{StaticResource Motion.ActivityRotationStoryboard}" />
+                                        </MultiDataTrigger.EnterActions>
+                                        <MultiDataTrigger.ExitActions>
+                                            <RemoveStoryboard BeginStoryboardName="ActivityRotation" />
+                                        </MultiDataTrigger.ExitActions>
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <TextBlock Style="{DynamicResource Text.Secondary}"
+                               Text="{Binding StatusBar.StatusText}" />
+                </StackPanel>
                 <TextBlock Grid.Column="1"
-                           Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"
+                           Style="{DynamicResource Text.Secondary}"
                            Text="{Binding ProjectList.ShowingCountText}" />
             </Grid>
         </Border>
