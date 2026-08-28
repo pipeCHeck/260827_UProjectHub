@@ -106,7 +106,9 @@ public sealed class ApplicationCoordinator
             startupToken);
         _logger.Info($"Published {projectCache.Projects.Count} cached project(s).");
 
-        var refreshTask = RunRefreshOperationAsync(settings, _lifetimeCancellation.Token);
+        var refreshTask = RunStartupRefreshOperationAsync(
+            settings,
+            _lifetimeCancellation.Token);
         Track(refreshTask);
     }
 
@@ -160,6 +162,18 @@ public sealed class ApplicationCoordinator
             "Refreshing projects...",
             "Background refresh",
             () => _backgroundRefresh.RefreshAsync(settings, cancellationToken),
+            cancellationToken);
+        return result is not null;
+    }
+
+    private async Task<bool> RunStartupRefreshOperationAsync(
+        AppSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var result = await RunOperationAsync(
+            "Refreshing projects...",
+            "Background refresh",
+            () => _backgroundRefresh.StartupRefreshAsync(settings, cancellationToken),
             cancellationToken);
         return result is not null;
     }

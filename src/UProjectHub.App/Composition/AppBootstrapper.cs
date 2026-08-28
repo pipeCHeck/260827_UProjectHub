@@ -164,6 +164,13 @@ public sealed class AppBootstrapper
                     settings,
                     progress,
                     cancellationToken),
+            (roots, settings, excludedProjects, cancellationToken, projectLoaded) =>
+                discoveryService.DiscoverShallowAsync(
+                    roots,
+                    settings,
+                    excludedProjects,
+                    cancellationToken,
+                    projectLoaded),
             (settings, cancellationToken) => DiscoverEnginesAsync(
                 settings,
                 registryReader,

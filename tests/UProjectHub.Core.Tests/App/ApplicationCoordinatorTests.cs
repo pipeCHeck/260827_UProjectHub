@@ -62,6 +62,8 @@ public sealed class ApplicationCoordinatorTests
         Assert.AreEqual(0, fixture.RescanCalls);
 
         fixture.ReleaseRefresh.TrySetResult();
+        await fixture.EngineCache.Saved.Task;
+        Assert.AreEqual(1, fixture.LightweightDiscoveryCalls);
         await fixture.Coordinator.StopAsync();
     }
 
@@ -125,6 +127,33 @@ public sealed class ApplicationCoordinatorTests
     }
 
     [TestMethod]
+    public async Task StartupLightweightDiscoveryAddsNewProjectToFinalCache()
+    {
+        var fixture = CreateFixture(CreateSettings(), [], []);
+        fixture.LightweightProjects =
+        [
+            new UnrealProject(
+                "Discovered",
+                new ProjectPath(@"C:\Configured\Discovered\Discovered.uproject"),
+                "5.8",
+                "5.8",
+                ProjectType.Blueprint,
+                new DateTimeOffset(2026, 8, 28, 1, 0, 0, TimeSpan.Zero),
+                null,
+                false,
+                ProjectState.Available,
+                EngineResolutionState.Unknown),
+        ];
+
+        await fixture.Coordinator.StartAsync();
+        await fixture.EngineCache.Saved.Task;
+
+        Assert.AreEqual(1, fixture.LightweightDiscoveryCalls);
+        Assert.IsTrue(fixture.ProjectCache.LastSaved!.Projects.Any(entry => entry.Name == "Discovered"));
+        await fixture.Coordinator.StopAsync();
+    }
+
+    [TestMethod]
     public async Task CacheSaveFailure_KeepsPublishedStateAndLogsFailure()
     {
         var fixture = CreateFixture(
@@ -157,6 +186,7 @@ public sealed class ApplicationCoordinatorTests
         Assert.IsTrue(rescanned.IsSuccess);
         Assert.AreEqual(1, fixture.RefreshCalls);
         Assert.AreEqual(1, fixture.RescanCalls);
+        Assert.AreEqual(0, fixture.LightweightDiscoveryCalls);
         CollectionAssert.AreEqual(
             CreateSettings().ProjectSearchRoots.ToArray(),
             fixture.LastRescanRoots!.ToArray());
@@ -267,6 +297,7 @@ public sealed class ApplicationCoordinatorTests
             currentEngines,
             fixture.RefreshAsync,
             fixture.RescanAsync,
+            fixture.DiscoverLightweightAsync,
             fixture.DiscoverEnginesAsync,
             new FakeKnownRootProvider(),
             dispatcher,
@@ -345,11 +376,13 @@ public sealed class ApplicationCoordinatorTests
         public RecordingLogger Logger { get; } = new();
         public int RefreshCalls { get; private set; }
         public int RescanCalls { get; private set; }
+        public int LightweightDiscoveryCalls { get; private set; }
         public IReadOnlyList<string>? LastRescanRoots { get; private set; }
         public bool BlockRefresh { get; set; }
         public bool WaitForCancellation { get; set; }
         public bool RefreshCancellationObserved { get; private set; }
         public IReadOnlyList<InstalledEngine> FreshEngines { get; set; } = [];
+        public IReadOnlyList<UnrealProject> LightweightProjects { get; set; } = [];
         public TaskCompletionSource RefreshStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource ReleaseRefresh { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -398,10 +431,29 @@ public sealed class ApplicationCoordinatorTests
             CancellationToken cancellationToken) =>
             Task.FromResult(new EngineDiscoveryResult(FreshEngines, []));
 
+        public Task<ProjectDiscoveryResult> DiscoverLightweightAsync(
+            IReadOnlyList<string> roots,
+            AppSettings appSettings,
+            IReadOnlyCollection<ProjectPath> excludedProjectPaths,
+            CancellationToken cancellationToken,
+            Action<ProjectMetadataLoadResult>? projectLoaded)
+        {
+            LightweightDiscoveryCalls++;
+            foreach (var project in LightweightProjects.Where(project =>
+                !excludedProjectPaths.Contains(project.ProjectFilePath)))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                projectLoaded?.Invoke(new ProjectMetadataLoadResult(project, null));
+            }
+
+            return Task.FromResult(new ProjectDiscoveryResult(LightweightProjects, []));
+        }
+
         public void ResetOperationCounts()
         {
             RefreshCalls = 0;
             RescanCalls = 0;
+            LightweightDiscoveryCalls = 0;
         }
     }
 

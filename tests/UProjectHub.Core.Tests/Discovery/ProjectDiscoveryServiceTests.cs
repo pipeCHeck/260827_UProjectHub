@@ -104,6 +104,38 @@ public sealed class ProjectDiscoveryServiceTests
                 cancellation.Token));
     }
 
+    [TestMethod]
+    public async Task ShallowDiscoveryReusesMetadataLoadingMergesUserStateAndSkipsDeeperProjectAsync()
+    {
+        using var fixture = TemporaryDiscoveryFixture.Create();
+        fixture.SetAllFileTimestamps(Baseline);
+        var validPath = new ProjectPath(fixture.ProjectPath("Valid", "Valid.uproject"));
+        var launched = Baseline.AddHours(-3);
+        var deepDirectory = fixture.ProjectPath("School", "2026", "Deep");
+        Directory.CreateDirectory(deepDirectory);
+        await File.WriteAllTextAsync(
+            Path.Combine(deepDirectory, "Deep.uproject"),
+            "{ \"FileVersion\": 3, \"EngineAssociation\": \"5.8\" }");
+        var service = CreateService();
+        var settings = new AppSettings
+        {
+            ProjectUserStates = [new ProjectUserState(validPath, true, launched)],
+        };
+
+        var result = await service.DiscoverShallowAsync(
+            [fixture.RootPath],
+            settings,
+            excludedProjectPaths: []);
+
+        Assert.HasCount(3, result.Projects);
+        Assert.IsFalse(result.Projects.Any(project => project.Name == "Deep"));
+        var valid = result.Projects.Single(project => project.Name == "Valid");
+        Assert.IsTrue(valid.IsFavorite);
+        Assert.AreEqual(launched, valid.LastLaunched);
+        Assert.AreEqual(ProjectState.Broken, result.Projects.Single(project => project.Name == "Broken").ProjectState);
+        Assert.IsTrue(result.Issues.Any(issue => issue.Kind == ProjectDiscoveryIssueKind.MetadataLoad));
+    }
+
     private static ProjectDiscoveryService CreateService()
     {
         var scanner = new ProjectRootScanner(new SystemProjectDirectoryEnumerator());

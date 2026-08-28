@@ -2,6 +2,7 @@ using UProjectHub.Core.Catalog;
 using UProjectHub.Core.Discovery;
 using UProjectHub.Core.Engines;
 using UProjectHub.Core.Models;
+using UProjectHub.Core.Paths;
 using UProjectHub.Core.Settings;
 using UProjectHub.Windows.Engines;
 using UProjectHub.Windows.Projects;
@@ -23,6 +24,7 @@ public sealed class BackgroundRefreshService
     private readonly CurrentEngineSnapshot _engines;
     private readonly Func<AppSettings, IProgress<ProjectRefreshUpdate>?, CancellationToken, Task<ProjectRefreshResult>> _refreshKnown;
     private readonly Func<IReadOnlyList<string>, AppSettings, IProgress<ProjectRefreshUpdate>?, CancellationToken, Task<ProjectRefreshResult>> _rescan;
+    private readonly Func<IReadOnlyList<string>, AppSettings, IReadOnlyCollection<ProjectPath>, CancellationToken, Action<ProjectMetadataLoadResult>?, Task<ProjectDiscoveryResult>> _discoverLightweight;
     private readonly Func<AppSettings, CancellationToken, Task<EngineDiscoveryResult>> _discoverEngines;
     private readonly IUnrealKnownProjectRootProvider _knownRootProvider;
     private readonly IUiDispatcher _dispatcher;
@@ -34,6 +36,7 @@ public sealed class BackgroundRefreshService
         CurrentEngineSnapshot engines,
         Func<AppSettings, IProgress<ProjectRefreshUpdate>?, CancellationToken, Task<ProjectRefreshResult>> refreshKnown,
         Func<IReadOnlyList<string>, AppSettings, IProgress<ProjectRefreshUpdate>?, CancellationToken, Task<ProjectRefreshResult>> rescan,
+        Func<IReadOnlyList<string>, AppSettings, IReadOnlyCollection<ProjectPath>, CancellationToken, Action<ProjectMetadataLoadResult>?, Task<ProjectDiscoveryResult>> discoverLightweight,
         Func<AppSettings, CancellationToken, Task<EngineDiscoveryResult>> discoverEngines,
         IUnrealKnownProjectRootProvider knownRootProvider,
         IUiDispatcher dispatcher,
@@ -44,6 +47,7 @@ public sealed class BackgroundRefreshService
         _engines = engines ?? throw new ArgumentNullException(nameof(engines));
         _refreshKnown = refreshKnown ?? throw new ArgumentNullException(nameof(refreshKnown));
         _rescan = rescan ?? throw new ArgumentNullException(nameof(rescan));
+        _discoverLightweight = discoverLightweight ?? throw new ArgumentNullException(nameof(discoverLightweight));
         _discoverEngines = discoverEngines ?? throw new ArgumentNullException(nameof(discoverEngines));
         _knownRootProvider = knownRootProvider ?? throw new ArgumentNullException(nameof(knownRootProvider));
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
@@ -59,26 +63,25 @@ public sealed class BackgroundRefreshService
     public Task<BackgroundRefreshResult> RefreshAsync(
         AppSettings settings,
         CancellationToken cancellationToken = default) =>
-        RunAsync(settings, isRescan: false, cancellationToken);
+        RunAsync(settings, OperationKind.Refresh, cancellationToken);
+
+    public Task<BackgroundRefreshResult> StartupRefreshAsync(
+        AppSettings settings,
+        CancellationToken cancellationToken = default) =>
+        RunAsync(settings, OperationKind.Startup, cancellationToken);
 
     public Task<BackgroundRefreshResult> RescanAsync(
         AppSettings settings,
         CancellationToken cancellationToken = default) =>
-        RunAsync(settings, isRescan: true, cancellationToken);
+        RunAsync(settings, OperationKind.Rescan, cancellationToken);
 
     private async Task<BackgroundRefreshResult> RunAsync(
         AppSettings settings,
-        bool isRescan,
+        OperationKind operationKind,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(settings);
         cancellationToken.ThrowIfCancellationRequested();
-
-        var knownRoots = isRescan
-            ? new UnrealKnownProjectRootsResult([], [])
-            : await Task.Run(
-                () => _knownRootProvider.GetKnownRootsAsync(cancellationToken),
-                cancellationToken).ConfigureAwait(false);
 
         var batcher = new UiUpdateBatcher<ProjectRefreshUpdate>(
             _batchSize,
@@ -89,7 +92,7 @@ public sealed class BackgroundRefreshService
             batcher.Add(update, cancellationToken));
 
         ProjectRefreshResult projectResult;
-        if (isRescan)
+        if (operationKind == OperationKind.Rescan)
         {
             projectResult = await Task.Run(
                 () => _rescan(
@@ -104,6 +107,37 @@ public sealed class BackgroundRefreshService
             projectResult = await Task.Run(
                 () => _refreshKnown(settings, progress, cancellationToken),
                 cancellationToken).ConfigureAwait(false);
+        }
+
+        var projectIssues = new List<ProjectDiscoveryIssue>(projectResult.Issues);
+        var knownRoots = new UnrealKnownProjectRootsResult([], []);
+        if (operationKind == OperationKind.Startup)
+        {
+            knownRoots = await _knownRootProvider
+                .GetKnownRootsAsync(cancellationToken)
+                .ConfigureAwait(false);
+            var roots = settings.ProjectSearchRoots
+                .Concat(knownRoots.Roots.Select(root => root.Value))
+                .ToArray();
+            var excludedProjects = _catalog
+                .GetSnapshot()
+                .Projects
+                .Select(project => project.ProjectFilePath)
+                .ToArray();
+            var discoveryResult = await _discoverLightweight(
+                roots,
+                settings,
+                excludedProjects,
+                cancellationToken,
+                loadResult =>
+                {
+                    _catalog.Upsert(loadResult.Project);
+                    progress.Report(new ProjectRefreshUpdate(
+                        loadResult.Project.ProjectFilePath,
+                        loadResult.Project,
+                        loadResult.Issue));
+                }).ConfigureAwait(false);
+            projectIssues.AddRange(discoveryResult.Issues);
         }
 
         await batcher.FlushAsync(cancellationToken).ConfigureAwait(false);
@@ -122,7 +156,7 @@ public sealed class BackgroundRefreshService
         return new BackgroundRefreshResult(
             finalSnapshot,
             _engines.Engines,
-            projectResult.Issues,
+            Array.AsReadOnly(projectIssues.ToArray()),
             engineResult.Issues,
             knownRoots.Issues);
     }
@@ -144,5 +178,12 @@ public sealed class BackgroundRefreshService
     private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
     {
         public void Report(T value) => report(value);
+    }
+
+    private enum OperationKind
+    {
+        Startup,
+        Refresh,
+        Rescan,
     }
 }

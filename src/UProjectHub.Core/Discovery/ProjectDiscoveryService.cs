@@ -1,4 +1,5 @@
 using UProjectHub.Core.Models;
+using UProjectHub.Core.Paths;
 using UProjectHub.Core.Settings;
 
 namespace UProjectHub.Core.Discovery;
@@ -30,6 +31,41 @@ public sealed class ProjectDiscoveryService
         var scanResult = await _scanner.ScanAsync(
             rootPaths,
             cancellationToken).ConfigureAwait(false);
+        return await LoadCandidatesAsync(
+            scanResult,
+            settings,
+            cancellationToken,
+            projectLoaded).ConfigureAwait(false);
+    }
+
+    public async Task<ProjectDiscoveryResult> DiscoverShallowAsync(
+        IEnumerable<string> rootPaths,
+        AppSettings settings,
+        IEnumerable<ProjectPath> excludedProjectPaths,
+        CancellationToken cancellationToken = default,
+        Action<ProjectMetadataLoadResult>? projectLoaded = null)
+    {
+        ArgumentNullException.ThrowIfNull(rootPaths);
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(excludedProjectPaths);
+
+        var scanResult = await _scanner.ScanShallowAsync(
+            rootPaths,
+            excludedProjectPaths,
+            cancellationToken).ConfigureAwait(false);
+        return await LoadCandidatesAsync(
+            scanResult,
+            settings,
+            cancellationToken,
+            projectLoaded).ConfigureAwait(false);
+    }
+
+    private async Task<ProjectDiscoveryResult> LoadCandidatesAsync(
+        ProjectRootScanResult scanResult,
+        AppSettings settings,
+        CancellationToken cancellationToken,
+        Action<ProjectMetadataLoadResult>? projectLoaded)
+    {
         var projects = new List<UnrealProject>();
         var issues = new List<ProjectDiscoveryIssue>(scanResult.Issues);
 
