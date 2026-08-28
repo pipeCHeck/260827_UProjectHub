@@ -24,6 +24,15 @@ public partial class MainWindow : Window
 
     private void OnPreviewKeyDown(object sender, KeyEventArgs eventArgs)
     {
+        if (eventArgs.Key == Key.F5
+            && DataContext is MainViewModel mainViewModel
+            && mainViewModel.RefreshCommand.CanExecute(null))
+        {
+            mainViewModel.RefreshCommand.Execute(null);
+            eventArgs.Handled = true;
+            return;
+        }
+
         if (eventArgs.Key == Key.F
             && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
         {

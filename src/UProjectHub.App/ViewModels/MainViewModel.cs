@@ -15,7 +15,8 @@ public sealed class MainViewModel : ObservableObject
         Action? settingsAction = null,
         ProjectListViewModel? projectList = null,
         SearchFilterViewModel? searchFilter = null,
-        ProjectActionService? projectActions = null)
+        ProjectActionService? projectActions = null,
+        Func<Task>? refreshAction = null)
     {
         StatusBar = statusBar ?? throw new ArgumentNullException(nameof(statusBar));
         ProjectList = projectList ?? new ProjectListViewModel();
@@ -27,6 +28,9 @@ public sealed class MainViewModel : ObservableObject
         SettingsCommand = new RelayCommand(
             () => settingsAction!(),
             () => settingsAction is not null);
+        RefreshCommand = new AsyncRelayCommand(
+            () => refreshAction!(),
+            () => refreshAction is not null);
     }
 
     public string Title => "Unreal Projects";
@@ -42,6 +46,8 @@ public sealed class MainViewModel : ObservableObject
     public SearchFilterViewModel? SearchFilter { get; }
 
     public ICommand SettingsCommand { get; }
+
+    public AsyncRelayCommand RefreshCommand { get; }
 
     public void SetProjects(ProjectCatalogSnapshot snapshot)
     {

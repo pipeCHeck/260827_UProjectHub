@@ -3,6 +3,7 @@ using UProjectHub.App.ViewModels;
 using UProjectHub.Core.Cache;
 using UProjectHub.Core.Catalog;
 using UProjectHub.Core.Engines;
+using UProjectHub.Core.Diagnostics;
 using UProjectHub.Core.Filtering;
 using UProjectHub.Core.Models;
 using UProjectHub.Core.Paths;
@@ -19,6 +20,23 @@ public sealed class ProjectActionServiceTests
 {
     private static readonly DateTimeOffset Now =
         new(2026, 8, 28, 10, 30, 0, TimeSpan.Zero);
+
+    [TestMethod]
+    public async Task FailedUnrealLaunch_IsLoggedWithoutChangingActionSemantics()
+    {
+        var project = CreateProject();
+        var fixture = CreateFixture(
+            project,
+            unrealLaunchResult: LaunchResult.Failed("editor unavailable"));
+
+        var result = await fixture.Service.OpenProjectAsync(project);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.AreEqual(1, fixture.UnrealLauncher.LaunchCount);
+        Assert.IsTrue(fixture.Logger.Messages.Any(message =>
+            message.Contains("editor unavailable", StringComparison.Ordinal)));
+        Assert.IsEmpty(fixture.Settings.SaveCalls);
+    }
 
     [TestMethod]
     public async Task ToggleFavoritePersistsUserStatePreservesSettingsAndPublishesOneCatalogChangeAsync()
@@ -331,6 +349,7 @@ public sealed class ProjectActionServiceTests
         var explorer = new FakeExplorerLauncher();
         var visualStudio = new FakeVisualStudioLauncher(canOpen: true);
         var clipboard = new FakeClipboardService();
+        var logger = new RecordingLogger();
         var resolved = resolution ?? CreateResolvedEngine();
         var service = new ProjectActionService(
             catalog,
@@ -340,7 +359,8 @@ public sealed class ProjectActionServiceTests
             explorer,
             visualStudio,
             clipboard,
-            _ => resolved);
+            _ => resolved,
+            logger);
 
         return new Fixture(
             service,
@@ -350,6 +370,7 @@ public sealed class ProjectActionServiceTests
             explorer,
             visualStudio,
             clipboard,
+            logger,
             resolved,
             settingsRepository.Current);
     }
@@ -433,6 +454,7 @@ public sealed class ProjectActionServiceTests
         FakeExplorerLauncher Explorer,
         FakeVisualStudioLauncher VisualStudio,
         FakeClipboardService Clipboard,
+        RecordingLogger Logger,
         EngineResolution Resolution,
         AppSettings InitialSettings);
 
@@ -530,6 +552,20 @@ public sealed class ProjectActionServiceTests
         {
             Text = text;
         }
+    }
+
+    private sealed class RecordingLogger : IAppLogger
+    {
+        public List<string> Messages { get; } = [];
+
+        public void Info(string message) => Messages.Add(message);
+
+        public void Warning(string message) => Messages.Add(message);
+
+        public void Error(string message) => Messages.Add(message);
+
+        public void Error(string message, Exception exception) =>
+            Messages.Add($"{message} {exception.Message}");
     }
 
     private sealed class TemporaryWorkspace : IDisposable

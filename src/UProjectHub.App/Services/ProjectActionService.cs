@@ -2,6 +2,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Security;
 using UProjectHub.Core.Catalog;
+using UProjectHub.Core.Diagnostics;
 using UProjectHub.Core.Engines;
 using UProjectHub.Core.Models;
 using UProjectHub.Core.Settings;
@@ -30,6 +31,7 @@ public sealed class ProjectActionService
     private readonly IVisualStudioLauncher _visualStudioLauncher;
     private readonly IClipboardService _clipboardService;
     private readonly Func<UnrealProject, EngineResolution> _resolutionAccessor;
+    private readonly IAppLogger _logger;
 
     public ProjectActionService(
         ProjectCatalog catalog,
@@ -39,7 +41,8 @@ public sealed class ProjectActionService
         IExplorerLauncher explorerLauncher,
         IVisualStudioLauncher visualStudioLauncher,
         IClipboardService clipboardService,
-        Func<UnrealProject, EngineResolution> resolutionAccessor)
+        Func<UnrealProject, EngineResolution> resolutionAccessor,
+        IAppLogger? logger = null)
     {
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _settingsRepository = settingsRepository
@@ -56,6 +59,7 @@ public sealed class ProjectActionService
             ?? throw new ArgumentNullException(nameof(clipboardService));
         _resolutionAccessor = resolutionAccessor
             ?? throw new ArgumentNullException(nameof(resolutionAccessor));
+        _logger = logger ?? new NullAppLogger();
     }
 
     public event Action<ProjectCatalogSnapshot>? CatalogChanged;
@@ -147,11 +151,16 @@ public sealed class ProjectActionService
         var launchResult = _unrealEditorLauncher.Launch(currentProject, resolution);
         if (!launchResult.IsSuccess)
         {
+            _logger.Warning(
+                $"Project launch failed for {currentProject.ProjectFilePath.Value}: "
+                + (launchResult.ErrorMessage ?? "Unknown launch failure."));
             return FromLaunchResult(launchResult);
         }
 
         if (launchResult.LaunchedAtUtc is not { } launchedAtUtc)
         {
+            _logger.Warning(
+                $"Project launch returned no timestamp for {currentProject.ProjectFilePath.Value}.");
             return ProjectActionResult.Failed(
                 "The editor started without a launch timestamp.");
         }
@@ -178,6 +187,9 @@ public sealed class ProjectActionService
         }
         catch (Exception exception) when (IsExpectedExternalFailure(exception))
         {
+            _logger.Error(
+                $"Launch history could not be saved for {currentProject.ProjectFilePath.Value}.",
+                exception);
             return ProjectActionResult.Failed(
                 $"The editor started, but launch history could not be saved: {exception.Message}");
         }

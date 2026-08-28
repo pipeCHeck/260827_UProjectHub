@@ -15,6 +15,7 @@ public sealed class ProjectOperations : IProjectOperations
     private readonly ThemeService _themeService;
     private readonly ProjectCatalog _catalog;
     private readonly Func<IReadOnlyList<string>, AppSettings, CancellationToken, Task<ProjectRefreshResult>> _rescan;
+    private readonly Func<CancellationToken, Task<ProjectRescanOperationResult>>? _coordinatedRescan;
     private readonly SemaphoreSlim _settingsGate = new(1, 1);
 
     public ProjectOperations(
@@ -22,13 +23,15 @@ public sealed class ProjectOperations : IProjectOperations
         ManualEngineValidator manualEngineValidator,
         ThemeService themeService,
         ProjectCatalog catalog,
-        Func<IReadOnlyList<string>, AppSettings, CancellationToken, Task<ProjectRefreshResult>> rescan)
+        Func<IReadOnlyList<string>, AppSettings, CancellationToken, Task<ProjectRefreshResult>> rescan,
+        Func<CancellationToken, Task<ProjectRescanOperationResult>>? coordinatedRescan = null)
     {
         _settingsRepository = settingsRepository ?? throw new ArgumentNullException(nameof(settingsRepository));
         _manualEngineValidator = manualEngineValidator ?? throw new ArgumentNullException(nameof(manualEngineValidator));
         _themeService = themeService ?? throw new ArgumentNullException(nameof(themeService));
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _rescan = rescan ?? throw new ArgumentNullException(nameof(rescan));
+        _coordinatedRescan = coordinatedRescan;
     }
 
     public Task<AppSettings> LoadSettingsAsync(CancellationToken cancellationToken = default) =>
@@ -191,6 +194,11 @@ public sealed class ProjectOperations : IProjectOperations
     public async Task<ProjectRescanOperationResult> RescanAsync(
         CancellationToken cancellationToken = default)
     {
+        if (_coordinatedRescan is not null)
+        {
+            return await _coordinatedRescan(cancellationToken);
+        }
+
         try
         {
             var settings = await _settingsRepository.LoadAsync(cancellationToken);
