@@ -1,58 +1,90 @@
 # UProject Hub
 
-A Windows desktop project browser for Unreal Engine projects.
+UProject Hub is a lightweight Windows desktop browser for Unreal Engine projects. It combines the scanability of File Explorer's Details view with project-oriented search, filtering, engine resolution, and safe launch actions that are missing from Epic Games Launcher.
 
-The product display name is **UProject Hub**. The solution, project-name prefix, and root namespace use `UProjectHub`.
+The MVP is implemented in C# on .NET 10 LTS using WPF (`net10.0-windows`). It has no external UI, MVVM, logging, or dependency-injection framework.
 
-The goal is to provide the project-management experience missing from Epic Games Launcher: useful sorting, filtering, search, engine-version visibility, project activity information, and fast launching.
+## Requirements
 
-## Product Direction
+- Windows 10 or later
+- .NET 10 SDK to build and test
+- PowerShell 7 (`pwsh`) for the one-command verification script
+- An Unreal Engine installation is optional; automated tests use isolated fixtures and fake OS boundaries
 
-The main list combines:
+## Command-line workflow
 
-- File Explorer "Details" view: sortable columns and compact scanning.
-- Unity Hub: project-centered vertical rows with path and metadata.
-- Samsung One UI 7-inspired visual language: rounded geometry, clear hierarchy, calm layered surfaces, restrained translucency or blur where appropriate, and subtle interaction motion.
+Run commands from the repository root.
 
-One UI 7 is interpreted for a desktop project-management tool rather than reproduced pixel for pixel. The priority order remains usability, information density and scanability, consistency, then visual polish and motion; the vertical details/list layout must not become a mobile-style, card-centric interface.
+```powershell
+# Release build
+pwsh -File scripts/build.ps1
 
-## MVP
+# Full solution tests
+pwsh -File scripts/test.ps1
 
-The MVP will:
+# Run the WPF application
+pwsh -File scripts/run.ps1
 
-- discover `.uproject` files from known/user-configured locations;
-- treat folders added through the folder picker or drag-and-drop as persistent project search roots;
-- show project name, path, engine association, project type, and last meaningful modification time;
-- search across project metadata;
-- filter by engine version and project type;
-- sort by name, Unreal version, last modified, and last launched;
-- support favorites;
-- launch projects using the resolved Unreal Editor;
-- open project folders;
-- cache project metadata for fast startup;
-- refresh data in the background;
-- display missing/broken project and engine states without crashing the entire list;
-- keep missing cached projects visible until the user removes only their manager/cache entry.
+# Restore, test, Release build, whitespace, and safety verification
+pwsh -File scripts/verify.ps1
+```
 
-The MVP will not modify Unreal projects.
+The equivalent direct commands are:
 
-## Documentation
+```powershell
+dotnet build UProjectHub.sln -c Release
+dotnet test UProjectHub.sln
+dotnet run --project src/UProjectHub.App
+```
 
-- `AGENTS.md` — instructions and guardrails for Codex.
-- `docs/SPEC.md` — product behavior and MVP contract.
-- `docs/ARCHITECTURE.md` — code boundaries and responsibilities.
-- `docs/UI.md` — layout, visual language, and interactions.
-- `docs/PROJECT_DISCOVERY.md` — project and engine discovery rules.
+## MVP features
 
-## Planned Stack
+- Cache-first startup followed by cancellable background metadata Refresh
+- Bounded startup discovery from configured and Unreal-known roots
+- Explicit recursive Rescan for newly added or deeply nested projects
+- C++/Blueprint classification from `.uproject` descriptor modules
+- Meaningful project activity time that excludes generated folders
+- Plain and structured in-memory search
+- Engine, project type, and favorites filters
+- Semantic sorting, including correct Unreal version ordering such as 5.9 before 5.10
+- Persistent favorites, LastLaunched, appearance, view state, search roots, and manual engine roots
+- Launcher, registered source-build, and manual engine discovery
+- Safe Resolved/Missing/Ambiguous/Unknown engine resolution
+- Explicit UnrealEditor launch with argument-list handling
+- Project folder, reveal, copy path, existing Visual Studio solution, information, and Missing-only removal actions
+- Light/dark semantic themes, normal/compact density, responsive columns, and system-aware subtle motion
+- Bounded rolling UTF-8 logs
 
-- C#
-- .NET 10 LTS
-- `net10.0-windows`
-- WPF
-- MVVM
-- `System.Text.Json`
-- Markdown documentation
-- JSON settings/cache storage
+## Refresh and Rescan
 
-External dependencies should remain minimal unless they provide clear value.
+**Refresh** validates and updates projects already known to the catalog. F5 performs Refresh only and does not search for new projects.
+
+At startup, UProject Hub additionally performs a bounded shallow discovery: each configured or Unreal-known root itself and its immediate child directories are checked for `.uproject` files. Startup never performs a full recursive Rescan.
+
+**Rescan** is an explicit Settings action. It recursively searches the configured project roots and can find deeper or newly added projects.
+
+## Data location
+
+User-owned settings, disposable caches, and logs are stored below:
+
+```text
+%LOCALAPPDATA%\UProjectHub
+```
+
+The application does not use the user's real LocalAppData, Registry, Unreal installation, or processes during automated tests.
+
+## Read-only project policy
+
+UProject Hub is read-only with respect to Unreal projects. It does not modify `.uproject` descriptors, change `EngineAssociation`, generate project files, convert engine versions, or delete project directories/files. “Remove from List” removes only UProject Hub's managed catalog/cache/settings entry for a Missing project.
+
+## MVP non-goals
+
+- Project creation, deletion, conversion, repair, or Unreal configuration editing
+- Generate Project Files or UnrealBuildTool orchestration
+- Git, plugin, build, cooking, or packaging management
+- Recursive drive-wide discovery or per-project `FileSystemWatcher` infrastructure
+- Telemetry, analytics, or remote logging
+- Visual Studio installation discovery
+- Automatic selection among ambiguous matching engines
+
+See [docs/VERIFICATION.md](docs/VERIFICATION.md) for automated evidence and the honest manual UI verification matrix. Architecture and behavior details remain in `docs/SPEC.md`, `docs/ARCHITECTURE.md`, `docs/UI.md`, and `docs/PROJECT_DISCOVERY.md`.

@@ -1,0 +1,13 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.9",
+  "Category": "",
+  "Description": "Task 28 C++ integration fixture",
+  "Modules": [
+    {
+      "Name": "CppGame",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ]
+}
