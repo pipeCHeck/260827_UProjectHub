@@ -2,6 +2,7 @@ using System.Windows.Input;
 using UProjectHub.App.Infrastructure;
 using UProjectHub.App.Services;
 using UProjectHub.Core.Catalog;
+using UProjectHub.Core.Settings;
 
 namespace UProjectHub.App.ViewModels;
 
@@ -56,6 +57,13 @@ public sealed class MainViewModel : ObservableObject
         }
 
         SetProjectCount(ProjectList.TotalCount);
+    }
+
+    public void ApplySettings(AppSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        SearchFilter?.ApplySettings(settings);
+        ProjectList.SetColumnLayout(settings.ColumnLayout);
     }
 
     public void SetProjectCount(int projectCount)

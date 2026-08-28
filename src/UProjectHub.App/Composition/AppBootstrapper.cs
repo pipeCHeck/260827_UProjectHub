@@ -1,18 +1,23 @@
+using System.IO;
 using System.Windows;
 using UProjectHub.App.Services;
 using UProjectHub.App.ViewModels;
 using UProjectHub.App.Views;
+using UProjectHub.Core.Activity;
 using UProjectHub.Core.Cache;
 using UProjectHub.Core.Catalog;
+using UProjectHub.Core.Discovery;
 using UProjectHub.Core.Engines;
 using UProjectHub.Core.Filtering;
 using UProjectHub.Core.Models;
+using UProjectHub.Core.Parsing;
 using UProjectHub.Core.Searching;
 using UProjectHub.Core.Settings;
 using UProjectHub.Core.Sorting;
 using UProjectHub.Core.Storage;
 using UProjectHub.Core.Time;
 using UProjectHub.Windows.Launching;
+using UProjectHub.Windows.Engines.Manual;
 using UProjectHub.Windows.Registry;
 using UProjectHub.Windows.Storage;
 using AppThemeMode = UProjectHub.Core.Settings.ThemeMode;
@@ -78,11 +83,64 @@ public sealed class AppBootstrapper
             new ProjectFilterService(searchService),
             new ProjectSortService());
 
-        return new MainViewModel(
+        var discoveryService = new ProjectDiscoveryService(
+            new ProjectRootScanner(new SystemProjectDirectoryEnumerator()),
+            new ProjectMetadataLoader(
+                new UProjectParser(),
+                new ProjectActivityDetector(new ProjectActivityPolicy())));
+        var rescanService = new ProjectRescanService(
+            catalog,
+            discoveryService,
+            projectCacheRepository);
+        var projectOperations = new ProjectOperations(
+            settingsRepository,
+            new ManualEngineValidator(),
+            themeService,
+            catalog,
+            (roots, settings, cancellationToken) => rescanService.RescanAsync(
+                roots,
+                settings,
+                cancellationToken: cancellationToken));
+
+        MainViewModel? mainViewModel = null;
+        void ShowSettings()
+        {
+            var settingsViewModel = new SettingsViewModel(
+                projectOperations,
+                new FolderPickerService(),
+                settings => mainViewModel!.ApplySettings(settings),
+                snapshot => mainViewModel!.SetProjects(snapshot));
+            var window = new SettingsWindow(settingsViewModel)
+            {
+                Owner = Application.Current?.MainWindow,
+            };
+            _ = window.ShowDialog();
+        }
+
+        mainViewModel = new MainViewModel(
             statusBar,
+            settingsAction: ShowSettings,
             projectList: projectList,
             searchFilter: searchFilter,
             projectActions: projectActions);
+
+        var saveGate = new object();
+        Task saveTail = Task.CompletedTask;
+        searchFilter.PersistedStateChanged += (_, _) =>
+        {
+            var activeSort = searchFilter.ActiveSort;
+            var visibleFilters = searchFilter.VisibleFilters;
+            lock (saveGate)
+            {
+                saveTail = SaveViewStateAfterAsync(
+                    saveTail,
+                    projectOperations,
+                    activeSort,
+                    visibleFilters);
+            }
+        };
+
+        return mainViewModel;
     }
 
     private static AppThemeMode ResolveSystemTheme(IRegistryReader registryReader)
@@ -110,5 +168,26 @@ public sealed class AppBootstrapper
             Owner = Application.Current?.MainWindow,
         };
         _ = window.ShowDialog();
+    }
+
+    private static async Task SaveViewStateAfterAsync(
+        Task previousSave,
+        IProjectOperations operations,
+        ProjectSortDefinition activeSort,
+        VisibleFilterState visibleFilters)
+    {
+        try
+        {
+            await previousSave;
+        }
+        catch (IOException)
+        {
+            // The next state still gets a chance to persist.
+        }
+
+        _ = await operations.SaveViewStateAsync(
+            activeSort,
+            visibleFilters,
+            columnLayout: null);
     }
 }

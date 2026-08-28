@@ -52,6 +52,8 @@ public sealed class SearchFilterViewModel : ObservableObject
         ClearSearchCommand = new RelayCommand(() => SearchText = string.Empty);
     }
 
+    public event EventHandler? PersistedStateChanged;
+
     public string SearchText
     {
         get => _searchText;
@@ -59,7 +61,7 @@ public sealed class SearchFilterViewModel : ObservableObject
         {
             if (SetProperty(ref _searchText, value ?? string.Empty))
             {
-                OnCriteriaChanged();
+                OnCriteriaChanged(persist: false);
             }
         }
     }
@@ -115,6 +117,7 @@ public sealed class SearchFilterViewModel : ObservableObject
             if (SetProperty(ref _activeSort, value))
             {
                 ApplyPipeline();
+                RaisePersistedStateChanged();
             }
         }
     }
@@ -128,6 +131,11 @@ public sealed class SearchFilterViewModel : ObservableObject
     public ICommand ResetCommand { get; }
 
     public ICommand ClearSearchCommand { get; }
+
+    public VisibleFilterState VisibleFilters => new(
+        SelectedEngine,
+        SelectedProjectType,
+        FavoritesOnly);
 
     public void SetSnapshot(ProjectCatalogSnapshot snapshot)
     {
@@ -195,9 +203,10 @@ public sealed class SearchFilterViewModel : ObservableObject
 
         OnPropertyChanged(nameof(HasActiveSearchOrFilters));
         ApplyPipeline();
+        PersistedStateChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private void OnCriteriaChanged()
+    private void OnCriteriaChanged(bool persist = true)
     {
         if (_isUpdatingState)
         {
@@ -206,6 +215,18 @@ public sealed class SearchFilterViewModel : ObservableObject
 
         OnPropertyChanged(nameof(HasActiveSearchOrFilters));
         ApplyPipeline();
+        if (persist)
+        {
+            RaisePersistedStateChanged();
+        }
+    }
+
+    private void RaisePersistedStateChanged()
+    {
+        if (!_isUpdatingState)
+        {
+            PersistedStateChanged?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     private void ApplyPipeline()
