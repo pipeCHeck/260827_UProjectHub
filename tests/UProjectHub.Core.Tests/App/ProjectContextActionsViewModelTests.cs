@@ -26,11 +26,48 @@ public sealed class ProjectContextActionsViewModelTests
         Assert.IsTrue(fixture.ViewModel.OpenInVisualStudioCommand.CanExecute(null));
         Assert.IsFalse(fixture.ViewModel.RemoveFromListCommand.CanExecute(null));
         Assert.IsNotNull(fixture.ViewModel.OpenProjectFolderCommand);
-        Assert.IsNotNull(fixture.ViewModel.RevealProjectFileCommand);
         Assert.IsNotNull(fixture.ViewModel.CopyPathCommand);
         Assert.IsNotNull(fixture.ViewModel.ToggleFavoriteCommand);
         Assert.IsNotNull(fixture.ViewModel.ProjectInformationCommand);
         Assert.AreEqual("Add to Favorites", fixture.ViewModel.ToggleFavoriteLabel);
+        Assert.IsNull(fixture.ViewModel.OpenInVisualStudioUnavailableReason);
+    }
+
+    [TestMethod]
+    public void BlueprintProjectExplainsWhyExistingSolutionCannotOpen()
+    {
+        var fixture = CreateFixture(CreateProject(
+            ProjectType.Blueprint,
+            ProjectState.Available));
+
+        Assert.IsFalse(fixture.ViewModel.OpenInVisualStudioCommand.CanExecute(null));
+        Assert.AreEqual(
+            "Existing .sln files can be opened only for C++ projects.",
+            fixture.ViewModel.OpenInVisualStudioUnavailableReason);
+    }
+
+    [TestMethod]
+    [DataRow(
+        VisualStudioSolutionState.Missing,
+        "No existing .sln file was found. Generate Visual Studio project files to create one.")]
+    [DataRow(
+        VisualStudioSolutionState.Multiple,
+        "Multiple .sln files were found, so no unique solution could be selected.")]
+    [DataRow(
+        VisualStudioSolutionState.Inaccessible,
+        "The project folder could not be inspected for .sln files.")]
+    public void UnavailableSolutionStateExplainsWhyExistingSolutionCannotOpen(
+        VisualStudioSolutionState solutionState,
+        string expectedReason)
+    {
+        var fixture = CreateFixture(
+            CreateProject(ProjectType.Cpp, ProjectState.Available),
+            solutionState);
+
+        Assert.IsFalse(fixture.ViewModel.OpenInVisualStudioCommand.CanExecute(null));
+        Assert.AreEqual(
+            expectedReason,
+            fixture.ViewModel.OpenInVisualStudioUnavailableReason);
     }
 
     [TestMethod]
@@ -57,14 +94,12 @@ public sealed class ProjectContextActionsViewModelTests
         await ExecuteAsync(fixture.ViewModel.ToggleFavoriteCommand);
         await ExecuteAsync(fixture.ViewModel.OpenProjectCommand);
         fixture.ViewModel.OpenProjectFolderCommand.Execute(null);
-        fixture.ViewModel.RevealProjectFileCommand.Execute(null);
         fixture.ViewModel.CopyPathCommand.Execute(null);
         fixture.ViewModel.OpenInVisualStudioCommand.Execute(null);
         fixture.ViewModel.ProjectInformationCommand.Execute(null);
 
         Assert.AreEqual(1, fixture.UnrealLauncher.LaunchCount);
         Assert.AreEqual(1, fixture.Explorer.FolderCount);
-        Assert.AreEqual(1, fixture.Explorer.RevealCount);
         Assert.AreEqual(fixture.Project.ProjectFilePath.Value, fixture.Clipboard.Text);
         Assert.AreEqual(1, fixture.VisualStudio.OpenCount);
         Assert.HasCount(1, fixture.InformationRequests);
@@ -116,7 +151,10 @@ public sealed class ProjectContextActionsViewModelTests
         command.Execute(null);
     }
 
-    private static Fixture CreateFixture(UnrealProject project)
+    private static Fixture CreateFixture(
+        UnrealProject project,
+        VisualStudioSolutionState solutionState =
+            VisualStudioSolutionState.Available)
     {
         var catalog = new ProjectCatalog();
         catalog.Upsert(project);
@@ -131,7 +169,7 @@ public sealed class ProjectContextActionsViewModelTests
         var removal = new ManagedProjectRemovalService(catalog, cache, settings);
         var unreal = new FakeUnrealEditorLauncher();
         var explorer = new FakeExplorerLauncher();
-        var visualStudio = new FakeVisualStudioLauncher();
+        var visualStudio = new FakeVisualStudioLauncher(solutionState);
         var clipboard = new FakeClipboardService();
         var resolution = EngineResolver.Resolve("5.8",
         [
@@ -238,26 +276,45 @@ public sealed class ProjectContextActionsViewModelTests
     {
         public int FolderCount { get; private set; }
 
-        public int RevealCount { get; private set; }
-
         public LaunchResult OpenProjectFolder(UnrealProject project)
         {
             FolderCount++;
             return LaunchResult.Succeeded();
         }
-
-        public LaunchResult RevealProjectFile(UnrealProject project)
-        {
-            RevealCount++;
-            return LaunchResult.Succeeded();
-        }
     }
 
-    private sealed class FakeVisualStudioLauncher : IVisualStudioLauncher
+    private sealed class FakeVisualStudioLauncher(
+        VisualStudioSolutionState solutionState) : IVisualStudioLauncher
     {
         public int OpenCount { get; private set; }
 
-        public bool CanOpenSolution(UnrealProject project) => project.ProjectType == ProjectType.Cpp;
+        public bool CanOpenSolution(UnrealProject project) =>
+            project.ProjectType == ProjectType.Cpp
+            && solutionState == VisualStudioSolutionState.Available;
+
+        public VisualStudioSolutionSelection LocateSolution(
+            UnrealProject project) =>
+            solutionState switch
+            {
+                VisualStudioSolutionState.Available =>
+                    VisualStudioSolutionSelection.Available(
+                        @"D:\Projects\Game\Game.sln",
+                        [@"D:\Projects\Game\Game.sln"]),
+                VisualStudioSolutionState.Missing =>
+                    VisualStudioSolutionSelection.Missing(),
+                VisualStudioSolutionState.Multiple =>
+                    VisualStudioSolutionSelection.Multiple(
+                    [
+                        @"D:\Projects\Game\Game.sln",
+                        @"D:\Projects\Game\Tools.sln",
+                    ]),
+                VisualStudioSolutionState.Inaccessible =>
+                    VisualStudioSolutionSelection.Inaccessible("Access denied."),
+                _ => throw new ArgumentOutOfRangeException(
+                    nameof(solutionState),
+                    solutionState,
+                    null),
+            };
 
         public LaunchResult OpenSolution(UnrealProject project)
         {

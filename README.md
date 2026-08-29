@@ -51,7 +51,7 @@ dotnet run --project src/UProjectHub.App
 - Launcher, registered source-build, and manual engine discovery
 - Safe Resolved/Missing/Ambiguous/Unknown engine resolution
 - Explicit UnrealEditor launch with argument-list handling
-- Project folder, reveal, copy path, existing Visual Studio solution, information, and Missing-only removal actions
+- Unreal, project folder, copy path, existing Visual Studio solution, information, and Missing-only removal actions
 - Light/dark semantic themes, normal/compact density, responsive columns, and system-aware subtle motion
 - Runtime English/Korean UI switching with persisted language selection
 - Bounded rolling UTF-8 logs

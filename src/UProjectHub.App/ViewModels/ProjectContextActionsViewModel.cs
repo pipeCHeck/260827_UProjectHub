@@ -2,6 +2,7 @@ using System.Windows.Input;
 using UProjectHub.App.Infrastructure;
 using UProjectHub.App.Services;
 using UProjectHub.Core.Models;
+using UProjectHub.Windows.Launching;
 
 namespace UProjectHub.App.ViewModels;
 
@@ -33,8 +34,6 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
             () => CanOpenInVisualStudio);
         OpenProjectFolderCommand = new RelayCommand(
             () => LastResult = _actions.OpenProjectFolder(_project));
-        RevealProjectFileCommand = new RelayCommand(
-            () => LastResult = _actions.RevealProjectFile(_project));
         CopyPathCommand = new RelayCommand(
             () => LastResult = _actions.CopyProjectPath(_project));
         ToggleFavoriteCommand = new AsyncRelayCommand(ToggleFavoriteAsync);
@@ -50,6 +49,9 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
     public bool CanOpenProject => _actions.CanOpenProject(_project);
 
     public bool CanOpenInVisualStudio => _actions.CanOpenInVisualStudio(_project);
+
+    public string? OpenInVisualStudioUnavailableReason =>
+        CanOpenInVisualStudio ? null : GetOpenInVisualStudioUnavailableReason();
 
     public bool CanRemoveFromList => _actions.CanRemoveFromList(_project);
 
@@ -68,8 +70,6 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
     public ICommand OpenInVisualStudioCommand { get; }
 
     public ICommand OpenProjectFolderCommand { get; }
-
-    public ICommand RevealProjectFileCommand { get; }
 
     public ICommand CopyPathCommand { get; }
 
@@ -92,6 +92,40 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
     private async Task RemoveFromListAsync()
     {
         LastResult = await _actions.RemoveMissingAsync(_project);
+    }
+
+    private string GetOpenInVisualStudioUnavailableReason()
+    {
+        if (_project.ProjectState != ProjectState.Available)
+        {
+            return Localize(
+                "String.OpenVisualStudioProjectUnavailable",
+                "The project is not available.");
+        }
+
+        if (_project.ProjectType != ProjectType.Cpp)
+        {
+            return Localize(
+                "String.OpenVisualStudioCppOnly",
+                "Existing .sln files can be opened only for C++ projects.");
+        }
+
+        var selection = _actions.LocateVisualStudioSolution(_project);
+        return selection.State switch
+        {
+            VisualStudioSolutionState.Missing => Localize(
+                "String.OpenVisualStudioSolutionMissing",
+                "No existing .sln file was found. Generate Visual Studio project files to create one."),
+            VisualStudioSolutionState.Multiple => Localize(
+                "String.OpenVisualStudioSolutionMultiple",
+                "Multiple .sln files were found, so no unique solution could be selected."),
+            VisualStudioSolutionState.Inaccessible => Localize(
+                "String.OpenVisualStudioSolutionInaccessible",
+                "The project folder could not be inspected for .sln files."),
+            _ => Localize(
+                "String.OpenVisualStudioSolutionUnavailable",
+                "The existing .sln file is unavailable."),
+        };
     }
 
     private string Localize(string key, string fallback) =>

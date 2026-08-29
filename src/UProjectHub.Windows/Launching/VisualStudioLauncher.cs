@@ -1,4 +1,3 @@
-using System.Security;
 using UProjectHub.Core.Models;
 
 namespace UProjectHub.Windows.Launching;
@@ -6,27 +5,52 @@ namespace UProjectHub.Windows.Launching;
 public sealed class VisualStudioLauncher : IVisualStudioLauncher
 {
     private readonly IProcessLauncher _processLauncher;
+    private readonly IVisualStudioSolutionLocator _solutionLocator;
 
     public VisualStudioLauncher(IProcessLauncher processLauncher)
+        : this(processLauncher, new VisualStudioSolutionLocator())
+    {
+    }
+
+    public VisualStudioLauncher(
+        IProcessLauncher processLauncher,
+        IVisualStudioSolutionLocator solutionLocator)
     {
         ArgumentNullException.ThrowIfNull(processLauncher);
+        ArgumentNullException.ThrowIfNull(solutionLocator);
         _processLauncher = processLauncher;
+        _solutionLocator = solutionLocator;
     }
 
     public bool CanOpenSolution(UnrealProject project)
     {
         ArgumentNullException.ThrowIfNull(project);
-        return SelectSolution(project).SolutionPath is not null;
+        return project.ProjectType == ProjectType.Cpp
+            && _solutionLocator.Locate(project).State
+            == VisualStudioSolutionState.Available;
+    }
+
+    public VisualStudioSolutionSelection LocateSolution(UnrealProject project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        return _solutionLocator.Locate(project);
     }
 
     public LaunchResult OpenSolution(UnrealProject project)
     {
         ArgumentNullException.ThrowIfNull(project);
 
-        var selection = SelectSolution(project);
-        if (selection.SolutionPath is null)
+        if (project.ProjectType != ProjectType.Cpp)
         {
-            return LaunchResult.Failed(selection.ErrorMessage!);
+            return LaunchResult.Failed(
+                "Open in Visual Studio is available only for C++ projects.");
+        }
+
+        var selection = LocateSolution(project);
+        if (selection.State != VisualStudioSolutionState.Available
+            || selection.SolutionPath is null)
+        {
+            return LaunchResult.Failed(GetUnavailableMessage(selection));
         }
 
         return _processLauncher.Launch(new ProcessRequest(
@@ -34,76 +58,19 @@ public sealed class VisualStudioLauncher : IVisualStudioLauncher
             useShellExecute: true));
     }
 
-    private static SolutionSelection SelectSolution(UnrealProject project)
+    private static string GetUnavailableMessage(
+        VisualStudioSolutionSelection selection)
     {
-        if (project.ProjectType != ProjectType.Cpp)
+        return selection.State switch
         {
-            return SolutionSelection.Unavailable(
-                "Open in Visual Studio is available only for C++ projects.");
-        }
-
-        if (string.IsNullOrWhiteSpace(project.ProjectDirectory)
-            || !Directory.Exists(project.ProjectDirectory))
-        {
-            return SolutionSelection.Unavailable(
-                "The project directory was not found.");
-        }
-
-        string[] solutions;
-        try
-        {
-            solutions = Directory
-                .EnumerateFiles(
-                    project.ProjectDirectory,
-                    "*",
-                    SearchOption.TopDirectoryOnly)
-                .Where(filePath => string.Equals(
-                    Path.GetExtension(filePath),
-                    ".sln",
-                    StringComparison.OrdinalIgnoreCase))
-                .Select(Path.GetFullPath)
-                .ToArray();
-        }
-        catch (Exception exception) when (IsExpectedEnumerationFailure(exception))
-        {
-            return SolutionSelection.Unavailable(exception.Message);
-        }
-
-        var namedSolution = solutions.FirstOrDefault(solution =>
-            string.Equals(
-                Path.GetFileNameWithoutExtension(solution),
-                project.Name,
-                StringComparison.OrdinalIgnoreCase));
-        if (namedSolution is not null)
-        {
-            return SolutionSelection.Available(namedSolution);
-        }
-
-        return solutions.Length switch
-        {
-            1 => SolutionSelection.Available(solutions[0]),
-            0 => SolutionSelection.Unavailable(
-                "No existing Visual Studio solution was found."),
-            _ => SolutionSelection.Unavailable(
-                "More than one Visual Studio solution is available."),
+            VisualStudioSolutionState.Missing =>
+                "No existing Visual Studio solution was found.",
+            VisualStudioSolutionState.Multiple =>
+                "More than one Visual Studio solution is available.",
+            VisualStudioSolutionState.Inaccessible =>
+                selection.ErrorMessage
+                    ?? "The project directory could not be inspected.",
+            _ => "The Visual Studio solution is unavailable.",
         };
-    }
-
-    private static bool IsExpectedEnumerationFailure(Exception exception) =>
-        exception is IOException
-            or UnauthorizedAccessException
-            or SecurityException
-            or ArgumentException
-            or NotSupportedException;
-
-    private sealed record SolutionSelection(
-        string? SolutionPath,
-        string? ErrorMessage)
-    {
-        public static SolutionSelection Available(string solutionPath) =>
-            new(solutionPath, null);
-
-        public static SolutionSelection Unavailable(string errorMessage) =>
-            new(null, errorMessage);
     }
 }

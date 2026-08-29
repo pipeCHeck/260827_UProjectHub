@@ -17,12 +17,11 @@
             <MenuItem Header="{DynamicResource String.OpenProject}"
                       Command="{Binding OpenProjectCommand}" />
             <MenuItem Header="{DynamicResource String.OpenVisualStudio}"
-                      Command="{Binding OpenInVisualStudioCommand}" />
+                      Command="{Binding OpenInVisualStudioCommand}"
+                      ToolTip="{Binding OpenInVisualStudioUnavailableReason}" />
             <MenuItem Header="{DynamicResource String.OpenFolder}"
                       Command="{Binding OpenProjectFolderCommand}" />
             <Separator />
-            <MenuItem Header="{DynamicResource String.RevealProject}"
-                      Command="{Binding RevealProjectFileCommand}" />
             <MenuItem Header="{DynamicResource String.CopyPath}"
                       Command="{Binding CopyPathCommand}" />
             <MenuItem Header="{Binding ToggleFavoriteLabel}"

@@ -28,39 +28,9 @@ public sealed class ExplorerLauncherTests
     }
 
     [TestMethod]
-    public void RevealProjectUsesSelectOptionAndExactProjectPathArguments()
-    {
-        using var fixture = TemporaryProject.Create("Game Academy", "My Game");
-        var process = new FakeProcessLauncher(LaunchResult.Succeeded());
-        var launcher = new ExplorerLauncher(process);
-
-        var result = launcher.RevealProjectFile(fixture.Project);
-
-        Assert.IsTrue(result.IsSuccess);
-        Assert.HasCount(1, process.Requests);
-        var request = process.Requests[0];
-        Assert.AreEqual("explorer.exe", request.FileName);
-        CollectionAssert.AreEqual(
-            new[] { "/select,", fixture.Project.ProjectFilePath.Value },
-            request.ArgumentList.ToArray());
-        Assert.AreNotEqual(fixture.Project.ProjectFilePath.Value, request.FileName);
-        Assert.DoesNotStartWith("\"", request.ArgumentList[1]);
-        Assert.DoesNotEndWith("\"", request.ArgumentList[1]);
-    }
-
-    [TestMethod]
-    public void MissingFolderOrProjectFileDoesNotStartExplorer()
+    public void MissingFolderDoesNotStartExplorer()
     {
         using var fixture = TemporaryProject.Create("Missing", "Missing");
-        File.Delete(fixture.Project.ProjectFilePath.Value);
-        var revealProcess = new FakeProcessLauncher(LaunchResult.Succeeded());
-        var revealLauncher = new ExplorerLauncher(revealProcess);
-
-        var revealResult = revealLauncher.RevealProjectFile(fixture.Project);
-
-        Assert.IsFalse(revealResult.IsSuccess);
-        Assert.HasCount(0, revealProcess.Requests);
-
         Directory.Delete(fixture.Project.ProjectDirectory, recursive: true);
         var folderProcess = new FakeProcessLauncher(LaunchResult.Succeeded());
         var folderLauncher = new ExplorerLauncher(folderProcess);

@@ -86,6 +86,13 @@ public sealed class ProjectActionService
             && _visualStudioLauncher.CanOpenSolution(project);
     }
 
+    public VisualStudioSolutionSelection LocateVisualStudioSolution(
+        UnrealProject project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        return _visualStudioLauncher.LocateSolution(project);
+    }
+
     public bool CanRemoveFromList(UnrealProject project)
     {
         ArgumentNullException.ThrowIfNull(project);
@@ -199,12 +206,6 @@ public sealed class ProjectActionService
     {
         ArgumentNullException.ThrowIfNull(project);
         return FromLaunchResult(_explorerLauncher.OpenProjectFolder(project));
-    }
-
-    public ProjectActionResult RevealProjectFile(UnrealProject project)
-    {
-        ArgumentNullException.ThrowIfNull(project);
-        return FromLaunchResult(_explorerLauncher.RevealProjectFile(project));
     }
 
     public ProjectActionResult CopyProjectPath(UnrealProject project)

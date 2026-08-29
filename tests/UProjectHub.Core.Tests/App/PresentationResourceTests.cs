@@ -180,6 +180,20 @@ public sealed class PresentationResourceTests
     }
 
     [STATestMethod]
+    public void DisabledMenuItemsStillShowTheirExplanatoryTooltips()
+    {
+        var dictionary = LoadDictionary("Themes/Menus.xaml");
+        var item = new MenuItem
+        {
+            Style = (Style)dictionary[typeof(MenuItem)],
+            IsEnabled = false,
+            ToolTip = "Unavailable reason",
+        };
+
+        Assert.IsTrue(ToolTipService.GetShowOnDisabled(item));
+    }
+
+    [STATestMethod]
     [DataRow(Orientation.Vertical)]
     [DataRow(Orientation.Horizontal)]
     public void SemanticScrollBarPreservesTheWpfTrackAndThumbContract(Orientation orientation)

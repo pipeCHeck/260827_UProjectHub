@@ -254,18 +254,17 @@ Favorite icon:
 
 Overflow button (`⋮`) and right-click use the same context actions:
 
-    Open Project
-    Open in Visual Studio
-    Open Folder
+    Open in Unreal
+    Open Existing .sln
+    Open Project Folder
     -------------------
-    Reveal .uproject
     Copy Path
     Toggle Favorite
     -------------------
     Project Information
     Remove from List
 
-`Open in Visual Studio` is available only for a C++ project with an existing `.sln` file. It is hidden or disabled otherwise. The MVP does not generate project files or modify `.uproject` or project settings.
+`Open Existing .sln` is enabled only for a C++ project when one solution can be selected safely. For Blueprint, missing, multiple, or inaccessible solution states, keep the action visible but disabled and show a concise reason in a tooltip. A missing `.sln` is an actionable informational state when Generate Project Files becomes available, not a project-health warning. The current MVP does not generate project files or modify `.uproject` or project settings.
 
 `Remove from List` is shown only for a missing project. It removes the entry from UProject Hub's managed list/cache and never deletes the project directory or files.
 

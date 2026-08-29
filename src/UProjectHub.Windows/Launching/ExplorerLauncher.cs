@@ -29,17 +29,4 @@ public sealed class ExplorerLauncher : IExplorerLauncher
             argumentList: [project.ProjectDirectory]));
     }
 
-    public LaunchResult RevealProjectFile(UnrealProject project)
-    {
-        ArgumentNullException.ThrowIfNull(project);
-
-        if (!File.Exists(project.ProjectFilePath.Value))
-        {
-            return LaunchResult.Failed("The project file was not found.");
-        }
-
-        return _processLauncher.Launch(new ProcessRequest(
-            fileName: ExplorerExecutable,
-            argumentList: ["/select,", project.ProjectFilePath.Value]));
-    }
 }

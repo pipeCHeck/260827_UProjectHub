@@ -41,7 +41,12 @@ public sealed class LocalizationServiceTests
         "String.OpenProject",
         "String.OpenVisualStudio",
         "String.OpenFolder",
-        "String.RevealProject",
+        "String.OpenVisualStudioProjectUnavailable",
+        "String.OpenVisualStudioCppOnly",
+        "String.OpenVisualStudioSolutionMissing",
+        "String.OpenVisualStudioSolutionMultiple",
+        "String.OpenVisualStudioSolutionInaccessible",
+        "String.OpenVisualStudioSolutionUnavailable",
         "String.CopyPath",
         "String.AddFavorite",
         "String.RemoveFavorite",
@@ -122,8 +127,8 @@ public sealed class LocalizationServiceTests
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!
             .InformationalVersion;
 
-        Assert.AreEqual("0.1.1 r", informationalVersion);
-        Assert.AreEqual("v0.1.1 r", AppVersion.Display);
+        Assert.AreEqual("0.2.0 r", informationalVersion);
+        Assert.AreEqual("v0.2.0 r", AppVersion.Display);
     }
 
     private static int CountLocalizationDictionaries(ResourceDictionary resources) =>

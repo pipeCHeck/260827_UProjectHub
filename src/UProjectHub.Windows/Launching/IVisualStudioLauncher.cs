@@ -6,5 +6,7 @@ public interface IVisualStudioLauncher
 {
     bool CanOpenSolution(UnrealProject project);
 
+    VisualStudioSolutionSelection LocateSolution(UnrealProject project);
+
     LaunchResult OpenSolution(UnrealProject project);
 }

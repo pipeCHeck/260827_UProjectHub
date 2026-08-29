@@ -228,16 +228,17 @@ Numeric `EngineAssociation` values are matched by parsed major/minor version. Fo
 
 Project context menu:
 
-- Open Project;
-- Open in Visual Studio, for C++ projects with an existing `.sln` file;
+- Open in Unreal;
+- Open Existing `.sln`;
 - Open Project Folder;
-- Reveal `.uproject`;
 - Copy Path;
 - Toggle Favorite;
 - Project Information;
 - Remove from List, for missing projects.
 
-`Open in Visual Studio` is hidden or disabled when the project is not C++ or no existing `.sln` file is available. The MVP must not run Generate Project Files.
+`Open Existing .sln` is enabled only for a C++ project when one solution can be selected safely. It remains visible but disabled for Blueprint projects and when the solution is missing, ambiguous, or inaccessible. A disabled action must explain the reason in a tooltip. The MVP must not run Generate Project Files.
+
+A missing `.sln` is not by itself a project-health warning. When a future Generate Project Files action is available, it is an actionable informational state that points to that action.
 
 `Remove from List` removes only the missing entry from UProject Hub's managed project list and cache. It must never delete or modify project files.
 
@@ -405,6 +406,17 @@ The MVP shall not include:
 - a thumbnail/card grid as the primary view.
 
 These may be considered after the MVP is stable.
+
+### 8.1 Post-MVP Operation Safety Contract
+
+Read-only queries and project-changing operations are separate capabilities.
+
+- Read-only queries inspect project, engine, source-control, diagnostic, or size information without changing project files.
+- Generate Project Files is a generated-file mutation because it may create or replace `.sln` and generated project-file output. It requires an explicit user action and must show the selected engine, target `.uproject`, and operation before execution.
+- Switch Unreal Engine Version is a descriptor mutation because it changes `EngineAssociation`. It is a separate later feature and must never select a target engine or run without explicit user selection and confirmation.
+- Project cache cleanup is a destructive operation. It is a separate later feature and must require exact-path validation, per-folder selection, and final confirmation before deleting any generated folder.
+
+Expensive read-only work such as recursive size analysis, Git inspection, plugin dependency checks, or log/crash analysis runs only for a selected project after an explicit user request. It must not run automatically during startup or full-list loading.
 
 ## 9. Definition of Done
 

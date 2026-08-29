@@ -275,7 +275,7 @@ public sealed class ProjectActionServiceTests
     }
 
     [TestMethod]
-    public void FolderRevealCopyAndVisualStudioDelegateWithoutChangingCatalog()
+    public void FolderCopyAndVisualStudioDelegateWithoutChangingCatalog()
     {
         var project = CreateProject(projectType: ProjectType.Cpp);
         var fixture = CreateFixture(project);
@@ -283,16 +283,13 @@ public sealed class ProjectActionServiceTests
         fixture.Service.CatalogChanged += _ => catalogChangedCount++;
 
         var folder = fixture.Service.OpenProjectFolder(project);
-        var reveal = fixture.Service.RevealProjectFile(project);
         var copy = fixture.Service.CopyProjectPath(project);
         var visualStudio = fixture.Service.OpenInVisualStudio(project);
 
         Assert.IsTrue(folder.IsSuccess);
-        Assert.IsTrue(reveal.IsSuccess);
         Assert.IsTrue(copy.IsSuccess);
         Assert.IsTrue(visualStudio.IsSuccess);
         Assert.AreSame(project, fixture.Explorer.LastFolderProject);
-        Assert.AreSame(project, fixture.Explorer.LastRevealProject);
         Assert.AreEqual(project.ProjectFilePath.Value, fixture.Clipboard.Text);
         Assert.AreSame(project, fixture.VisualStudio.LastOpenedProject);
         Assert.AreEqual(0, catalogChangedCount);
@@ -517,17 +514,9 @@ public sealed class ProjectActionServiceTests
     {
         public UnrealProject? LastFolderProject { get; private set; }
 
-        public UnrealProject? LastRevealProject { get; private set; }
-
         public LaunchResult OpenProjectFolder(UnrealProject project)
         {
             LastFolderProject = project;
-            return LaunchResult.Succeeded();
-        }
-
-        public LaunchResult RevealProjectFile(UnrealProject project)
-        {
-            LastRevealProject = project;
             return LaunchResult.Succeeded();
         }
     }
@@ -537,6 +526,14 @@ public sealed class ProjectActionServiceTests
         public UnrealProject? LastOpenedProject { get; private set; }
 
         public bool CanOpenSolution(UnrealProject project) => canOpen;
+
+        public VisualStudioSolutionSelection LocateSolution(
+            UnrealProject project) =>
+            canOpen
+                ? VisualStudioSolutionSelection.Available(
+                    @"D:\Projects\Game\Game.sln",
+                    [@"D:\Projects\Game\Game.sln"])
+                : VisualStudioSolutionSelection.Missing();
 
         public LaunchResult OpenSolution(UnrealProject project)
         {
