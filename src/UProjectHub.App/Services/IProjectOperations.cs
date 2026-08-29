@@ -17,7 +17,11 @@ public interface IProjectOperations
 
     Task<ProjectOperationResult> RemoveManualEngineRootAsync(string root, CancellationToken cancellationToken = default);
 
-    Task<ProjectOperationResult> SaveAppearanceAsync(ThemeMode themeMode, RowDensity rowDensity, CancellationToken cancellationToken = default);
+    Task<ProjectOperationResult> SaveAppearanceAsync(
+        ThemeMode themeMode,
+        RowDensity rowDensity,
+        AppLanguage language,
+        CancellationToken cancellationToken = default);
 
     Task<ProjectOperationResult> SaveViewStateAsync(
         ProjectSortDefinition activeSort,

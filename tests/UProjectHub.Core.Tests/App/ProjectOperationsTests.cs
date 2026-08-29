@@ -133,13 +133,16 @@ public sealed class ProjectOperationsTests
 
         var saved = await fixture.Service.SaveAppearanceAsync(
             AppThemeMode.Dark,
-            RowDensity.Compact);
+            RowDensity.Compact,
+            AppLanguage.Korean);
 
         Assert.IsTrue(saved.IsSuccess);
         Assert.AreEqual(AppThemeMode.Dark, fixture.Settings.Current.ThemeMode);
         Assert.AreEqual(RowDensity.Compact, fixture.Settings.Current.RowDensity);
+        Assert.AreEqual(AppLanguage.Korean, fixture.Settings.Current.Language);
         Assert.AreEqual(AppThemeMode.Dark, fixture.Theme.EffectiveTheme);
         Assert.AreEqual(RowDensity.Compact, fixture.Theme.ActiveDensity);
+        Assert.AreEqual(AppLanguage.Korean, fixture.Localization.CurrentLanguage);
         AssertUnrelatedSettingsPreserved(
             initial,
             fixture.Settings.Current,
@@ -148,11 +151,13 @@ public sealed class ProjectOperationsTests
         fixture.Settings.SaveException = new IOException("disk unavailable");
         var failed = await fixture.Service.SaveAppearanceAsync(
             AppThemeMode.Light,
-            RowDensity.Normal);
+            RowDensity.Normal,
+            AppLanguage.English);
 
         Assert.IsFalse(failed.IsSuccess);
         Assert.AreEqual(AppThemeMode.Dark, fixture.Theme.EffectiveTheme);
         Assert.AreEqual(RowDensity.Compact, fixture.Theme.ActiveDensity);
+        Assert.AreEqual(AppLanguage.Korean, fixture.Localization.CurrentLanguage);
     }
 
     [TestMethod]
@@ -228,12 +233,19 @@ public sealed class ProjectOperationsTests
             resources,
             () => AppThemeMode.Light,
             source => new ResourceDictionary { ["Test.Source"] = source.OriginalString });
+        var localization = new LocalizationService(
+            resources,
+            source => new ResourceDictionary
+            {
+                ["Test.Source"] = source.OriginalString,
+            });
         var catalog = new ProjectCatalog();
-        var fixture = new Fixture(repository, theme);
+        var fixture = new Fixture(repository, theme, localization);
         fixture.Service = new ProjectOperations(
             repository,
             new ManualEngineValidator(),
             theme,
+            localization,
             catalog,
             fixture.RescanAsync);
         return fixture;
@@ -252,6 +264,7 @@ public sealed class ProjectOperationsTests
         ],
         ThemeMode = AppThemeMode.System,
         RowDensity = RowDensity.Normal,
+        Language = AppLanguage.English,
         ActiveSort = new ProjectSortDefinition(
             ProjectSortColumn.LastModified,
             SortDirection.Descending),
@@ -281,6 +294,7 @@ public sealed class ProjectOperationsTests
         {
             Assert.AreEqual(expected.ThemeMode, actual.ThemeMode);
             Assert.AreEqual(expected.RowDensity, actual.RowDensity);
+            Assert.AreEqual(expected.Language, actual.Language);
         }
 
         Assert.AreEqual(expected.ActiveSort, actual.ActiveSort);
@@ -311,13 +325,16 @@ public sealed class ProjectOperationsTests
 
     private sealed class Fixture(
         FakeSettingsRepository settings,
-        ThemeService theme)
+        ThemeService theme,
+        LocalizationService localization)
     {
         public ProjectOperations Service { get; set; } = null!;
 
         public FakeSettingsRepository Settings { get; } = settings;
 
         public ThemeService Theme { get; } = theme;
+
+        public LocalizationService Localization { get; } = localization;
 
         public int RescanCalls { get; private set; }
 

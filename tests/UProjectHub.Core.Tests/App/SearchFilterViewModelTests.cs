@@ -26,6 +26,43 @@ public sealed class SearchFilterViewModelTests
         Assert.IsEmpty(fixture.ProjectList.Rows);
         Assert.AreEqual(new ProjectSortDefinition(), fixture.ViewModel.ActiveSort);
         Assert.IsEmpty(fixture.ViewModel.EngineOptions);
+        Assert.AreEqual("All", fixture.ViewModel.SelectedEngineFilterOption.Label);
+        Assert.IsNull(fixture.ViewModel.SelectedEngine);
+        Assert.IsFalse(fixture.ViewModel.HasActiveSearchOrFilters);
+    }
+
+    [TestMethod]
+    public void EngineFilterOption_AllDisplaysAsSelectedWithoutBecomingAFilterValue()
+    {
+        var fixture = CreateFixture();
+        fixture.ViewModel.SetSnapshot(CreateSnapshot(
+            CreateProject(
+                "FiveEight",
+                @"D:\Projects\FiveEight\FiveEight.uproject",
+                engineDisplayVersion: "5.8"),
+            CreateProject(
+                "FiveTen",
+                @"D:\Projects\FiveTen\FiveTen.uproject",
+                engineDisplayVersion: "5.10")));
+
+        Assert.AreEqual("All", fixture.ViewModel.SelectedEngineFilterOption.Label);
+        Assert.IsNull(fixture.ViewModel.SelectedEngine);
+        Assert.AreEqual(2, fixture.ProjectList.VisibleCount);
+        Assert.IsFalse(fixture.ViewModel.HasActiveSearchOrFilters);
+
+        fixture.ViewModel.SelectedEngineFilterOption = fixture.ViewModel.EngineFilterOptions
+            .Single(option => option.Value == "5.8");
+
+        Assert.AreEqual("5.8", fixture.ViewModel.SelectedEngine);
+        CollectionAssert.AreEqual(
+            new[] { "FiveEight" },
+            VisibleNames(fixture));
+
+        fixture.ViewModel.ResetCommand.Execute(null);
+
+        Assert.AreEqual("All", fixture.ViewModel.SelectedEngineFilterOption.Label);
+        Assert.IsNull(fixture.ViewModel.SelectedEngine);
+        Assert.AreEqual(2, fixture.ProjectList.VisibleCount);
         Assert.IsFalse(fixture.ViewModel.HasActiveSearchOrFilters);
     }
 
@@ -254,6 +291,7 @@ public sealed class SearchFilterViewModelTests
 
         Assert.AreEqual(string.Empty, fixture.ViewModel.SearchText);
         Assert.IsNull(fixture.ViewModel.SelectedEngine);
+        Assert.AreEqual("All", fixture.ViewModel.SelectedEngineFilterOption.Label);
         Assert.IsNull(fixture.ViewModel.SelectedProjectType);
         Assert.IsFalse(fixture.ViewModel.FavoritesOnly);
         Assert.IsFalse(fixture.ViewModel.HasActiveSearchOrFilters);

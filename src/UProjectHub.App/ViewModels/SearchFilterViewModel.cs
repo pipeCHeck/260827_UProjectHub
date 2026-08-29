@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using UProjectHub.App.Infrastructure;
+using UProjectHub.App.Services;
 using UProjectHub.Core.Catalog;
 using UProjectHub.Core.Filtering;
 using UProjectHub.Core.Models;
@@ -17,6 +18,7 @@ public sealed class SearchFilterViewModel : ObservableObject
     private readonly ProjectQueryParser _queryParser;
     private readonly ProjectFilterService _filterService;
     private readonly ProjectSortService _sortService;
+    private readonly LocalizationService? _localization;
     private readonly ObservableCollection<string> _engineOptions = [];
     private readonly ObservableCollection<EngineFilterOption> _engineFilterOptions = [];
     private IReadOnlyList<UnrealProject> _rawProjects = [];
@@ -32,22 +34,23 @@ public sealed class SearchFilterViewModel : ObservableObject
         ProjectListViewModel projectList,
         ProjectQueryParser queryParser,
         ProjectFilterService filterService,
-        ProjectSortService sortService)
+        ProjectSortService sortService,
+        LocalizationService? localization = null)
     {
         _projectList = projectList ?? throw new ArgumentNullException(nameof(projectList));
         _queryParser = queryParser ?? throw new ArgumentNullException(nameof(queryParser));
         _filterService = filterService ?? throw new ArgumentNullException(nameof(filterService));
         _sortService = sortService ?? throw new ArgumentNullException(nameof(sortService));
+        _localization = localization;
 
         EngineOptions = new ReadOnlyObservableCollection<string>(_engineOptions);
         EngineFilterOptions = new ReadOnlyObservableCollection<EngineFilterOption>(_engineFilterOptions);
-        ProjectTypeOptions =
-        [
-            new ProjectTypeFilterOption("All", null),
-            new ProjectTypeFilterOption("C++", ProjectType.Cpp),
-            new ProjectTypeFilterOption("Blueprint", ProjectType.Blueprint),
-        ];
-        _engineFilterOptions.Add(new EngineFilterOption("All", null));
+        ProjectTypeOptions = CreateProjectTypeOptions();
+        _engineFilterOptions.Add(new EngineFilterOption(AllLabel, null));
+        if (_localization is not null)
+        {
+            _localization.LanguageChanged += OnLanguageChanged;
+        }
         ResetCommand = new RelayCommand(Reset);
         ClearSearchCommand = new RelayCommand(() => SearchText = string.Empty);
     }
@@ -74,6 +77,7 @@ public sealed class SearchFilterViewModel : ObservableObject
             var normalized = string.IsNullOrWhiteSpace(value) ? null : value;
             if (SetProperty(ref _selectedEngine, normalized))
             {
+                OnPropertyChanged(nameof(SelectedEngineFilterOption));
                 OnCriteriaChanged();
             }
         }
@@ -107,7 +111,17 @@ public sealed class SearchFilterViewModel : ObservableObject
 
     public ReadOnlyObservableCollection<EngineFilterOption> EngineFilterOptions { get; }
 
-    public IReadOnlyList<ProjectTypeFilterOption> ProjectTypeOptions { get; }
+    public EngineFilterOption SelectedEngineFilterOption
+    {
+        get => _engineFilterOptions.FirstOrDefault(option => string.Equals(
+                option.Value,
+                SelectedEngine,
+                StringComparison.OrdinalIgnoreCase))
+            ?? _engineFilterOptions[0];
+        set => SelectedEngine = value?.Value;
+    }
+
+    public IReadOnlyList<ProjectTypeFilterOption> ProjectTypeOptions { get; private set; }
 
     public ProjectSortDefinition ActiveSort
     {
@@ -261,12 +275,14 @@ public sealed class SearchFilterViewModel : ObservableObject
 
         _engineOptions.Clear();
         _engineFilterOptions.Clear();
-        _engineFilterOptions.Add(new EngineFilterOption("All", null));
+        _engineFilterOptions.Add(new EngineFilterOption(AllLabel, null));
         foreach (var option in options)
         {
             _engineOptions.Add(option);
             _engineFilterOptions.Add(new EngineFilterOption(option, option));
         }
+
+        OnPropertyChanged(nameof(SelectedEngineFilterOption));
     }
 
     private static string? GetEngineOption(UnrealProject project)
@@ -279,6 +295,26 @@ public sealed class SearchFilterViewModel : ObservableObject
         return string.IsNullOrWhiteSpace(project.EngineAssociation)
             ? null
             : project.EngineAssociation;
+    }
+
+    private string AllLabel =>
+        _localization?.GetString("String.All") is { } value && value != "String.All"
+            ? value
+            : "All";
+
+    private IReadOnlyList<ProjectTypeFilterOption> CreateProjectTypeOptions() =>
+    [
+        new ProjectTypeFilterOption(AllLabel, null),
+        new ProjectTypeFilterOption("C++", ProjectType.Cpp),
+        new ProjectTypeFilterOption("Blueprint", ProjectType.Blueprint),
+    ];
+
+    private void OnLanguageChanged(object? sender, EventArgs eventArgs)
+    {
+        ProjectTypeOptions = CreateProjectTypeOptions();
+        OnPropertyChanged(nameof(ProjectTypeOptions));
+        RebuildEngineOptions();
+        ApplyPipeline();
     }
 
     private static SortDirection Reverse(SortDirection direction)

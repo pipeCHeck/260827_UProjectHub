@@ -66,7 +66,17 @@
     </Style>
 
     <Style x:Key="Button.Favorite" TargetType="Button" BasedOn="{StaticResource Button.Icon}">
+        <Setter Property="Width" Value="34" />
+        <Setter Property="Height" Value="34" />
+        <Setter Property="MinWidth" Value="34" />
+        <Setter Property="FontSize" Value="20" />
+        <Setter Property="Padding" Value="0" />
         <Setter Property="behaviors:MotionFeedbackBehavior.PressedScale" Value="0.92" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsFavorite}" Value="True">
+                <Setter Property="Foreground" Value="{DynamicResource Brush.FavoriteActive}" />
+            </DataTrigger>
+        </Style.Triggers>
     </Style>
 
     <Style TargetType="ComboBoxItem">
@@ -126,10 +136,12 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock VerticalAlignment="Center"
-                                       Foreground="{DynamicResource Brush.TextPrimary}"
-                                       Text="{Binding SelectionBoxItem.Label, RelativeSource={RelativeSource TemplatedParent}}"
-                                       TextTrimming="CharacterEllipsis" />
+                            <ContentPresenter VerticalAlignment="Center"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                              TextElement.Foreground="{DynamicResource Brush.TextPrimary}" />
                             <Path Grid.Column="1"
                                   Width="8"
                                   Height="5"

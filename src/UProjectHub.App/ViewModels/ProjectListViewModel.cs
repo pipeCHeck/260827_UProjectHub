@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using UProjectHub.App.Infrastructure;
+using UProjectHub.App.Services;
 using UProjectHub.Core.Catalog;
 using UProjectHub.Core.Models;
 using UProjectHub.Core.Settings;
@@ -11,15 +12,23 @@ public sealed class ProjectListViewModel : ObservableObject
     private readonly ObservableCollection<ProjectRowViewModel> _rows = [];
     private readonly Func<UnrealProject, ProjectContextActionsViewModel>?
         _contextActionsFactory;
+    private readonly LocalizationService? _localization;
     private int _totalCount;
     private int _visibleCount;
     private IReadOnlyList<ColumnLayoutState> _columnLayout = [];
 
     public ProjectListViewModel(
         Func<UnrealProject, ProjectContextActionsViewModel>?
-            contextActionsFactory = null)
+            contextActionsFactory = null,
+        LocalizationService? localization = null)
     {
         _contextActionsFactory = contextActionsFactory;
+        _localization = localization;
+        if (_localization is not null)
+        {
+            _localization.LanguageChanged += (_, _) =>
+                OnPropertyChanged(nameof(ShowingCountText));
+        }
         Rows = new ReadOnlyObservableCollection<ProjectRowViewModel>(_rows);
     }
 
@@ -29,7 +38,10 @@ public sealed class ProjectListViewModel : ObservableObject
 
     public int VisibleCount => _visibleCount;
 
-    public string ShowingCountText => $"Showing {VisibleCount} of {TotalCount}";
+    public string ShowingCountText => string.Format(
+        Localize("String.ShowingCountFormat", "Showing {0} of {1}"),
+        VisibleCount,
+        TotalCount);
 
     public bool HasVisibleRows => VisibleCount > 0;
 
@@ -87,4 +99,9 @@ public sealed class ProjectListViewModel : ObservableObject
             OnPropertyChanged(nameof(IsNoResultsState));
         }
     }
+
+    private string Localize(string key, string fallback) =>
+        _localization?.GetString(key) is { } value && value != key
+            ? value
+            : fallback;
 }

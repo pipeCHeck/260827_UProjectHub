@@ -36,13 +36,29 @@
             <StackPanel Grid.Column="1"
                         VerticalAlignment="Top"
                         Orientation="Horizontal">
+                <TextBlock Margin="0,0,8,0"
+                           VerticalAlignment="Center"
+                           Style="{DynamicResource Text.Secondary}"
+                           Text="{DynamicResource String.EngineVersion}" />
+                <ComboBox Width="150"
+                          VerticalAlignment="Center"
+                          ItemsSource="{Binding NewProject.EngineOptions}"
+                          DisplayMemberPath="Label"
+                          SelectedItem="{Binding NewProject.SelectedEngineOption, Mode=TwoWay}"
+                          ToolTip="{DynamicResource String.SelectVersionTooltip}" />
+                <Button MinWidth="96"
+                        Margin="{DynamicResource Thickness.ChipGap}"
+                        Command="{Binding NewProject.LaunchCommand}"
+                        Content="{DynamicResource String.NewProject}"
+                        ToolTip="{DynamicResource String.NewProjectTooltip}" />
                 <Button MinWidth="88"
+                        Margin="{DynamicResource Thickness.ChipGap}"
                         Command="{Binding RefreshCommand}"
-                        Content="Refresh" />
+                        Content="{DynamicResource String.Refresh}" />
                 <Button MinWidth="88"
                         Margin="{DynamicResource Thickness.ChipGap}"
                         Command="{Binding SettingsCommand}"
-                        Content="Settings" />
+                        Content="{DynamicResource String.Settings}" />
             </StackPanel>
         </Grid>
 
@@ -60,20 +76,19 @@
             <StackPanel Grid.Row="1"
                         Margin="{DynamicResource Thickness.SectionTopGap}"
                         Orientation="Horizontal">
-                <controls:FilterChip Label="Engine">
+                <controls:FilterChip Label="{DynamicResource String.EngineVersion}">
                     <controls:FilterChip.ChipContent>
-                        <ComboBox Width="160"
+                        <ComboBox Width="{DynamicResource Metric.EngineFilterWidth}"
                                   ItemsSource="{Binding SearchFilter.EngineFilterOptions}"
                                   DisplayMemberPath="Label"
-                                  SelectedValuePath="Value"
-                                  SelectedValue="{Binding SearchFilter.SelectedEngine, Mode=TwoWay}" />
+                                  SelectedItem="{Binding SearchFilter.SelectedEngineFilterOption, Mode=TwoWay}" />
                     </controls:FilterChip.ChipContent>
                 </controls:FilterChip>
 
                 <controls:FilterChip Margin="{DynamicResource Thickness.ChipGap}"
-                                     Label="Type">
+                                     Label="{DynamicResource String.Type}">
                     <controls:FilterChip.ChipContent>
-                        <ComboBox Width="120"
+                        <ComboBox Width="{DynamicResource Metric.ProjectTypeFilterWidth}"
                                   ItemsSource="{Binding SearchFilter.ProjectTypeOptions}"
                                   DisplayMemberPath="Label"
                                   SelectedValuePath="Value"
@@ -82,12 +97,11 @@
                 </controls:FilterChip>
 
                 <controls:FilterChip Margin="{DynamicResource Thickness.ChipGap}"
-                                     Label="Favorites"
+                                     Label="{DynamicResource String.FavoritesOnly}"
                                      IsActive="{Binding SearchFilter.FavoritesOnly}">
                     <controls:FilterChip.ChipContent>
                         <CheckBox VerticalAlignment="Center"
                                   Foreground="{DynamicResource Brush.TextPrimary}"
-                                  Content="Only"
                                   IsChecked="{Binding SearchFilter.FavoritesOnly, Mode=TwoWay}" />
                     </controls:FilterChip.ChipContent>
                 </controls:FilterChip>
@@ -95,7 +109,7 @@
                 <Button Margin="{DynamicResource Thickness.ResetGap}"
                         VerticalAlignment="Center"
                         Command="{Binding SearchFilter.ResetCommand}"
-                        Content="Reset"
+                        Content="{DynamicResource String.Reset}"
                         IsEnabled="{Binding SearchFilter.HasActiveSearchOrFilters}" />
             </StackPanel>
         </Grid>

@@ -14,23 +14,23 @@
                      Background="{DynamicResource Brush.ElevatedSurface}"
                      Foreground="{DynamicResource Brush.TextPrimary}"
                      DataContext="{Binding PlacementTarget.DataContext.ContextActions, RelativeSource={RelativeSource Self}}">
-            <MenuItem Header="Open Project"
+            <MenuItem Header="{DynamicResource String.OpenProject}"
                       Command="{Binding OpenProjectCommand}" />
-            <MenuItem Header="Open in Visual Studio"
+            <MenuItem Header="{DynamicResource String.OpenVisualStudio}"
                       Command="{Binding OpenInVisualStudioCommand}" />
-            <MenuItem Header="Open Folder"
+            <MenuItem Header="{DynamicResource String.OpenFolder}"
                       Command="{Binding OpenProjectFolderCommand}" />
             <Separator />
-            <MenuItem Header="Reveal .uproject"
+            <MenuItem Header="{DynamicResource String.RevealProject}"
                       Command="{Binding RevealProjectFileCommand}" />
-            <MenuItem Header="Copy Path"
+            <MenuItem Header="{DynamicResource String.CopyPath}"
                       Command="{Binding CopyPathCommand}" />
             <MenuItem Header="{Binding ToggleFavoriteLabel}"
                       Command="{Binding ToggleFavoriteCommand}" />
             <Separator />
-            <MenuItem Header="Project Information"
+            <MenuItem Header="{DynamicResource String.ProjectInformation}"
                       Command="{Binding ProjectInformationCommand}" />
-            <MenuItem Header="Remove from List"
+            <MenuItem Header="{DynamicResource String.RemoveFromList}"
                       Command="{Binding RemoveFromListCommand}"
                       Visibility="{Binding CanRemoveFromList, Converter={StaticResource BooleanToVisibilityConverter}}" />
         </ContextMenu>
@@ -61,6 +61,7 @@
                   SelectionUnit="FullRow"
                   MouseDoubleClick="OnProjectDataGridMouseDoubleClick"
                   PreviewKeyDown="OnProjectDataGridPreviewKeyDown"
+                  PreviewMouseLeftButtonDown="OnProjectDataGridPreviewMouseLeftButtonDown"
                   PreviewMouseRightButtonDown="OnProjectDataGridPreviewMouseRightButtonDown"
                   Sorting="OnSorting">
             <DataGrid.RowStyle>
@@ -70,26 +71,28 @@
                 </Style>
             </DataGrid.RowStyle>
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="★" Width="48" CanUserSort="False">
+                <DataGridTemplateColumn Header="★" Width="56" CanUserSort="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Button Style="{DynamicResource Button.Favorite}"
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     Command="{Binding ContextActions.ToggleFavoriteCommand}"
-                                    Content="{Binding FavoriteGlyph}" />
+                                    Content="{Binding FavoriteGlyph}"
+                                    ToolTip="{Binding ContextActions.ToggleFavoriteLabel}" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTemplateColumn Header="Project"
+                <DataGridTemplateColumn Header="{DynamicResource String.Project}"
                                         MinWidth="280"
                                         Width="*"
                                         CanUserSort="True"
                                         SortMemberPath="Name">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <Grid Margin="{DynamicResource Thickness.ListCellPadding}">
+                            <Grid Margin="{DynamicResource Thickness.ListCellPadding}"
+                                  VerticalAlignment="Center">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
@@ -103,11 +106,13 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Foreground="{DynamicResource Brush.TextSecondary}"
+                                    <TextBlock VerticalAlignment="Center"
+                                               Foreground="{DynamicResource Brush.TextSecondary}"
                                                Text="{Binding ProjectDirectory}"
                                                TextTrimming="CharacterEllipsis" />
                                     <TextBlock Grid.Column="1"
                                                Margin="{DynamicResource Thickness.WarningGap}"
+                                               VerticalAlignment="Center"
                                                Foreground="{DynamicResource Brush.WarningText}"
                                                Text="{Binding ProjectState, Converter={StaticResource ProjectStateMessageConverter}}" />
                                 </Grid>
@@ -116,29 +121,33 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTextColumn Header="Engine"
-                                    Width="120"
-                                    MinWidth="110"
+                <DataGridTextColumn Header="{DynamicResource String.EngineVersion}"
+                                    Width="145"
+                                    MinWidth="135"
                                     CanUserSort="True"
                                     SortMemberPath="EngineVersion"
+                                    ElementStyle="{StaticResource DataGrid.TextCellContent}"
                                     Binding="{Binding EngineDisplay}" />
-                <DataGridTextColumn Header="Type"
+                <DataGridTextColumn Header="{DynamicResource String.Type}"
                                     Width="105"
                                     MinWidth="90"
                                     CanUserSort="True"
                                     SortMemberPath="ProjectType"
+                                    ElementStyle="{StaticResource DataGrid.TextCellContent}"
                                     Binding="{Binding TypeDisplay}" />
-                <DataGridTextColumn Header="Last Modified"
+                <DataGridTextColumn Header="{DynamicResource String.LastModified}"
                                     Width="135"
                                     MinWidth="125"
                                     CanUserSort="True"
                                     SortMemberPath="LastModified"
-                                    Binding="{Binding LastModified, Converter={StaticResource RelativeTimeConverter}}" />
-                <DataGridTextColumn Header="Last Launched"
+                                    ElementStyle="{StaticResource DataGrid.TextCellContent}"
+                                    Binding="{Binding LastModified, Converter={StaticResource RelativeTimeConverter}, ConverterParameter=CalendarDate}" />
+                <DataGridTextColumn Header="{DynamicResource String.LastLaunched}"
                                     Width="135"
                                     MinWidth="125"
                                     CanUserSort="True"
                                     SortMemberPath="LastLaunched"
+                                    ElementStyle="{StaticResource DataGrid.TextCellContent}"
                                     Binding="{Binding LastLaunched, Converter={StaticResource RelativeTimeConverter}}" />
                 <DataGridTemplateColumn Header=""
                                         Width="48"
@@ -162,11 +171,11 @@
                     Visibility="{Binding IsNoProjectsState, Converter={StaticResource BooleanToVisibilityConverter}}">
             <TextBlock HorizontalAlignment="Center"
                        Style="{DynamicResource Text.EmptyTitle}"
-                       Text="No Unreal projects found." />
+                       Text="{DynamicResource String.NoProjects}" />
             <TextBlock Margin="0,8,0,0"
                        HorizontalAlignment="Center"
                        Style="{DynamicResource Text.Secondary}"
-                       Text="Add a project search root or rescan configured locations." />
+                       Text="{DynamicResource String.NoProjectsHint}" />
         </StackPanel>
 
         <StackPanel HorizontalAlignment="Center"
@@ -174,11 +183,11 @@
                     Visibility="{Binding IsNoResultsState, Converter={StaticResource BooleanToVisibilityConverter}}">
             <TextBlock HorizontalAlignment="Center"
                        Style="{DynamicResource Text.EmptyTitle}"
-                       Text="No projects match these filters." />
+                       Text="{DynamicResource String.NoResults}" />
             <Button Margin="{DynamicResource Thickness.EmptyActionGap}"
                     HorizontalAlignment="Center"
                     Command="{Binding ResetCommand, ElementName=Root}"
-                    Content="Reset search and filters" />
+                    Content="{DynamicResource String.ResetSearchFilters}" />
         </StackPanel>
     </Grid>
 </UserControl>

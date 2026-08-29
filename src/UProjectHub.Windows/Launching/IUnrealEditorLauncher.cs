@@ -8,4 +8,6 @@ public interface IUnrealEditorLauncher
     LaunchResult Launch(
         UnrealProject project,
         EngineResolution engineResolution);
+
+    LaunchResult LaunchNewProject(InstalledEngine engine);
 }

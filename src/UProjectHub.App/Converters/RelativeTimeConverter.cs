@@ -33,6 +33,16 @@ public sealed class RelativeTimeConverter : IValueConverter
             return UnknownText;
         }
 
+        if (string.Equals(
+                parameter as string,
+                "CalendarDate",
+                StringComparison.Ordinal))
+        {
+            return TimeZoneInfo
+                .ConvertTime(timestamp, _timeZone)
+                .ToString("yyyy.MM.dd.", DisplayCulture);
+        }
+
         var nowUtc = _clock.UtcNow;
         var elapsed = nowUtc - timestamp;
 

@@ -38,14 +38,17 @@ public sealed class AppBootstrapper
 {
     public AppRuntime Build()
     {
-        var statusBar = new StatusBarViewModel();
         var applicationResources = Application.Current?.Resources
             ?? new ResourceDictionary();
         var registryReader = new WindowsRegistryReader();
         var themeService = new ThemeService(
             applicationResources,
             () => ResolveSystemTheme(registryReader));
+        var localizationService = new LocalizationService(applicationResources);
+        applicationResources["Service.Localization"] = localizationService;
+        localizationService.ApplySettings(new AppSettings());
         themeService.ApplySettings(new AppSettings());
+        var statusBar = new StatusBarViewModel(localizationService);
 
         var animationPreference = new WpfSystemAnimationPreference();
         var motionService = new MotionService(
@@ -79,11 +82,12 @@ public sealed class AppBootstrapper
             projectCacheRepository,
             settingsRepository);
         var processLauncher = new ProcessLauncher();
+        var unrealEditorLauncher = new UnrealEditorLauncher(processLauncher, clock);
         var projectActions = new ProjectActionService(
             catalog,
             settingsRepository,
             removalService,
-            new UnrealEditorLauncher(processLauncher, clock),
+            unrealEditorLauncher,
             new ExplorerLauncher(processLauncher),
             new VisualStudioLauncher(processLauncher),
             new WpfClipboardService(),
@@ -93,13 +97,20 @@ public sealed class AppBootstrapper
             new ProjectContextActionsViewModel(
                 project,
                 projectActions,
-                ShowProjectInformation));
+                ShowProjectInformation,
+                localizationService),
+            localizationService);
         var searchService = new ProjectSearchService(clock);
         var searchFilter = new SearchFilterViewModel(
             projectList,
             new ProjectQueryParser(),
             new ProjectFilterService(searchService),
-            new ProjectSortService());
+            new ProjectSortService(),
+            localizationService);
+        var newProject = new NewProjectViewModel(
+            unrealEditorLauncher,
+            statusBar,
+            localizationService);
 
         var metadataLoader = new ProjectMetadataLoader(
             new UProjectParser(),
@@ -134,7 +145,8 @@ public sealed class AppBootstrapper
                 projectOperations!,
                 new FolderPickerService(),
                 settings => mainViewModel!.ApplySettings(settings),
-                snapshot => mainViewModel!.SetProjects(snapshot));
+                snapshot => mainViewModel!.SetProjects(snapshot),
+                localizationService);
             var window = new SettingsWindow(settingsViewModel)
             {
                 Owner = Application.Current?.MainWindow,
@@ -148,7 +160,9 @@ public sealed class AppBootstrapper
             projectList: projectList,
             searchFilter: searchFilter,
             projectActions: projectActions,
-            refreshAction: () => coordinator!.RefreshAsync());
+            refreshAction: () => coordinator!.RefreshAsync(),
+            newProject: newProject,
+            localization: localizationService);
 
         var backgroundRefresh = new BackgroundRefreshService(
             catalog,
@@ -191,12 +205,14 @@ public sealed class AppBootstrapper
             statusBar,
             backgroundRefresh,
             dispatcher,
-            logger);
+            logger,
+            localizationService);
 
         projectOperations = new ProjectOperations(
             settingsRepository,
             manualEngineValidator,
             themeService,
+            localizationService,
             catalog,
             (roots, settings, cancellationToken) => rescanService.RescanAsync(
                 roots,

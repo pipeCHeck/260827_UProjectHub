@@ -13,6 +13,7 @@ public sealed class ProjectOperations : IProjectOperations
     private readonly ISettingsRepository _settingsRepository;
     private readonly ManualEngineValidator _manualEngineValidator;
     private readonly ThemeService _themeService;
+    private readonly LocalizationService _localizationService;
     private readonly ProjectCatalog _catalog;
     private readonly Func<IReadOnlyList<string>, AppSettings, CancellationToken, Task<ProjectRefreshResult>> _rescan;
     private readonly Func<CancellationToken, Task<ProjectRescanOperationResult>>? _coordinatedRescan;
@@ -22,6 +23,7 @@ public sealed class ProjectOperations : IProjectOperations
         ISettingsRepository settingsRepository,
         ManualEngineValidator manualEngineValidator,
         ThemeService themeService,
+        LocalizationService localizationService,
         ProjectCatalog catalog,
         Func<IReadOnlyList<string>, AppSettings, CancellationToken, Task<ProjectRefreshResult>> rescan,
         Func<CancellationToken, Task<ProjectRescanOperationResult>>? coordinatedRescan = null)
@@ -29,6 +31,8 @@ public sealed class ProjectOperations : IProjectOperations
         _settingsRepository = settingsRepository ?? throw new ArgumentNullException(nameof(settingsRepository));
         _manualEngineValidator = manualEngineValidator ?? throw new ArgumentNullException(nameof(manualEngineValidator));
         _themeService = themeService ?? throw new ArgumentNullException(nameof(themeService));
+        _localizationService = localizationService
+            ?? throw new ArgumentNullException(nameof(localizationService));
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _rescan = rescan ?? throw new ArgumentNullException(nameof(rescan));
         _coordinatedRescan = coordinatedRescan;
@@ -150,11 +154,14 @@ public sealed class ProjectOperations : IProjectOperations
     public async Task<ProjectOperationResult> SaveAppearanceAsync(
         ThemeMode themeMode,
         RowDensity rowDensity,
+        AppLanguage language,
         CancellationToken cancellationToken = default)
     {
         var result = await MutateAsync(settings =>
         {
-            if (settings.ThemeMode == themeMode && settings.RowDensity == rowDensity)
+            if (settings.ThemeMode == themeMode
+                && settings.RowDensity == rowDensity
+                && settings.Language == language)
             {
                 return Mutation.Unchanged(settings);
             }
@@ -163,12 +170,14 @@ public sealed class ProjectOperations : IProjectOperations
             {
                 ThemeMode = themeMode,
                 RowDensity = rowDensity,
+                Language = language,
             });
         }, cancellationToken);
 
         if (result.IsSuccess && result.Settings is not null)
         {
             _themeService.ApplySettings(result.Settings);
+            _localizationService.ApplySettings(result.Settings);
         }
 
         return result;

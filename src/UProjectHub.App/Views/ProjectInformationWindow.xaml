@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:behaviors="clr-namespace:UProjectHub.App.Behaviors"
-        Title="Project Information"
+        Title="{DynamicResource String.ProjectInformation}"
         Width="620"
         Height="520"
         MinWidth="520"
@@ -51,25 +51,25 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" FontWeight="SemiBold" Text="Project file" />
+                <TextBlock Grid.Row="0" FontWeight="SemiBold" Text="{DynamicResource String.ProjectFile}" />
                 <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ProjectPath}" TextWrapping="Wrap" />
-                <TextBlock Grid.Row="1" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="Directory" />
+                <TextBlock Grid.Row="1" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="{DynamicResource String.Directory}" />
                 <TextBlock Grid.Row="1" Grid.Column="1" Margin="{DynamicResource Thickness.DialogRowGap}" Text="{Binding ProjectDirectory}" TextWrapping="Wrap" />
-                <TextBlock Grid.Row="2" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="Engine association" />
+                <TextBlock Grid.Row="2" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="{DynamicResource String.EngineAssociation}" />
                 <TextBlock Grid.Row="2" Grid.Column="1" Margin="{DynamicResource Thickness.DialogRowGap}" Text="{Binding EngineAssociation}" />
-                <TextBlock Grid.Row="3" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="Engine version" />
+                <TextBlock Grid.Row="3" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="{DynamicResource String.EngineVersion}" />
                 <TextBlock Grid.Row="3" Grid.Column="1" Margin="{DynamicResource Thickness.DialogRowGap}" Text="{Binding EngineDisplayVersion}" />
-                <TextBlock Grid.Row="4" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="Project type" />
+                <TextBlock Grid.Row="4" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="{DynamicResource String.ProjectType}" />
                 <TextBlock Grid.Row="4" Grid.Column="1" Margin="{DynamicResource Thickness.DialogRowGap}" Text="{Binding ProjectType}" />
-                <TextBlock Grid.Row="5" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="Project state" />
+                <TextBlock Grid.Row="5" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="{DynamicResource String.ProjectState}" />
                 <TextBlock Grid.Row="5" Grid.Column="1" Margin="{DynamicResource Thickness.DialogRowGap}" Text="{Binding ProjectState}" />
-                <TextBlock Grid.Row="6" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="Engine state" />
+                <TextBlock Grid.Row="6" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="{DynamicResource String.EngineState}" />
                 <TextBlock Grid.Row="6" Grid.Column="1" Margin="{DynamicResource Thickness.DialogRowGap}" Text="{Binding EngineState}" />
-                <TextBlock Grid.Row="7" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="Favorite" />
-                <TextBlock Grid.Row="7" Grid.Column="1" Margin="{DynamicResource Thickness.DialogRowGap}" Text="{Binding IsFavorite}" />
-                <TextBlock Grid.Row="8" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="Last modified" />
+                <TextBlock Grid.Row="7" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="{DynamicResource String.Favorite}" />
+                <TextBlock Grid.Row="7" Grid.Column="1" Margin="{DynamicResource Thickness.DialogRowGap}" Text="{Binding FavoriteDisplay}" />
+                <TextBlock Grid.Row="8" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="{DynamicResource String.LastModified}" />
                 <TextBlock Grid.Row="8" Grid.Column="1" Margin="{DynamicResource Thickness.DialogRowGap}" Text="{Binding LastModified}" />
-                <TextBlock Grid.Row="9" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="Last launched" />
+                <TextBlock Grid.Row="9" Margin="{DynamicResource Thickness.DialogRowGap}" FontWeight="SemiBold" Text="{DynamicResource String.LastLaunched}" />
                 <TextBlock Grid.Row="9" Grid.Column="1" Margin="{DynamicResource Thickness.DialogRowGap}" Text="{Binding LastLaunched}" />
             </Grid>
         </ScrollViewer>
@@ -78,6 +78,6 @@
                 MinWidth="88"
                 HorizontalAlignment="Right"
                 IsCancel="True"
-                Content="Close" />
+                Content="{DynamicResource String.Close}" />
     </Grid>
 </Window>

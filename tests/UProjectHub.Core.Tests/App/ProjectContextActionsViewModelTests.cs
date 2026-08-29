@@ -229,6 +229,9 @@ public sealed class ProjectContextActionsViewModelTests
             LaunchCount++;
             return LaunchResult.Succeeded(Now);
         }
+
+        public LaunchResult LaunchNewProject(InstalledEngine engine) =>
+            throw new InvalidOperationException("New-project launch was not expected.");
     }
 
     private sealed class FakeExplorerLauncher : IExplorerLauncher

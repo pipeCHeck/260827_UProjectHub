@@ -20,6 +20,7 @@ public sealed class SettingsViewModelTests
             ManualEngineRoots = [@"C:\UE"],
             ThemeMode = ThemeMode.Dark,
             RowDensity = RowDensity.Compact,
+            Language = AppLanguage.Korean,
         };
         var fixture = CreateFixture(settings);
 
@@ -29,7 +30,58 @@ public sealed class SettingsViewModelTests
         CollectionAssert.AreEqual(settings.ManualEngineRoots.ToArray(), fixture.ViewModel.ManualEngineRoots.ToArray());
         Assert.AreEqual(ThemeMode.Dark, fixture.ViewModel.SelectedThemeMode);
         Assert.AreEqual(RowDensity.Compact, fixture.ViewModel.SelectedRowDensity);
+        Assert.AreEqual(AppLanguage.Korean, fixture.ViewModel.SelectedLanguage);
         Assert.AreEqual(0, fixture.Operations.RescanCalls);
+    }
+
+    [TestMethod]
+    public void AppearanceOptionsUseExplicitUserFacingLabels()
+    {
+        var fixture = CreateFixture(new AppSettings());
+
+        CollectionAssert.AreEqual(
+            new[] { "System", "Light", "Dark" },
+            fixture.ViewModel.ThemeOptions.Select(option => option.Label).ToArray());
+        CollectionAssert.AreEqual(
+            new[] { "Normal", "Compact" },
+            fixture.ViewModel.RowDensityOptions.Select(option => option.Label).ToArray());
+        CollectionAssert.AreEqual(
+            new[] { "English", "한국어" },
+            fixture.ViewModel.LanguageOptions.Select(option => option.Label).ToArray());
+    }
+
+    [TestMethod]
+    public void LanguageChangeKeepsAppearanceSelectionsAndUpdatesStableOptionLabels()
+    {
+        var resources = new System.Windows.ResourceDictionary();
+        var localization = new LocalizationService(
+            resources,
+            source => source.OriginalString.Contains("ko", StringComparison.OrdinalIgnoreCase)
+                ? CreateOptionDictionary("시스템", "라이트", "다크", "일반", "컴팩트")
+                : CreateOptionDictionary("System", "Light", "Dark", "Normal", "Compact"));
+        localization.ApplyLanguage(AppLanguage.English);
+        var operations = new FakeProjectOperations(new AppSettings());
+        var viewModel = new SettingsViewModel(
+            operations,
+            new FakeFolderPickerService(),
+            localization: localization)
+        {
+            SelectedThemeMode = ThemeMode.Dark,
+            SelectedRowDensity = RowDensity.Compact,
+            SelectedLanguage = AppLanguage.Korean,
+        };
+        var themeOptions = viewModel.ThemeOptions;
+        var densityOptions = viewModel.RowDensityOptions;
+
+        localization.ApplyLanguage(AppLanguage.Korean);
+
+        Assert.AreSame(themeOptions, viewModel.ThemeOptions);
+        Assert.AreSame(densityOptions, viewModel.RowDensityOptions);
+        Assert.AreEqual(ThemeMode.Dark, viewModel.SelectedThemeMode);
+        Assert.AreEqual(RowDensity.Compact, viewModel.SelectedRowDensity);
+        Assert.AreEqual(AppLanguage.Korean, viewModel.SelectedLanguage);
+        Assert.AreEqual("다크", viewModel.ThemeOptions.Single(option => option.Value == ThemeMode.Dark).Label);
+        Assert.AreEqual("컴팩트", viewModel.RowDensityOptions.Single(option => option.Value == RowDensity.Compact).Label);
     }
 
     [TestMethod]
@@ -149,12 +201,27 @@ public sealed class SettingsViewModelTests
         var fixture = CreateFixture(new AppSettings());
         fixture.ViewModel.SelectedThemeMode = ThemeMode.Light;
         fixture.ViewModel.SelectedRowDensity = RowDensity.Compact;
+        fixture.ViewModel.SelectedLanguage = AppLanguage.Korean;
 
         await fixture.ViewModel.SaveAppearanceCommand.ExecuteAsync();
 
         Assert.AreEqual(ThemeMode.Light, fixture.Operations.LastThemeMode);
         Assert.AreEqual(RowDensity.Compact, fixture.Operations.LastRowDensity);
+        Assert.AreEqual(AppLanguage.Korean, fixture.Operations.LastLanguage);
         Assert.AreEqual("Appearance saved.", fixture.ViewModel.StatusText);
+    }
+
+    [TestMethod]
+    public void ChangingAppearanceWithoutApplyDoesNotPersistOrApplyIt()
+    {
+        var fixture = CreateFixture(new AppSettings());
+
+        fixture.ViewModel.SelectedThemeMode = ThemeMode.Dark;
+        fixture.ViewModel.SelectedRowDensity = RowDensity.Compact;
+        fixture.ViewModel.SelectedLanguage = AppLanguage.Korean;
+
+        Assert.AreEqual(0, fixture.Operations.SaveAppearanceCalls);
+        Assert.AreEqual(AppLanguage.English, fixture.Operations.Current.Language);
     }
 
     [TestMethod]
@@ -209,6 +276,23 @@ public sealed class SettingsViewModelTests
             picker);
     }
 
+    private static System.Windows.ResourceDictionary CreateOptionDictionary(
+        string system,
+        string light,
+        string dark,
+        string normal,
+        string compact) => new()
+    {
+        ["String.ThemeSystem"] = system,
+        ["String.ThemeLight"] = light,
+        ["String.ThemeDark"] = dark,
+        ["String.DensityNormal"] = normal,
+        ["String.DensityCompact"] = compact,
+        ["String.LanguageEnglish"] = "English",
+        ["String.LanguageKorean"] = "한국어",
+        ["String.StatusReady"] = "Ready",
+    };
+
     private sealed record Fixture(
         SettingsViewModel ViewModel,
         FakeProjectOperations Operations,
@@ -246,6 +330,10 @@ public sealed class SettingsViewModelTests
         public ThemeMode? LastThemeMode { get; private set; }
 
         public RowDensity? LastRowDensity { get; private set; }
+
+        public AppLanguage? LastLanguage { get; private set; }
+
+        public int SaveAppearanceCalls { get; private set; }
 
         public Task<AppSettings> LoadSettingsAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(Current);
@@ -314,11 +402,19 @@ public sealed class SettingsViewModelTests
         public Task<ProjectOperationResult> SaveAppearanceAsync(
             ThemeMode themeMode,
             RowDensity rowDensity,
+            AppLanguage language,
             CancellationToken cancellationToken = default)
         {
+            SaveAppearanceCalls++;
             LastThemeMode = themeMode;
             LastRowDensity = rowDensity;
-            Current = Current with { ThemeMode = themeMode, RowDensity = rowDensity };
+            LastLanguage = language;
+            Current = Current with
+            {
+                ThemeMode = themeMode,
+                RowDensity = rowDensity,
+                Language = language,
+            };
             return Task.FromResult(new ProjectOperationResult(true, true, Current, null));
         }
 

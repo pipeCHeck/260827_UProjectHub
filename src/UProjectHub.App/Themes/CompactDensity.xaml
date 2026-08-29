@@ -4,8 +4,11 @@
     <sys:Double x:Key="Metric.ProjectRowHeight">46</sys:Double>
     <sys:Double x:Key="Metric.SearchControlHeight">40</sys:Double>
     <sys:Double x:Key="Metric.FilterControlHeight">30</sys:Double>
+    <sys:Double x:Key="Metric.EngineFilterWidth">124</sys:Double>
+    <sys:Double x:Key="Metric.ProjectTypeFilterWidth">88</sys:Double>
     <Thickness x:Key="Thickness.ControlPadding">10,5</Thickness>
     <Thickness x:Key="Thickness.SearchPadding">10,0</Thickness>
+    <Thickness x:Key="Thickness.SearchTextInset">4,0,0,0</Thickness>
     <Thickness x:Key="Thickness.FilterPadding">8,3</Thickness>
     <Thickness x:Key="Thickness.ListCellPadding">6,2</Thickness>
 </ResourceDictionary>

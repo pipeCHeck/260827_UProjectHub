@@ -22,17 +22,19 @@
 
             <Grid Grid.Column="1">
                 <TextBox x:Name="SearchInput"
-                         Padding="0"
+                         Padding="{DynamicResource Thickness.SearchTextInset}"
                          VerticalContentAlignment="Center"
                          Background="{DynamicResource Brush.Transparent}"
                          Foreground="{DynamicResource Brush.TextPrimary}"
                          CaretBrush="{DynamicResource Brush.TextPrimary}"
                          BorderThickness="0"
                          Text="{Binding Text, ElementName=Root, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                <TextBlock IsHitTestVisible="False"
+                <TextBlock x:Name="SearchPlaceholder"
+                           Margin="{DynamicResource Thickness.SearchTextInset}"
+                           IsHitTestVisible="False"
                            VerticalAlignment="Center"
                            Foreground="{DynamicResource Brush.TextSecondary}"
-                           Text="Search projects...">
+                           Text="{DynamicResource String.SearchPlaceholder}">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Setter Property="Visibility" Value="Collapsed" />

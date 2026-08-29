@@ -2,7 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:behaviors="clr-namespace:UProjectHub.App.Behaviors"
-        Title="Settings"
+        xmlns:infrastructure="clr-namespace:UProjectHub.App.Infrastructure"
+        Title="{DynamicResource String.Settings}"
         Width="720"
         Height="680"
         MinWidth="600"
@@ -19,17 +20,17 @@
         </Grid.RowDefinitions>
 
         <TextBlock Style="{DynamicResource Text.DialogTitle}"
-                   Text="Settings" />
+                   Text="{DynamicResource String.Settings}" />
 
         <ScrollViewer Grid.Row="1"
                       Margin="{DynamicResource Thickness.DialogSectionGap}"
                       VerticalScrollBarVisibility="Auto">
             <StackPanel>
                 <TextBlock Style="{DynamicResource Text.EmptyTitle}"
-                           Text="Projects" />
+                           Text="{DynamicResource String.Projects}" />
                 <TextBlock Margin="{DynamicResource Thickness.DialogRowGap}"
                            Style="{DynamicResource Text.Body}"
-                           Text="Search locations" />
+                           Text="{DynamicResource String.SearchLocations}" />
                 <Border Margin="0,8,0,0"
                         Padding="8"
                         Background="{DynamicResource Brush.Surface}"
@@ -59,20 +60,20 @@
                         </ListBox>
                         <StackPanel Grid.Row="1" Margin="0,8,0,0" Orientation="Horizontal">
                             <Button Command="{Binding AddSearchRootCommand}"
-                                    Content="+ Add search root" />
+                                    Content="{DynamicResource String.AddSearchRoot}" />
                             <Button Margin="8,0,0,0"
                                     Command="{Binding RemoveSearchRootCommand}"
-                                    Content="Remove" />
+                                    Content="{DynamicResource String.Remove}" />
                             <Button Margin="8,0,0,0"
                                     Command="{Binding RescanCommand}"
-                                    Content="Rescan projects" />
+                                    Content="{DynamicResource String.RescanProjects}" />
                         </StackPanel>
                     </Grid>
                 </Border>
 
                 <TextBlock Margin="0,20,0,0"
                            Style="{DynamicResource Text.EmptyTitle}"
-                           Text="Manual Unreal Engines" />
+                           Text="{DynamicResource String.ManualEngines}" />
                 <Border Margin="0,8,0,0"
                         Padding="8"
                         Background="{DynamicResource Brush.Surface}"
@@ -101,17 +102,17 @@
                         </ListBox>
                         <StackPanel Grid.Row="1" Margin="0,8,0,0" Orientation="Horizontal">
                             <Button Command="{Binding AddManualEngineCommand}"
-                                    Content="+ Add engine root" />
+                                    Content="{DynamicResource String.AddEngineRoot}" />
                             <Button Margin="8,0,0,0"
                                     Command="{Binding RemoveManualEngineCommand}"
-                                    Content="Remove" />
+                                    Content="{DynamicResource String.Remove}" />
                         </StackPanel>
                     </Grid>
                 </Border>
 
                 <TextBlock Margin="0,20,0,0"
                            Style="{DynamicResource Text.EmptyTitle}"
-                           Text="Appearance" />
+                           Text="{DynamicResource String.Appearance}" />
                 <Grid Margin="0,8,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
@@ -122,34 +123,52 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <TextBlock VerticalAlignment="Center" Style="{DynamicResource Text.Body}" Text="Theme" />
+                    <TextBlock VerticalAlignment="Center" Style="{DynamicResource Text.Body}" Text="{DynamicResource String.Theme}" />
                     <ComboBox Grid.Column="1"
-                              ItemsSource="{Binding ThemeModes}"
-                              SelectedItem="{Binding SelectedThemeMode, Mode=TwoWay}" />
-                    <TextBlock Grid.Row="1" Margin="0,10,16,0" VerticalAlignment="Center" Style="{DynamicResource Text.Body}" Text="Row density" />
+                              ItemsSource="{Binding ThemeOptions}"
+                              DisplayMemberPath="Label"
+                              SelectedValuePath="Value"
+                              SelectedValue="{Binding SelectedThemeMode, Mode=TwoWay}" />
+                    <TextBlock Grid.Row="1" Margin="0,10,16,0" VerticalAlignment="Center" Style="{DynamicResource Text.Body}" Text="{DynamicResource String.RowDensity}" />
                     <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,10,0,0"
-                              ItemsSource="{Binding RowDensities}"
-                              SelectedItem="{Binding SelectedRowDensity, Mode=TwoWay}" />
-                    <Button Grid.Row="2" Grid.Column="1" Margin="0,10,0,0"
-                            HorizontalAlignment="Left"
-                            Command="{Binding SaveAppearanceCommand}"
-                            Content="Apply appearance" />
+                              ItemsSource="{Binding RowDensityOptions}"
+                              DisplayMemberPath="Label"
+                              SelectedValuePath="Value"
+                              SelectedValue="{Binding SelectedRowDensity, Mode=TwoWay}" />
+                    <TextBlock Grid.Row="2" Margin="0,10,16,0" VerticalAlignment="Center" Style="{DynamicResource Text.Body}" Text="{DynamicResource String.Language}" />
+                    <ComboBox Grid.Row="2" Grid.Column="1" Margin="0,10,0,0"
+                              ItemsSource="{Binding LanguageOptions}"
+                              DisplayMemberPath="Label"
+                              SelectedValuePath="Value"
+                              SelectedValue="{Binding SelectedLanguage, Mode=TwoWay}" />
                 </Grid>
             </StackPanel>
         </ScrollViewer>
 
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBlock VerticalAlignment="Center"
                        Style="{DynamicResource Text.Secondary}"
+                       Text="{x:Static infrastructure:AppVersion.Display}" />
+            <TextBlock Grid.Column="1"
+                       Margin="16,0"
+                       VerticalAlignment="Center"
+                       Style="{DynamicResource Text.Secondary}"
                        Text="{Binding StatusText}" />
-            <Button Grid.Column="1"
+            <Button Grid.Column="2"
+                    MinWidth="80"
+                    Margin="0,0,8,0"
+                    Command="{Binding SaveAppearanceCommand}"
+                    Content="{DynamicResource String.Apply}" />
+            <Button Grid.Column="3"
                     MinWidth="80"
                     IsCancel="True"
-                    Content="Close" />
+                    Content="{DynamicResource String.Close}" />
         </Grid>
     </Grid>
 </Window>

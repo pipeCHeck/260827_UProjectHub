@@ -53,7 +53,18 @@ dotnet run --project src/UProjectHub.App
 - Explicit UnrealEditor launch with argument-list handling
 - Project folder, reveal, copy path, existing Visual Studio solution, information, and Missing-only removal actions
 - Light/dark semantic themes, normal/compact density, responsive columns, and system-aware subtle motion
+- Runtime English/Korean UI switching with persisted language selection
 - Bounded rolling UTF-8 logs
+
+## Versioning
+
+The application version has one source of truth: `UProjectHubVersion` in
+`src/UProjectHub.App/UProjectHub.App.csproj`. The UI appends the release suffix
+and displays that build version in the Settings footer.
+
+- Small bug or UX fix: increment the patch version (`0.1.0` → `0.1.1`).
+- Feature addition or behavior change: increment the minor version (`0.1.x` → `0.2.0`).
+- Stable release milestone: increment the major version (`1.0.0`).
 
 ## Refresh and Rescan
 

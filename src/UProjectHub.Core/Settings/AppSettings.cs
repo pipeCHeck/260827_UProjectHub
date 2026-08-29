@@ -14,6 +14,8 @@ public sealed record AppSettings
 
     public RowDensity RowDensity { get; init; } = RowDensity.Normal;
 
+    public AppLanguage Language { get; init; } = AppLanguage.English;
+
     public ProjectSortDefinition ActiveSort { get; init; } = new();
 
     public VisibleFilterState VisibleFilters { get; init; } = new();

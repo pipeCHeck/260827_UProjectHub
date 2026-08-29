@@ -23,6 +23,7 @@ public sealed class JsonSettingsRepositoryTests
         Assert.HasCount(0, settings.ProjectUserStates);
         Assert.AreEqual(ThemeMode.System, settings.ThemeMode);
         Assert.AreEqual(RowDensity.Normal, settings.RowDensity);
+        Assert.AreEqual(AppLanguage.English, settings.Language);
         Assert.AreEqual(new ProjectSortDefinition(), settings.ActiveSort);
         Assert.AreEqual(new VisibleFilterState(), settings.VisibleFilters);
         Assert.HasCount(0, settings.ColumnLayout);
@@ -75,6 +76,7 @@ public sealed class JsonSettingsRepositoryTests
         Assert.HasCount(0, settings.ProjectUserStates);
         Assert.AreEqual(ThemeMode.System, settings.ThemeMode);
         Assert.AreEqual(RowDensity.Normal, settings.RowDensity);
+        Assert.AreEqual(AppLanguage.English, settings.Language);
         Assert.AreEqual(new ProjectSortDefinition(), settings.ActiveSort);
         Assert.AreEqual(new VisibleFilterState(), settings.VisibleFilters);
         Assert.HasCount(0, settings.ColumnLayout);
@@ -121,6 +123,7 @@ public sealed class JsonSettingsRepositoryTests
         Assert.AreEqual(JsonValueKind.Array, root.GetProperty("manualEngineRoots").ValueKind);
         Assert.AreEqual("dark", root.GetProperty("themeMode").GetString());
         Assert.AreEqual("compact", root.GetProperty("rowDensity").GetString());
+        Assert.AreEqual("korean", root.GetProperty("language").GetString());
         Assert.AreEqual(
             JsonValueKind.String,
             root.GetProperty("projectUserStates")[0].GetProperty("projectPath").ValueKind);
@@ -168,6 +171,7 @@ public sealed class JsonSettingsRepositoryTests
             ],
             ThemeMode = ThemeMode.Dark,
             RowDensity = RowDensity.Compact,
+            Language = AppLanguage.Korean,
             ActiveSort = new ProjectSortDefinition(
                 ProjectSortColumn.EngineVersion,
                 SortDirection.Ascending),
@@ -196,6 +200,7 @@ public sealed class JsonSettingsRepositoryTests
             actual.ProjectUserStates.ToArray());
         Assert.AreEqual(expected.ThemeMode, actual.ThemeMode);
         Assert.AreEqual(expected.RowDensity, actual.RowDensity);
+        Assert.AreEqual(expected.Language, actual.Language);
         Assert.AreEqual(expected.ActiveSort, actual.ActiveSort);
         Assert.AreEqual(expected.VisibleFilters, actual.VisibleFilters);
         CollectionAssert.AreEqual(

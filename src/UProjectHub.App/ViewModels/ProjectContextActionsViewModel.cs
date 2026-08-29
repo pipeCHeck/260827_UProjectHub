@@ -10,17 +10,20 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
     private readonly UnrealProject _project;
     private readonly ProjectActionService _actions;
     private readonly Action<ProjectInformationViewModel> _showInformation;
+    private readonly LocalizationService? _localization;
     private ProjectActionResult? _lastResult;
 
     public ProjectContextActionsViewModel(
         UnrealProject project,
         ProjectActionService actions,
-        Action<ProjectInformationViewModel> showInformation)
+        Action<ProjectInformationViewModel> showInformation,
+        LocalizationService? localization = null)
     {
         _project = project ?? throw new ArgumentNullException(nameof(project));
         _actions = actions ?? throw new ArgumentNullException(nameof(actions));
         _showInformation = showInformation
             ?? throw new ArgumentNullException(nameof(showInformation));
+        _localization = localization;
 
         OpenProjectCommand = new AsyncRelayCommand(
             OpenProjectAsync,
@@ -36,7 +39,9 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
             () => LastResult = _actions.CopyProjectPath(_project));
         ToggleFavoriteCommand = new AsyncRelayCommand(ToggleFavoriteAsync);
         ProjectInformationCommand = new RelayCommand(
-            () => _showInformation(new ProjectInformationViewModel(_project)));
+            () => _showInformation(new ProjectInformationViewModel(
+                _project,
+                localization: _localization)));
         RemoveFromListCommand = new AsyncRelayCommand(
             RemoveFromListAsync,
             () => CanRemoveFromList);
@@ -49,8 +54,8 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
     public bool CanRemoveFromList => _actions.CanRemoveFromList(_project);
 
     public string ToggleFavoriteLabel => _project.IsFavorite
-        ? "Remove from Favorites"
-        : "Add to Favorites";
+        ? Localize("String.RemoveFavorite", "Remove from Favorites")
+        : Localize("String.AddFavorite", "Add to Favorites");
 
     public ProjectActionResult? LastResult
     {
@@ -88,4 +93,9 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
     {
         LastResult = await _actions.RemoveMissingAsync(_project);
     }
+
+    private string Localize(string key, string fallback) =>
+        _localization?.GetString(key) is { } value && value != key
+            ? value
+            : fallback;
 }

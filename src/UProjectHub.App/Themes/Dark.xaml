@@ -13,5 +13,6 @@
     <SolidColorBrush x:Key="Brush.WarningText" Color="#FFE4B66B" />
     <SolidColorBrush x:Key="Brush.WarningSurface" Color="#FF3B3021" />
     <SolidColorBrush x:Key="Brush.Focus" Color="#FF90B6F2" />
+    <SolidColorBrush x:Key="Brush.FavoriteActive" Color="#FFE2B84F" />
     <SolidColorBrush x:Key="Brush.ControlDisabled" Color="#FF292D34" />
 </ResourceDictionary>

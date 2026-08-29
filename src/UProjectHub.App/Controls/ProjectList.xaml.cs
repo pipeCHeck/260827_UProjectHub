@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using UProjectHub.App.ViewModels;
@@ -10,6 +11,9 @@ namespace UProjectHub.App.Controls;
 
 public partial class ProjectList : UserControl
 {
+    private WindowApplicationActivationSource? _activationSource;
+    private ApplicationSelectionLifecycle? _selectionLifecycle;
+
     public static readonly DependencyProperty ResetCommandProperty = DependencyProperty.Register(
         nameof(ResetCommand),
         typeof(ICommand),
@@ -24,6 +28,8 @@ public partial class ProjectList : UserControl
     public ProjectList()
     {
         InitializeComponent();
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
     }
 
     public event EventHandler<ProjectSortRequestedEventArgs>? SortRequested;
@@ -103,15 +109,80 @@ public partial class ProjectList : UserControl
         }
     }
 
+    private void OnProjectDataGridPreviewMouseLeftButtonDown(
+        object sender,
+        MouseButtonEventArgs eventArgs)
+    {
+        var source = eventArgs.OriginalSource as DependencyObject;
+        if (ShouldClearSelection(
+            isWithinRow: FindAncestor<DataGridRow>(source) is not null,
+            isWithinHeader: FindAncestor<DataGridColumnHeader>(source) is not null,
+            isWithinScrollBar: FindAncestor<ScrollBar>(source) is not null))
+        {
+            ClearSelection();
+        }
+    }
+
+    public static bool ShouldClearSelection(
+        bool isWithinRow,
+        bool isWithinHeader,
+        bool isWithinScrollBar) =>
+        !isWithinRow && !isWithinHeader && !isWithinScrollBar;
+
     private void OnOverflowClick(object sender, RoutedEventArgs eventArgs)
     {
         if (sender is Button { ContextMenu: { } contextMenu } button)
         {
+            SelectContainingRow(button);
             contextMenu.PlacementTarget = button;
             contextMenu.IsOpen = true;
         }
 
         eventArgs.Handled = true;
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs eventArgs)
+    {
+        if (_selectionLifecycle is not null)
+        {
+            return;
+        }
+
+        if (Window.GetWindow(this) is not { } window)
+        {
+            return;
+        }
+
+        _activationSource = new WindowApplicationActivationSource(window);
+        _selectionLifecycle = new ApplicationSelectionLifecycle(
+            _activationSource,
+            ClearSelection);
+        _selectionLifecycle.Attach();
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs eventArgs)
+    {
+        _activationSource?.Dispose();
+        _activationSource = null;
+        _selectionLifecycle?.Dispose();
+        _selectionLifecycle = null;
+    }
+
+    private void ClearSelection()
+    {
+        ProjectDataGrid.UnselectAll();
+        ProjectDataGrid.SelectedItem = null;
+    }
+
+    private void SelectContainingRow(DependencyObject source)
+    {
+        if (FindAncestor<DataGridRow>(source) is not { } row)
+        {
+            return;
+        }
+
+        row.IsSelected = true;
+        ProjectDataGrid.SelectedItem = row.DataContext;
     }
 
     private void ExecuteOpenSelectedProject()

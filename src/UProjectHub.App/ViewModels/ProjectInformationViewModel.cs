@@ -1,4 +1,5 @@
 using System.Globalization;
+using UProjectHub.App.Services;
 using UProjectHub.Core.Models;
 
 namespace UProjectHub.App.ViewModels;
@@ -10,7 +11,8 @@ public sealed class ProjectInformationViewModel
 
     public ProjectInformationViewModel(
         UnrealProject project,
-        TimeZoneInfo? timeZone = null)
+        TimeZoneInfo? timeZone = null,
+        LocalizationService? localization = null)
     {
         Project = project ?? throw new ArgumentNullException(nameof(project));
         var displayTimeZone = timeZone ?? TimeZoneInfo.Local;
@@ -28,13 +30,30 @@ public sealed class ProjectInformationViewModel
                 UProjectHub.Core.Models.ProjectType.Blueprint => "Blueprint",
                 _ => Unknown,
             };
-        ProjectState = project.ProjectState.ToString();
-        EngineState = project.EngineState.ToString();
+        ProjectState = project.ProjectState switch
+        {
+            UProjectHub.Core.Models.ProjectState.Available => Localize(localization, "String.StateAvailable", "Available"),
+            UProjectHub.Core.Models.ProjectState.Missing => Localize(localization, "String.StateMissing", "Missing"),
+            UProjectHub.Core.Models.ProjectState.Broken => Localize(localization, "String.StateBroken", "Broken"),
+            _ => Unknown,
+        };
+        EngineState = project.EngineState switch
+        {
+            UProjectHub.Core.Models.EngineResolutionState.Resolved => Localize(localization, "String.EngineResolved", "Resolved"),
+            UProjectHub.Core.Models.EngineResolutionState.Missing => Localize(localization, "String.EngineMissing", "Missing"),
+            UProjectHub.Core.Models.EngineResolutionState.Ambiguous => Localize(localization, "String.EngineAmbiguous", "Ambiguous"),
+            UProjectHub.Core.Models.EngineResolutionState.Unknown => Localize(localization, "String.EngineUnknown", "Unknown"),
+            _ => Unknown,
+        };
         IsFavorite = project.IsFavorite;
+        FavoriteDisplay = Localize(
+            localization,
+            project.IsFavorite ? "String.Yes" : "String.No",
+            project.IsFavorite ? "Yes" : "No");
         LastModified = FormatTimestamp(project.LastModified, displayTimeZone, Unknown);
         LastLaunched = project.LastLaunched is { } lastLaunched
-            ? FormatTimestamp(lastLaunched, displayTimeZone, "Never")
-            : "Never";
+            ? FormatTimestamp(lastLaunched, displayTimeZone, Localize(localization, "String.Never", "Never"))
+            : Localize(localization, "String.Never", "Never");
     }
 
     public UnrealProject Project { get; }
@@ -57,6 +76,8 @@ public sealed class ProjectInformationViewModel
 
     public bool IsFavorite { get; }
 
+    public string FavoriteDisplay { get; }
+
     public string LastModified { get; }
 
     public string LastLaunched { get; }
@@ -77,4 +98,12 @@ public sealed class ProjectInformationViewModel
         return TimeZoneInfo.ConvertTime(timestamp, timeZone)
             .ToString(ExactTimestampFormat, CultureInfo.InvariantCulture);
     }
+
+    private static string Localize(
+        LocalizationService? localization,
+        string key,
+        string fallback) =>
+        localization?.GetString(key) is { } value && value != key
+            ? value
+            : fallback;
 }

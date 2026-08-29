@@ -508,6 +508,9 @@ public sealed class ProjectActionServiceTests
             LastResolution = engineResolution;
             return result;
         }
+
+        public LaunchResult LaunchNewProject(InstalledEngine engine) =>
+            throw new InvalidOperationException("New-project launch was not expected.");
     }
 
     private sealed class FakeExplorerLauncher : IExplorerLauncher

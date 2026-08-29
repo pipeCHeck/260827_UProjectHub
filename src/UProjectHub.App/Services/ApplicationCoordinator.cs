@@ -40,6 +40,7 @@ public sealed class ApplicationCoordinator
     private readonly ProjectCatalog _catalog;
     private readonly CurrentEngineSnapshot _engines;
     private readonly ThemeService _themeService;
+    private readonly LocalizationService? _localizationService;
     private readonly MainViewModel _mainViewModel;
     private readonly StatusBarViewModel _statusBar;
     private readonly BackgroundRefreshService _backgroundRefresh;
@@ -62,7 +63,8 @@ public sealed class ApplicationCoordinator
         StatusBarViewModel statusBar,
         BackgroundRefreshService backgroundRefresh,
         IUiDispatcher dispatcher,
-        IAppLogger logger)
+        IAppLogger logger,
+        LocalizationService? localizationService = null)
     {
         _settingsRepository = settingsRepository ?? throw new ArgumentNullException(nameof(settingsRepository));
         _projectCacheRepository = projectCacheRepository ?? throw new ArgumentNullException(nameof(projectCacheRepository));
@@ -70,6 +72,7 @@ public sealed class ApplicationCoordinator
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _engines = engines ?? throw new ArgumentNullException(nameof(engines));
         _themeService = themeService ?? throw new ArgumentNullException(nameof(themeService));
+        _localizationService = localizationService;
         _mainViewModel = mainViewModel ?? throw new ArgumentNullException(nameof(mainViewModel));
         _statusBar = statusBar ?? throw new ArgumentNullException(nameof(statusBar));
         _backgroundRefresh = backgroundRefresh ?? throw new ArgumentNullException(nameof(backgroundRefresh));
@@ -92,6 +95,7 @@ public sealed class ApplicationCoordinator
         var settings = await LoadSettingsAsync(startupToken);
         await _dispatcher.InvokeAsync(() =>
         {
+            _localizationService?.ApplySettings(settings);
             _themeService.ApplySettings(settings);
             _mainViewModel.ApplySettings(settings);
         }, startupToken);
@@ -102,7 +106,11 @@ public sealed class ApplicationCoordinator
         RestoreCatalog(projectCache, settings);
 
         await _dispatcher.InvokeAsync(
-            () => _mainViewModel.SetProjects(_catalog.GetSnapshot()),
+            () =>
+            {
+                _mainViewModel.SetEngines(_engines.Engines);
+                _mainViewModel.SetProjects(_catalog.GetSnapshot());
+            },
             startupToken);
         _logger.Info($"Published {projectCache.Projects.Count} cached project(s).");
 
@@ -159,7 +167,7 @@ public sealed class ApplicationCoordinator
         CancellationToken cancellationToken)
     {
         var result = await RunOperationAsync(
-            "Refreshing projects...",
+            "String.StatusRefreshing",
             "Background refresh",
             () => _backgroundRefresh.RefreshAsync(settings, cancellationToken),
             cancellationToken);
@@ -171,7 +179,7 @@ public sealed class ApplicationCoordinator
         CancellationToken cancellationToken)
     {
         var result = await RunOperationAsync(
-            "Refreshing projects...",
+            "String.StatusRefreshing",
             "Background refresh",
             () => _backgroundRefresh.StartupRefreshAsync(settings, cancellationToken),
             cancellationToken);
@@ -183,7 +191,7 @@ public sealed class ApplicationCoordinator
         CancellationToken cancellationToken)
     {
         var result = await RunOperationAsync(
-            "Rescanning projects...",
+            "String.StatusRescanning",
             "Project rescan",
             () => _backgroundRefresh.RescanAsync(settings, cancellationToken),
             cancellationToken);
@@ -201,7 +209,7 @@ public sealed class ApplicationCoordinator
     }
 
     private async Task<BackgroundRefreshResult?> RunOperationAsync(
-        string activeStatus,
+        string activeStatusResourceKey,
         string operationName,
         Func<Task<BackgroundRefreshResult>> operation,
         CancellationToken cancellationToken)
@@ -215,13 +223,16 @@ public sealed class ApplicationCoordinator
         await _dispatcher.InvokeAsync(() =>
         {
             _statusBar.SetOperationActive(true);
-            _statusBar.SetStatus(activeStatus);
+            _statusBar.SetLocalizedStatus(activeStatusResourceKey, operationName);
         });
         _logger.Info($"{operationName} started.");
 
         try
         {
             var result = await operation();
+            await _dispatcher.InvokeAsync(
+                () => _mainViewModel.SetEngines(result.Engines),
+                cancellationToken);
             LogIssues(result);
             await SaveFinalCachesAsync(result, cancellationToken);
             _logger.Info($"{operationName} completed.");
@@ -243,7 +254,7 @@ public sealed class ApplicationCoordinator
             await _dispatcher.InvokeAsync(() =>
             {
                 _statusBar.SetOperationActive(false);
-                _statusBar.SetStatus("Ready");
+                _statusBar.SetLocalizedStatus("String.StatusReady", "Ready");
             });
         }
     }

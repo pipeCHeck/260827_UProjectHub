@@ -54,4 +54,25 @@ public sealed class UnrealEditorLauncher : IUnrealEditorLauncher
             ? LaunchResult.Succeeded(_clock.UtcNow)
             : processResult;
     }
+
+    public LaunchResult LaunchNewProject(InstalledEngine engine)
+    {
+        ArgumentNullException.ThrowIfNull(engine);
+
+        if (!engine.IsUsable)
+        {
+            return LaunchResult.Failed(
+                "The selected Unreal Engine is not usable.");
+        }
+
+        if (string.IsNullOrWhiteSpace(engine.EditorPath)
+            || !File.Exists(engine.EditorPath))
+        {
+            return LaunchResult.Failed(
+                "The selected Unreal Editor executable was not found.");
+        }
+
+        return _processLauncher.Launch(new ProcessRequest(
+            fileName: engine.EditorPath));
+    }
 }

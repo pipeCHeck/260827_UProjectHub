@@ -81,6 +81,29 @@ public sealed class RelativeTimeConverterTests
         Assert.AreEqual("2025-12-31", Convert(converter, localPreviousYear));
     }
 
+    [TestMethod]
+    public void CalendarDateMode_UsesLocalDottedYearMonthDayForLastModified()
+    {
+        var converter = CreateConverter();
+        var localAugustTwentySixth =
+            new DateTimeOffset(2026, 8, 25, 15, 30, 0, TimeSpan.Zero);
+
+        Assert.AreEqual(
+            "2026.08.26.",
+            converter.Convert(
+                localAugustTwentySixth,
+                typeof(string),
+                "CalendarDate",
+                CultureInfo.InvariantCulture));
+        Assert.AreEqual(
+            "—",
+            converter.Convert(
+                DateTimeOffset.MinValue,
+                typeof(string),
+                "CalendarDate",
+                CultureInfo.InvariantCulture));
+    }
+
     private static RelativeTimeConverter CreateConverter()
     {
         return new RelativeTimeConverter(new FakeClock(NowUtc), TestTimeZone);

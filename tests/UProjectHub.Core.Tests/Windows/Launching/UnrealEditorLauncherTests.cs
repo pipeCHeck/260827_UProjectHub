@@ -142,6 +142,48 @@ public sealed class UnrealEditorLauncherTests
         Assert.HasCount(0, process.Requests);
     }
 
+    [TestMethod]
+    public void NewProjectLaunchesSelectedEditorWithoutAProjectArgument()
+    {
+        using var fixture = TemporaryLaunchTree.Create();
+        var editorPath = fixture.CreateEditor("UE 5.10");
+        var process = new FakeProcessLauncher(LaunchResult.Succeeded());
+        IUnrealEditorLauncher launcher = new UnrealEditorLauncher(
+            process,
+            new FakeClock(DateTimeOffset.UnixEpoch));
+
+        var result = launcher.LaunchNewProject(
+            CreateEngine(editorPath, isUsable: true));
+
+        Assert.IsTrue(result.IsSuccess);
+        Assert.IsNull(result.LaunchedAtUtc);
+        Assert.HasCount(1, process.Requests);
+        Assert.AreEqual(editorPath, process.Requests[0].FileName);
+        Assert.IsEmpty(process.Requests[0].ArgumentList);
+        Assert.IsFalse(process.Requests[0].UseShellExecute);
+    }
+
+    [TestMethod]
+    public void NewProjectRejectsAnUnusableOrMissingEditor()
+    {
+        using var fixture = TemporaryLaunchTree.Create();
+        var editorPath = fixture.CreateEditor("UE 5.10");
+        var process = new FakeProcessLauncher(LaunchResult.Succeeded());
+        IUnrealEditorLauncher launcher = new UnrealEditorLauncher(
+            process,
+            new FakeClock(DateTimeOffset.UnixEpoch));
+
+        var unusable = launcher.LaunchNewProject(
+            CreateEngine(editorPath, isUsable: false));
+        File.Delete(editorPath);
+        var missing = launcher.LaunchNewProject(
+            CreateEngine(editorPath, isUsable: true));
+
+        Assert.IsFalse(unusable.IsSuccess);
+        Assert.IsFalse(missing.IsSuccess);
+        Assert.HasCount(0, process.Requests);
+    }
+
     private static UnrealProject CreateProject(string projectPath) =>
         new(
             Name: Path.GetFileNameWithoutExtension(projectPath),

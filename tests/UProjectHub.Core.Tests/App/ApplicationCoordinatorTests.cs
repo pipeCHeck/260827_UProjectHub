@@ -5,6 +5,7 @@ using UProjectHub.Core.Cache;
 using UProjectHub.Core.Catalog;
 using UProjectHub.Core.Diagnostics;
 using UProjectHub.Core.Discovery;
+using UProjectHub.Core.Engines;
 using UProjectHub.Core.Filtering;
 using UProjectHub.Core.Models;
 using UProjectHub.Core.Paths;
@@ -15,6 +16,7 @@ using UProjectHub.Core.Time;
 using UProjectHub.Windows.Engines;
 using UProjectHub.Windows.Projects;
 using UProjectHub.Windows.Engines.Manual;
+using UProjectHub.Windows.Launching;
 using AppThemeMode = UProjectHub.Core.Settings.ThemeMode;
 
 namespace UProjectHub.Core.Tests.App;
@@ -59,6 +61,9 @@ public sealed class ApplicationCoordinatorTests
             order.Take(5).ToArray());
         Assert.AreEqual(1, fixture.Main.ProjectCount);
         Assert.AreEqual(ProjectState.Missing, fixture.Main.ProjectList.Rows.Single().ProjectState);
+        Assert.HasCount(2, fixture.Main.NewProject!.EngineOptions);
+        Assert.AreEqual("Unreal Engine 5.8", fixture.Main.NewProject.EngineOptions[1].Label);
+        Assert.IsNull(fixture.Main.NewProject.SelectedEngine);
         Assert.AreEqual(0, fixture.RescanCalls);
 
         fixture.ReleaseRefresh.TrySetResult();
@@ -76,6 +81,7 @@ public sealed class ApplicationCoordinatorTests
         {
             ThemeMode = AppThemeMode.Dark,
             RowDensity = RowDensity.Compact,
+            Language = AppLanguage.Korean,
             VisibleFilters = new VisibleFilterState(null, null, true),
             ActiveSort = new ProjectSortDefinition(ProjectSortColumn.Name, SortDirection.Ascending),
             ColumnLayout = [new ColumnLayoutState("ProjectType", false, 111)],
@@ -96,6 +102,8 @@ public sealed class ApplicationCoordinatorTests
         Assert.AreEqual(EngineResolutionState.Resolved, cached.EngineState);
         Assert.AreEqual(AppThemeMode.Dark, fixture.Theme.EffectiveTheme);
         Assert.AreEqual(RowDensity.Compact, fixture.Theme.ActiveDensity);
+        Assert.AreEqual(AppLanguage.Korean, fixture.Localization.CurrentLanguage);
+        Assert.AreEqual("Unreal 프로젝트", fixture.Main.Title);
         Assert.IsTrue(fixture.Main.SearchFilter!.FavoritesOnly);
         Assert.AreEqual(settings.ActiveSort, fixture.Main.SearchFilter.ActiveSort);
         Assert.AreEqual(settings.ColumnLayout.Single(), fixture.Main.ProjectList.ColumnLayout.Single());
@@ -118,6 +126,15 @@ public sealed class ApplicationCoordinatorTests
         await fixture.EngineCache.Saved.Task;
 
         Assert.AreEqual(freshEngine, fixture.Engines.Engines.Single());
+        Assert.HasCount(2, fixture.Main.NewProject!.EngineOptions);
+        Assert.AreEqual(
+            freshEngine.EditorPath,
+            fixture.Main.NewProject.EngineOptions[1].Engine!.EditorPath);
+        Assert.IsFalse(fixture.Main.NewProject.EngineOptions.Any(option =>
+            string.Equals(
+                option.Engine?.EditorPath,
+                cachedEngine.EditorPath,
+                StringComparison.OrdinalIgnoreCase)));
         Assert.AreEqual(
             EngineResolutionState.Resolved,
             fixture.ProjectCache.LastSaved!.Projects.Single().EngineState);
@@ -205,6 +222,12 @@ public sealed class ApplicationCoordinatorTests
             fixture.Settings,
             new ManualEngineValidator(),
             fixture.Theme,
+            new LocalizationService(
+                new ResourceDictionary(),
+                source => new ResourceDictionary
+                {
+                    ["Test.Source"] = source.OriginalString,
+                }),
             fixture.Catalog,
             (roots, settings, cancellationToken) =>
             {
@@ -273,14 +296,33 @@ public sealed class ApplicationCoordinatorTests
             resources,
             () => AppThemeMode.Light,
             source => new ResourceDictionary { ["Source"] = source.OriginalString });
-        var status = new StatusBarViewModel();
-        var projectList = new ProjectListViewModel();
+        var localization = new LocalizationService(
+            resources,
+            source => new ResourceDictionary
+            {
+                ["String.AppTitle"] = source.OriginalString.Contains("ko", StringComparison.OrdinalIgnoreCase)
+                    ? "Unreal 프로젝트"
+                    : "Unreal Projects",
+                ["String.StatusReady"] = "Ready",
+            });
+        var status = new StatusBarViewModel(localization);
+        var projectList = new ProjectListViewModel(localization: localization);
         var search = new SearchFilterViewModel(
             projectList,
             new ProjectQueryParser(),
             new ProjectFilterService(new ProjectSearchService(new SystemClock())),
-            new ProjectSortService());
-        var main = new MainViewModel(status, projectList: projectList, searchFilter: search);
+            new ProjectSortService(),
+            localization);
+        var newProject = new NewProjectViewModel(
+            new FakeUnrealEditorLauncher(),
+            status,
+            localization);
+        var main = new MainViewModel(
+            status,
+            projectList: projectList,
+            searchFilter: search,
+            newProject: newProject,
+            localization: localization);
         var dispatcher = new RecordingDispatcher(order, main);
         var fixture = new Fixture(
             settingsRepository,
@@ -289,6 +331,7 @@ public sealed class ApplicationCoordinatorTests
             catalog,
             currentEngines,
             theme,
+            localization,
             status,
             main,
             dispatcher);
@@ -314,7 +357,8 @@ public sealed class ApplicationCoordinatorTests
             status,
             background,
             dispatcher,
-            fixture.Logger);
+            fixture.Logger,
+            localization);
         return fixture;
     }
 
@@ -360,6 +404,7 @@ public sealed class ApplicationCoordinatorTests
         ProjectCatalog catalog,
         CurrentEngineSnapshot engines,
         ThemeService theme,
+        LocalizationService localization,
         StatusBarViewModel status,
         MainViewModel main,
         RecordingDispatcher dispatcher)
@@ -371,6 +416,7 @@ public sealed class ApplicationCoordinatorTests
         public ProjectCatalog Catalog { get; } = catalog;
         public CurrentEngineSnapshot Engines { get; } = engines;
         public ThemeService Theme { get; } = theme;
+        public LocalizationService Localization { get; } = localization;
         public StatusBarViewModel Status { get; } = status;
         public MainViewModel Main { get; } = main;
         public RecordingLogger Logger { get; } = new();
@@ -547,5 +593,16 @@ public sealed class ApplicationCoordinatorTests
     {
         public Task<UnrealKnownProjectRootsResult> GetKnownRootsAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(new UnrealKnownProjectRootsResult([], []));
+    }
+
+    private sealed class FakeUnrealEditorLauncher : IUnrealEditorLauncher
+    {
+        public LaunchResult Launch(
+            UnrealProject project,
+            EngineResolution engineResolution) =>
+            throw new InvalidOperationException("Project launch was not expected.");
+
+        public LaunchResult LaunchNewProject(InstalledEngine engine) =>
+            LaunchResult.Succeeded();
     }
 }
