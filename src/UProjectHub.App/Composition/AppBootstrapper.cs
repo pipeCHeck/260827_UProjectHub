@@ -83,21 +83,27 @@ public sealed class AppBootstrapper
             settingsRepository);
         var processLauncher = new ProcessLauncher();
         var unrealEditorLauncher = new UnrealEditorLauncher(processLauncher, clock);
+        var solutionLocator = new VisualStudioSolutionLocator();
+        var projectFilesGenerator = new UnrealProjectFilesGenerator(
+            new ExternalProcessRunner(),
+            solutionLocator);
         var projectActions = new ProjectActionService(
             catalog,
             settingsRepository,
             removalService,
             unrealEditorLauncher,
             new ExplorerLauncher(processLauncher),
-            new VisualStudioLauncher(processLauncher),
+            new VisualStudioLauncher(processLauncher, solutionLocator),
             new WpfClipboardService(),
             currentEngines.Resolve,
-            logger);
+            logger,
+            projectFilesGenerator);
         var projectList = new ProjectListViewModel(project =>
             new ProjectContextActionsViewModel(
                 project,
                 projectActions,
                 ShowProjectInformation,
+                ShowGenerateProjectFiles,
                 localizationService),
             localizationService);
         var searchService = new ProjectSearchService(clock);
@@ -275,6 +281,16 @@ public sealed class AppBootstrapper
         ProjectInformationViewModel viewModel)
     {
         var window = new ProjectInformationWindow(viewModel)
+        {
+            Owner = Application.Current?.MainWindow,
+        };
+        _ = window.ShowDialog();
+    }
+
+    private static void ShowGenerateProjectFiles(
+        GenerateProjectFilesViewModel viewModel)
+    {
+        var window = new GenerateProjectFilesWindow(viewModel)
         {
             Owner = Application.Current?.MainWindow,
         };

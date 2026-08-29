@@ -1,10 +1,15 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Media;
 using UProjectHub.App.Controls;
 using UProjectHub.App.ViewModels;
+using UProjectHub.App.Views;
+using UProjectHub.Core.Models;
+using UProjectHub.Core.Paths;
 using UProjectHub.Core.Settings;
+using UProjectHub.Windows.Launching;
 using AppThemeMode = UProjectHub.Core.Settings.ThemeMode;
 
 namespace UProjectHub.Core.Tests.App;
@@ -191,6 +196,49 @@ public sealed class PresentationResourceTests
         };
 
         Assert.IsTrue(ToolTipService.GetShowOnDisabled(item));
+    }
+
+    [STATestMethod]
+    public void GenerateOutputUsesOneWayBindingForReadOnlyViewModelProperty()
+    {
+        var project = new UnrealProject(
+            "Game",
+            new ProjectPath(@"D:\Projects\Game\Game.uproject"),
+            "5.8",
+            "5.8",
+            ProjectType.Cpp,
+            DateTimeOffset.UnixEpoch,
+            LastLaunched: null,
+            IsFavorite: false,
+            ProjectState.Available,
+            EngineResolutionState.Resolved);
+        var engine = new InstalledEngine(
+            "UE 5.8",
+            "5.8",
+            "5.8",
+            @"C:\UE\5.8",
+            @"C:\UE\5.8\UnrealEditor.exe",
+            EngineSource.Launcher,
+            IsUsable: true);
+        var request = new ProjectFileGenerationRequest(
+            project,
+            engine,
+            new ExternalProcessRequest(@"C:\UE\5.8\UnrealBuildTool.exe"),
+            @"D:\Projects\Game\Game.sln");
+        var viewModel = new GenerateProjectFilesViewModel(
+            request,
+            _ => throw new InvalidOperationException("Generation was not expected."),
+            () => { });
+        var window = new GenerateProjectFilesWindow(viewModel);
+
+        var output = Assert.IsInstanceOfType<TextBox>(
+            window.FindName("OutputDetailsTextBox"));
+        var binding = BindingOperations.GetBinding(
+            output,
+            TextBox.TextProperty);
+
+        Assert.IsNotNull(binding);
+        Assert.AreEqual(BindingMode.OneWay, binding.Mode);
     }
 
     [STATestMethod]

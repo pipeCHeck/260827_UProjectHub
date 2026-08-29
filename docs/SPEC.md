@@ -230,15 +230,18 @@ Project context menu:
 
 - Open in Unreal;
 - Open Existing `.sln`;
+- Generate Visual Studio Project Files;
 - Open Project Folder;
 - Copy Path;
 - Toggle Favorite;
 - Project Information;
 - Remove from List, for missing projects.
 
-`Open Existing .sln` is enabled only for a C++ project when one solution can be selected safely. It remains visible but disabled for Blueprint projects and when the solution is missing, ambiguous, or inaccessible. A disabled action must explain the reason in a tooltip. The MVP must not run Generate Project Files.
+`Open Existing .sln` is enabled only for a C++ project when one solution can be selected safely. It remains visible but disabled for Blueprint projects and when the solution is missing, ambiguous, or inaccessible. A disabled action must explain the reason in a tooltip.
 
-A missing `.sln` is not by itself a project-health warning. When a future Generate Project Files action is available, it is an actionable informational state that points to that action.
+`Generate Visual Studio Project Files` is enabled only for an available C++ project with exactly one resolved usable engine and a supported generation entry point in that engine installation. It always opens a confirmation surface showing the engine display/root, exact `.uproject` path, generated-file mutation, and expected solution location before execution. The operation is asynchronous and cancellable, prevents concurrent generation for the same project, reports bounded process output, and re-runs solution discovery after success.
+
+A missing `.sln` is not by itself a project-health warning. When generation is available, it is an actionable informational state that points to `Generate Visual Studio Project Files`.
 
 `Remove from List` removes only the missing entry from UProject Hub's managed project list and cache. It must never delete or modify project files.
 
@@ -393,7 +396,7 @@ The MVP shall not include:
 - cache-folder deletion;
 - Unreal version conversion;
 - `EngineAssociation` editing;
-- automatic project-file generation, including Generate Project Files;
+- project-file generation without an explicit user confirmation;
 - project cloning;
 - project backups;
 - Git integration;

@@ -19,6 +19,9 @@
             <MenuItem Header="{DynamicResource String.OpenVisualStudio}"
                       Command="{Binding OpenInVisualStudioCommand}"
                       ToolTip="{Binding OpenInVisualStudioUnavailableReason}" />
+            <MenuItem Header="{DynamicResource String.GenerateProjectFiles}"
+                      Command="{Binding GenerateProjectFilesCommand}"
+                      ToolTip="{Binding GenerateProjectFilesUnavailableReason}" />
             <MenuItem Header="{DynamicResource String.OpenFolder}"
                       Command="{Binding OpenProjectFolderCommand}" />
             <Separator />

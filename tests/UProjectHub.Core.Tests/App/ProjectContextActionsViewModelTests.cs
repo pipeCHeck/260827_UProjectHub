@@ -24,6 +24,7 @@ public sealed class ProjectContextActionsViewModelTests
 
         Assert.IsTrue(fixture.ViewModel.OpenProjectCommand.CanExecute(null));
         Assert.IsTrue(fixture.ViewModel.OpenInVisualStudioCommand.CanExecute(null));
+        Assert.IsTrue(fixture.ViewModel.GenerateProjectFilesCommand.CanExecute(null));
         Assert.IsFalse(fixture.ViewModel.RemoveFromListCommand.CanExecute(null));
         Assert.IsNotNull(fixture.ViewModel.OpenProjectFolderCommand);
         Assert.IsNotNull(fixture.ViewModel.CopyPathCommand);
@@ -31,6 +32,7 @@ public sealed class ProjectContextActionsViewModelTests
         Assert.IsNotNull(fixture.ViewModel.ProjectInformationCommand);
         Assert.AreEqual("Add to Favorites", fixture.ViewModel.ToggleFavoriteLabel);
         Assert.IsNull(fixture.ViewModel.OpenInVisualStudioUnavailableReason);
+        Assert.IsNull(fixture.ViewModel.GenerateProjectFilesUnavailableReason);
     }
 
     [TestMethod]
@@ -41,9 +43,13 @@ public sealed class ProjectContextActionsViewModelTests
             ProjectState.Available));
 
         Assert.IsFalse(fixture.ViewModel.OpenInVisualStudioCommand.CanExecute(null));
+        Assert.IsFalse(fixture.ViewModel.GenerateProjectFilesCommand.CanExecute(null));
         Assert.AreEqual(
             "Existing .sln files can be opened only for C++ projects.",
             fixture.ViewModel.OpenInVisualStudioUnavailableReason);
+        Assert.AreEqual(
+            "Visual Studio project files can be generated only for C++ projects.",
+            fixture.ViewModel.GenerateProjectFilesUnavailableReason);
     }
 
     [TestMethod]
@@ -84,6 +90,39 @@ public sealed class ProjectContextActionsViewModelTests
 
         var blueprint = CreateFixture(CreateProject(ProjectType.Blueprint, ProjectState.Available));
         Assert.IsFalse(blueprint.ViewModel.OpenInVisualStudioCommand.CanExecute(null));
+    }
+
+    [TestMethod]
+    public void MissingSolutionRemainsActionableThroughExplicitGenerateConfirmation()
+    {
+        var fixture = CreateFixture(
+            CreateProject(ProjectType.Cpp, ProjectState.Available),
+            VisualStudioSolutionState.Missing);
+
+        Assert.IsFalse(fixture.ViewModel.OpenInVisualStudioCommand.CanExecute(null));
+        Assert.IsTrue(fixture.ViewModel.GenerateProjectFilesCommand.CanExecute(null));
+        Assert.IsEmpty(fixture.GenerationRequests);
+
+        fixture.ViewModel.GenerateProjectFilesCommand.Execute(null);
+
+        Assert.HasCount(1, fixture.GenerationRequests);
+        Assert.AreEqual(0, fixture.ProjectFilesGenerator.GenerateCount);
+    }
+
+    [TestMethod]
+    public async Task SuccessfulGenerationImmediatelyRefreshesOpenSolutionActionAsync()
+    {
+        var fixture = CreateFixture(
+            CreateProject(ProjectType.Cpp, ProjectState.Available),
+            VisualStudioSolutionState.Missing);
+        fixture.ProjectFilesGenerator.OnGenerate = () =>
+            fixture.VisualStudio.SolutionState = VisualStudioSolutionState.Available;
+        fixture.ViewModel.GenerateProjectFilesCommand.Execute(null);
+
+        await fixture.GenerationRequests.Single().GenerateCommand.ExecuteAsync();
+
+        Assert.IsTrue(fixture.ViewModel.OpenInVisualStudioCommand.CanExecute(null));
+        Assert.IsNull(fixture.ViewModel.OpenInVisualStudioUnavailableReason);
     }
 
     [TestMethod]
@@ -170,6 +209,7 @@ public sealed class ProjectContextActionsViewModelTests
         var unreal = new FakeUnrealEditorLauncher();
         var explorer = new FakeExplorerLauncher();
         var visualStudio = new FakeVisualStudioLauncher(solutionState);
+        var projectFilesGenerator = new FakeProjectFilesGenerator();
         var clipboard = new FakeClipboardService();
         var resolution = EngineResolver.Resolve("5.8",
         [
@@ -190,12 +230,15 @@ public sealed class ProjectContextActionsViewModelTests
             explorer,
             visualStudio,
             clipboard,
-            _ => resolution);
+            _ => resolution,
+            projectFilesGenerator: projectFilesGenerator);
         var informationRequests = new List<ProjectInformationViewModel>();
+        var generationRequests = new List<GenerateProjectFilesViewModel>();
         var viewModel = new ProjectContextActionsViewModel(
             project,
             actions,
-            informationRequests.Add);
+            informationRequests.Add,
+            generationRequests.Add);
         return new Fixture(
             project,
             viewModel,
@@ -204,7 +247,9 @@ public sealed class ProjectContextActionsViewModelTests
             explorer,
             visualStudio,
             clipboard,
-            informationRequests);
+            informationRequests,
+            projectFilesGenerator,
+            generationRequests);
     }
 
     private static UnrealProject CreateProject(
@@ -233,7 +278,9 @@ public sealed class ProjectContextActionsViewModelTests
         FakeExplorerLauncher Explorer,
         FakeVisualStudioLauncher VisualStudio,
         FakeClipboardService Clipboard,
-        List<ProjectInformationViewModel> InformationRequests);
+        List<ProjectInformationViewModel> InformationRequests,
+        FakeProjectFilesGenerator ProjectFilesGenerator,
+        List<GenerateProjectFilesViewModel> GenerationRequests);
 
     private sealed class FakeSettingsRepository(AppSettings settings) : ISettingsRepository
     {
@@ -286,15 +333,17 @@ public sealed class ProjectContextActionsViewModelTests
     private sealed class FakeVisualStudioLauncher(
         VisualStudioSolutionState solutionState) : IVisualStudioLauncher
     {
+        public VisualStudioSolutionState SolutionState { get; set; } = solutionState;
+
         public int OpenCount { get; private set; }
 
         public bool CanOpenSolution(UnrealProject project) =>
             project.ProjectType == ProjectType.Cpp
-            && solutionState == VisualStudioSolutionState.Available;
+            && SolutionState == VisualStudioSolutionState.Available;
 
         public VisualStudioSolutionSelection LocateSolution(
             UnrealProject project) =>
-            solutionState switch
+            SolutionState switch
             {
                 VisualStudioSolutionState.Available =>
                     VisualStudioSolutionSelection.Available(
@@ -312,7 +361,7 @@ public sealed class ProjectContextActionsViewModelTests
                     VisualStudioSolutionSelection.Inaccessible("Access denied."),
                 _ => throw new ArgumentOutOfRangeException(
                     nameof(solutionState),
-                    solutionState,
+                    SolutionState,
                     null),
             };
 
@@ -330,6 +379,42 @@ public sealed class ProjectContextActionsViewModelTests
         public void SetText(string text)
         {
             Text = text;
+        }
+    }
+
+    private sealed class FakeProjectFilesGenerator : IProjectFilesGenerator
+    {
+        public Action? OnGenerate { get; set; }
+
+        public int GenerateCount { get; private set; }
+
+        public ProjectFileGenerationPreparation Prepare(
+            UnrealProject project,
+            InstalledEngine engine) =>
+            ProjectFileGenerationPreparation.Available(
+                new ProjectFileGenerationRequest(
+                    project,
+                    engine,
+                    new ExternalProcessRequest(
+                        @"C:\UE\UnrealBuildTool.exe",
+                        ["-ProjectFiles"]),
+                    @"D:\Projects\Game\Game.sln"));
+
+        public Task<ProjectFileGenerationResult> GenerateAsync(
+            ProjectFileGenerationRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            GenerateCount++;
+            OnGenerate?.Invoke();
+            return Task.FromResult(new ProjectFileGenerationResult(
+                ProjectFileGenerationStatus.Succeeded,
+                ExitCode: 0,
+                StandardOutputTail: string.Empty,
+                StandardErrorTail: string.Empty,
+                ErrorMessage: null,
+                VisualStudioSolutionSelection.Available(
+                    request.ExpectedSolutionPath,
+                    [request.ExpectedSolutionPath])));
         }
     }
 }

@@ -127,8 +127,8 @@ public sealed class LocalizationServiceTests
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!
             .InformationalVersion;
 
-        Assert.AreEqual("0.2.0 r", informationalVersion);
-        Assert.AreEqual("v0.2.0 r", AppVersion.Display);
+        Assert.AreEqual("0.3.1 r", informationalVersion);
+        Assert.AreEqual("v0.3.1 r", AppVersion.Display);
     }
 
     private static int CountLocalizationDictionaries(ResourceDictionary resources) =>

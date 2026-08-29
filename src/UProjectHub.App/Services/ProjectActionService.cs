@@ -32,6 +32,7 @@ public sealed class ProjectActionService
     private readonly IClipboardService _clipboardService;
     private readonly Func<UnrealProject, EngineResolution> _resolutionAccessor;
     private readonly IAppLogger _logger;
+    private readonly IProjectFilesGenerator? _projectFilesGenerator;
 
     public ProjectActionService(
         ProjectCatalog catalog,
@@ -42,7 +43,8 @@ public sealed class ProjectActionService
         IVisualStudioLauncher visualStudioLauncher,
         IClipboardService clipboardService,
         Func<UnrealProject, EngineResolution> resolutionAccessor,
-        IAppLogger? logger = null)
+        IAppLogger? logger = null,
+        IProjectFilesGenerator? projectFilesGenerator = null)
     {
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _settingsRepository = settingsRepository
@@ -60,6 +62,7 @@ public sealed class ProjectActionService
         _resolutionAccessor = resolutionAccessor
             ?? throw new ArgumentNullException(nameof(resolutionAccessor));
         _logger = logger ?? new NullAppLogger();
+        _projectFilesGenerator = projectFilesGenerator;
     }
 
     public event Action<ProjectCatalogSnapshot>? CatalogChanged;
@@ -91,6 +94,60 @@ public sealed class ProjectActionService
     {
         ArgumentNullException.ThrowIfNull(project);
         return _visualStudioLauncher.LocateSolution(project);
+    }
+
+    public ProjectFileGenerationPreparation PrepareProjectFileGeneration(
+        UnrealProject project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+
+        if (project.ProjectState != ProjectState.Available)
+        {
+            return ProjectFileGenerationPreparation.Unavailable(
+                "The project is not available.");
+        }
+
+        if (project.ProjectType != ProjectType.Cpp)
+        {
+            return ProjectFileGenerationPreparation.Unavailable(
+                "Visual Studio project files can be generated only for C++ projects.");
+        }
+
+        var resolution = _resolutionAccessor(project);
+        if (resolution.State != EngineResolutionState.Resolved
+            || resolution.ResolvedCandidate is not { IsUsable: true } engine)
+        {
+            return ProjectFileGenerationPreparation.Unavailable(
+                "The project's Unreal Engine is not uniquely resolved and usable.");
+        }
+
+        if (_projectFilesGenerator is null)
+        {
+            return ProjectFileGenerationPreparation.Unavailable(
+                "Visual Studio project-file generation is unavailable.");
+        }
+
+        return _projectFilesGenerator.Prepare(project, engine);
+    }
+
+    public Task<ProjectFileGenerationResult> GenerateProjectFilesAsync(
+        ProjectFileGenerationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (_projectFilesGenerator is null)
+        {
+            return Task.FromResult(new ProjectFileGenerationResult(
+                ProjectFileGenerationStatus.FailedToStart,
+                ExitCode: null,
+                StandardOutputTail: string.Empty,
+                StandardErrorTail: string.Empty,
+                ErrorMessage: "Visual Studio project-file generation is unavailable.",
+                SolutionSelection: null));
+        }
+
+        return _projectFilesGenerator.GenerateAsync(request, cancellationToken);
     }
 
     public bool CanRemoveFromList(UnrealProject project)

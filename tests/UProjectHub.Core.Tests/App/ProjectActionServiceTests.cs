@@ -296,6 +296,92 @@ public sealed class ProjectActionServiceTests
     }
 
     [TestMethod]
+    public void GeneratePreparationRequiresAvailableCppProjectAndUniqueUsableEngine()
+    {
+        var generator = new FakeProjectFilesGenerator();
+        var cpp = CreateProject(projectType: ProjectType.Cpp);
+        var available = CreateFixture(cpp, projectFilesGenerator: generator);
+
+        var preparation = available.Service.PrepareProjectFileGeneration(cpp);
+
+        Assert.IsTrue(preparation.CanGenerate);
+        Assert.IsNotNull(preparation.Request);
+        Assert.AreEqual(1, generator.PrepareCount);
+
+        var blueprint = CreateProject(projectType: ProjectType.Blueprint);
+        var blueprintFixture = CreateFixture(
+            blueprint,
+            projectFilesGenerator: generator);
+        Assert.IsFalse(blueprintFixture.Service
+            .PrepareProjectFileGeneration(blueprint).CanGenerate);
+
+        var missing = CreateProject(
+            projectType: ProjectType.Cpp,
+            projectState: ProjectState.Missing);
+        var missingFixture = CreateFixture(
+            missing,
+            projectFilesGenerator: generator);
+        Assert.IsFalse(missingFixture.Service
+            .PrepareProjectFileGeneration(missing).CanGenerate);
+
+        var unresolved = CreateFixture(
+            cpp,
+            resolution: EngineResolver.Resolve("5.8", []),
+            projectFilesGenerator: generator);
+        Assert.IsFalse(unresolved.Service
+            .PrepareProjectFileGeneration(cpp).CanGenerate);
+
+        var unusableEngine = CreateResolvedEngine(isUsable: false);
+        var unusable = CreateFixture(
+            cpp,
+            resolution: unusableEngine,
+            projectFilesGenerator: generator);
+        Assert.IsFalse(unusable.Service
+            .PrepareProjectFileGeneration(cpp).CanGenerate);
+    }
+
+    [TestMethod]
+    public void GeneratorSpecificUnavailabilityIsPreserved()
+    {
+        var project = CreateProject(projectType: ProjectType.Cpp);
+        var generator = new FakeProjectFilesGenerator
+        {
+            Preparation = ProjectFileGenerationPreparation.Unavailable(
+                "UnrealBuildTool is unavailable."),
+        };
+        var fixture = CreateFixture(
+            project,
+            projectFilesGenerator: generator);
+
+        var preparation = fixture.Service.PrepareProjectFileGeneration(project);
+
+        Assert.IsFalse(preparation.CanGenerate);
+        Assert.AreEqual(
+            "UnrealBuildTool is unavailable.",
+            preparation.UnavailableReason);
+    }
+
+    [TestMethod]
+    public async Task ExplicitGenerateDelegatesPreparedRequestOnlyWhenInvokedAsync()
+    {
+        var project = CreateProject(projectType: ProjectType.Cpp);
+        var generator = new FakeProjectFilesGenerator();
+        var fixture = CreateFixture(
+            project,
+            projectFilesGenerator: generator);
+        var preparation = fixture.Service.PrepareProjectFileGeneration(project);
+
+        Assert.AreEqual(0, generator.GenerateCount);
+
+        var result = await fixture.Service.GenerateProjectFilesAsync(
+            preparation.Request!);
+
+        Assert.IsTrue(result.IsSuccess);
+        Assert.AreEqual(1, generator.GenerateCount);
+        Assert.AreSame(preparation.Request, generator.LastRequest);
+    }
+
+    [TestMethod]
     public async Task MissingRemovalPublishesOnceWhileRejectedRemovalPublishesNeverAndTouchesNoFilesAsync()
     {
         using var workspace = TemporaryWorkspace.Create();
@@ -330,7 +416,8 @@ public sealed class ProjectActionServiceTests
         UnrealProject project,
         AppSettings? settings = null,
         LaunchResult? unrealLaunchResult = null,
-        EngineResolution? resolution = null)
+        EngineResolution? resolution = null,
+        IProjectFilesGenerator? projectFilesGenerator = null)
     {
         var catalog = new ProjectCatalog();
         catalog.Upsert(project);
@@ -357,7 +444,8 @@ public sealed class ProjectActionServiceTests
             visualStudio,
             clipboard,
             _ => resolved,
-            logger);
+            logger,
+            projectFilesGenerator);
 
         return new Fixture(
             service,
@@ -372,7 +460,7 @@ public sealed class ProjectActionServiceTests
             settingsRepository.Current);
     }
 
-    private static EngineResolution CreateResolvedEngine()
+    private static EngineResolution CreateResolvedEngine(bool isUsable = true)
     {
         var engine = new InstalledEngine(
             "Unreal Engine 5.8",
@@ -381,7 +469,7 @@ public sealed class ProjectActionServiceTests
             @"C:\UE\5.8",
             @"C:\UE\5.8\Engine\Binaries\Win64\UnrealEditor.exe",
             EngineSource.Launcher,
-            IsUsable: true);
+            IsUsable: isUsable);
         return EngineResolver.Resolve("5.8", [engine]);
     }
 
@@ -551,6 +639,49 @@ public sealed class ProjectActionServiceTests
         public void SetText(string text)
         {
             Text = text;
+        }
+    }
+
+    private sealed class FakeProjectFilesGenerator : IProjectFilesGenerator
+    {
+        public ProjectFileGenerationPreparation? Preparation { get; set; }
+
+        public int PrepareCount { get; private set; }
+
+        public int GenerateCount { get; private set; }
+
+        public ProjectFileGenerationRequest? LastRequest { get; private set; }
+
+        public ProjectFileGenerationPreparation Prepare(
+            UnrealProject project,
+            InstalledEngine engine)
+        {
+            PrepareCount++;
+            return Preparation ?? ProjectFileGenerationPreparation.Available(
+                new ProjectFileGenerationRequest(
+                    project,
+                    engine,
+                    new ExternalProcessRequest(
+                        @"C:\UE\UnrealBuildTool.exe",
+                        ["-ProjectFiles"]),
+                    @"D:\Projects\Game\Game.sln"));
+        }
+
+        public Task<ProjectFileGenerationResult> GenerateAsync(
+            ProjectFileGenerationRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            GenerateCount++;
+            LastRequest = request;
+            return Task.FromResult(new ProjectFileGenerationResult(
+                ProjectFileGenerationStatus.Succeeded,
+                ExitCode: 0,
+                StandardOutputTail: string.Empty,
+                StandardErrorTail: string.Empty,
+                ErrorMessage: null,
+                VisualStudioSolutionSelection.Available(
+                    request.ExpectedSolutionPath,
+                    [request.ExpectedSolutionPath])));
         }
     }
 

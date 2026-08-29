@@ -273,7 +273,11 @@ If the editor path does not exist, return an actionable launch error and update 
 
 This action is available only for a C++ project with an existing `.sln` file. It is hidden or disabled otherwise.
 
-The MVP does not run Generate Project Files and does not modify `.uproject` files or project settings.
+### Generate Visual Studio Project Files
+
+This action is available only for an available C++ project with exactly one resolved usable engine and a runnable bundled UnrealBuildTool executable in that engine root. Launcher, source-build, and manual engine entries use that resolved engine's UBT directly in `-ProjectFiles` mode; `-Rocket` is added only for a Launcher engine with an installed-build marker. Executable and arguments are passed separately, and unsupported layouts are disabled instead of being routed through a constructed shell command string.
+
+Generation is an explicit generated-file mutation. It must show the engine root and exact project path for confirmation, run asynchronously with cancellation and bounded output, prevent duplicate runs for the same project, and re-run top-level `.sln` discovery after success. It must not modify `EngineAssociation` or automatically open Unreal Editor or Visual Studio.
 
 ## 17. Missing Projects
 

@@ -99,9 +99,10 @@ Responsibilities:
 - Explorer launch;
 - process launch;
 - opening an existing Visual Studio `.sln` for an applicable C++ project;
+- running an explicitly confirmed Unreal project-file generation process and capturing its bounded result;
 - local application-data path resolution.
 
-The Windows layer must not generate Visual Studio project files in the MVP.
+Project-file generation selects the resolved engine installation's bundled UnrealBuildTool executable, keeps executable and arguments separate, and remains outside WPF Views. Launcher, source-build, and manual engine entries use the same direct UBT boundary when that executable is present; `-Rocket` is added only for a Launcher engine with an installed-build marker. Layouts without a runnable UBT executable remain disabled with an actionable reason rather than falling back to an unsafe shell command string.
 
 ### 3.3 UProjectHub.App
 
@@ -236,6 +237,7 @@ Good examples:
 - clock/time provider for relative-date and time-window tests;
 - Registry provider;
 - process launcher;
+- awaited external process runner for cancellable operations with captured output;
 - engine provider.
 
 Avoid abstracting every internal class.

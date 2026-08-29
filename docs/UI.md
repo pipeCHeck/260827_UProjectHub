@@ -256,6 +256,7 @@ Overflow button (`⋮`) and right-click use the same context actions:
 
     Open in Unreal
     Open Existing .sln
+    Generate Visual Studio Project Files
     Open Project Folder
     -------------------
     Copy Path
@@ -264,7 +265,9 @@ Overflow button (`⋮`) and right-click use the same context actions:
     Project Information
     Remove from List
 
-`Open Existing .sln` is enabled only for a C++ project when one solution can be selected safely. For Blueprint, missing, multiple, or inaccessible solution states, keep the action visible but disabled and show a concise reason in a tooltip. A missing `.sln` is an actionable informational state when Generate Project Files becomes available, not a project-health warning. The current MVP does not generate project files or modify `.uproject` or project settings.
+`Open Existing .sln` is enabled only for a C++ project when one solution can be selected safely. For Blueprint, missing, multiple, or inaccessible solution states, keep the action visible but disabled and show a concise reason in a tooltip. A missing `.sln` is an actionable informational state when generation is available, not a project-health warning.
+
+`Generate Visual Studio Project Files` remains visible but is enabled only for an available C++ project with one resolved usable engine whose installation exposes a supported generation entry point. Before starting, a confirmation window shows the engine, engine root, exact `.uproject` path, expected `.sln` path, and that generated files may be created or replaced. While running, the window stays responsive, offers cancellation, and prevents a duplicate run for that project. Completion shows success, cancellation, or failure details; success immediately refreshes `Open Existing .sln` availability.
 
 `Remove from List` is shown only for a missing project. It removes the entry from UProject Hub's managed list/cache and never deletes the project directory or files.
 
