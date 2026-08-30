@@ -34,10 +34,25 @@ public sealed class ProjectContextActionsViewModelTests
         Assert.IsNotNull(fixture.ViewModel.CopyPathCommand);
         Assert.IsNotNull(fixture.ViewModel.ToggleFavoriteCommand);
         Assert.IsNotNull(fixture.ViewModel.ProjectDetailsCommand);
+        Assert.IsNotNull(fixture.ViewModel.TagsAndNotesCommand);
         Assert.IsTrue(fixture.ViewModel.ProjectCleanupCommand.CanExecute(null));
         Assert.AreEqual("Add to Favorites", fixture.ViewModel.ToggleFavoriteLabel);
         Assert.IsNull(fixture.ViewModel.OpenInVisualStudioUnavailableReason);
         Assert.IsNull(fixture.ViewModel.GenerateProjectFilesUnavailableReason);
+    }
+
+    [TestMethod]
+    public async Task TagsAndNotesActionOpensDetailsDirectlyOnThatSectionAsync()
+    {
+        var fixture = CreateFixture(CreateProject(
+            ProjectType.Cpp,
+            ProjectState.Available));
+
+        await ExecuteAsync(fixture.ViewModel.TagsAndNotesCommand);
+
+        var details = fixture.DetailsRequests.Single();
+        Assert.AreEqual(ProjectDetailsSection.TagsAndNotes, details.SelectedSection);
+        Assert.AreEqual(2, details.SelectedTabIndex);
     }
 
     [TestMethod]
@@ -338,7 +353,7 @@ public sealed class ProjectContextActionsViewModelTests
         ]);
         var actions = new ProjectActionService(
             catalog,
-            settings,
+            new SettingsMutationService(settings),
             removal,
             unreal,
             explorer,

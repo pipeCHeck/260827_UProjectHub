@@ -40,6 +40,7 @@
         <TabControl x:Name="DetailsTabControl"
                     Grid.Row="1"
                     Margin="{DynamicResource Thickness.DialogSectionGap}"
+                    SelectedIndex="{Binding SelectedTabIndex, Mode=OneTime}"
                     Background="{DynamicResource Brush.Transparent}"
                     BorderBrush="{DynamicResource Brush.BorderSubtle}"
                     Foreground="{DynamicResource Brush.TextPrimary}">
@@ -169,13 +170,13 @@
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
                     <StackPanel DataContext="{Binding Notes}">
-                        <TextBlock FontWeight="SemiBold"
+                        <TextBlock Style="{DynamicResource Text.SectionTitle}"
                                    Text="{DynamicResource String.Tags}" />
-                        <TextBlock Margin="{DynamicResource Thickness.DialogRowGap}"
+                        <TextBlock Margin="{DynamicResource Thickness.DetailsFieldGap}"
                                    Foreground="{DynamicResource Brush.TextSecondary}"
                                    Text="{DynamicResource String.TagsDescription}"
                                    TextWrapping="Wrap" />
-                        <ItemsControl Margin="{DynamicResource Thickness.DialogRowGap}"
+                        <ItemsControl Margin="{DynamicResource Thickness.DetailsFieldGap}"
                                       ItemsSource="{Binding Tags}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -184,9 +185,11 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Margin="0,0,8,8"
+                                    <Border Margin="{DynamicResource Thickness.TagChipMargin}"
                                             Padding="{DynamicResource Thickness.TagBadgePadding}"
                                             Background="{DynamicResource Brush.AccentSubtle}"
+                                            BorderBrush="{DynamicResource Brush.BorderSubtle}"
+                                            BorderThickness="1"
                                             CornerRadius="{DynamicResource CornerRadius.Small}">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock VerticalAlignment="Center"
@@ -195,6 +198,7 @@
                                             <Button Margin="8,0,0,0"
                                                     MinWidth="24"
                                                     Padding="3,0"
+                                                    Style="{DynamicResource Button.Icon}"
                                                     Command="{Binding DataContext.Notes.RemoveTagCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                     CommandParameter="{Binding}"
                                                     Content="×"
@@ -204,30 +208,56 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <DockPanel Margin="{DynamicResource Thickness.DialogRowGap}">
-                            <Button DockPanel.Dock="Right"
-                                    Margin="8,0,0,0"
-                                    MinWidth="80"
+                        <Grid Margin="{DynamicResource Thickness.DetailsFieldGap}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ComboBox x:Name="TagInputComboBox"
+                                      MinWidth="220"
+                                      Height="{DynamicResource Metric.DetailsInputHeight}"
+                                      Style="{DynamicResource ComboBox.Editable}"
+                                      ItemsSource="{Binding TagSuggestions}"
+                                      Text="{Binding NewTag, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      SelectedItem="{Binding SelectedTagSuggestion, Mode=TwoWay}"
+                                      IsDropDownOpen="{Binding IsSuggestionsOpen, Mode=TwoWay}"
+                                      PreviewKeyDown="OnTagInputPreviewKeyDown" />
+                            <Button Grid.Column="1"
+                                    Margin="{DynamicResource Thickness.DetailsActionGap}"
+                                    MinWidth="88"
                                     Command="{Binding AddTagCommand}"
                                     Content="{DynamicResource String.AddTag}" />
-                            <TextBox MinWidth="180"
-                                     Text="{Binding NewTag, UpdateSourceTrigger=PropertyChanged}" />
-                        </DockPanel>
+                        </Grid>
+                        <TextBlock Margin="{DynamicResource Thickness.DetailsFieldGap}"
+                                   Text="{Binding TagStatusMessage}"
+                                   TextWrapping="Wrap">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{DynamicResource Brush.TextSecondary}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasTagError}" Value="True">
+                                            <Setter Property="Foreground" Value="{DynamicResource Brush.ErrorText}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
 
                         <TextBlock Margin="{DynamicResource Thickness.NotesSectionGap}"
-                                   FontWeight="SemiBold"
+                                   Style="{DynamicResource Text.SectionTitle}"
                                    Text="{DynamicResource String.Note}" />
-                        <TextBlock Margin="{DynamicResource Thickness.DialogRowGap}"
+                        <TextBlock Margin="{DynamicResource Thickness.DetailsFieldGap}"
                                    Foreground="{DynamicResource Brush.TextSecondary}"
                                    Text="{DynamicResource String.NoteExplicitSaveDescription}"
                                    TextWrapping="Wrap" />
-                        <TextBox Margin="{DynamicResource Thickness.DialogRowGap}"
+                        <TextBox Margin="{DynamicResource Thickness.DetailsFieldGap}"
                                  MinHeight="160"
                                  AcceptsReturn="True"
+                                 VerticalContentAlignment="Top"
                                  TextWrapping="Wrap"
                                  VerticalScrollBarVisibility="Auto"
                                  Text="{Binding NoteText, UpdateSourceTrigger=PropertyChanged}" />
-                        <DockPanel Margin="{DynamicResource Thickness.DialogRowGap}">
+                        <DockPanel Margin="{DynamicResource Thickness.DetailsFieldGap}">
                             <Button DockPanel.Dock="Right"
                                     MinWidth="88"
                                     Command="{Binding SaveNoteCommand}"
@@ -237,12 +267,12 @@
                                            Text="{DynamicResource String.UnsavedChanges}"
                                            Visibility="{Binding IsNoteDirty, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                 <TextBlock Margin="8,0,0,0"
-                                           Text="{Binding StatusMessage}">
+                                           Text="{Binding NoteStatusMessage}">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="{DynamicResource Brush.TextSecondary}" />
                                             <Style.Triggers>
-                                                <DataTrigger Binding="{Binding HasError}" Value="True">
+                                                <DataTrigger Binding="{Binding HasNoteError}" Value="True">
                                                     <Setter Property="Foreground" Value="{DynamicResource Brush.ErrorText}" />
                                                 </DataTrigger>
                                             </Style.Triggers>

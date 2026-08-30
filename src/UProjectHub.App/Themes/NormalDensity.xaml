@@ -6,10 +6,14 @@
     <sys:Double x:Key="Metric.FilterControlHeight">34</sys:Double>
     <sys:Double x:Key="Metric.EngineFilterWidth">132</sys:Double>
     <sys:Double x:Key="Metric.ProjectTypeFilterWidth">96</sys:Double>
+    <sys:Double x:Key="Metric.TagFilterWidth">142</sys:Double>
+    <sys:Double x:Key="Metric.DetailsInputHeight">36</sys:Double>
     <Visibility x:Key="Visibility.ProjectTags">Visible</Visibility>
     <Thickness x:Key="Thickness.ControlPadding">12,7</Thickness>
     <Thickness x:Key="Thickness.SearchPadding">12,0</Thickness>
     <Thickness x:Key="Thickness.SearchTextInset">4,0,0,0</Thickness>
     <Thickness x:Key="Thickness.FilterPadding">10,5</Thickness>
+    <Thickness x:Key="Thickness.InputPadding">10,7</Thickness>
+    <Thickness x:Key="Thickness.TabHeaderPadding">14,7</Thickness>
     <Thickness x:Key="Thickness.ListCellPadding">8,4</Thickness>
 </ResourceDictionary>

@@ -104,6 +104,7 @@ public sealed class AppBootstrapper
         var projectUserMetadata = new ProjectUserMetadataService(
             catalog,
             settingsMutations);
+        var projectTagIndex = new ProjectTagIndex();
         var diagnosticStore = new ProjectDiagnosticSnapshotStore(
             new ProjectDiagnosticsService(
                 new BasicProjectDiagnosticsService(clock),
@@ -121,7 +122,8 @@ public sealed class AppBootstrapper
                 projectCleanupService,
                 localizationService,
                 diagnosticStore,
-                projectUserMetadata),
+                projectUserMetadata,
+                projectTagIndex),
             localizationService,
             diagnosticStore);
         var searchService = new ProjectSearchService(clock);
@@ -130,7 +132,8 @@ public sealed class AppBootstrapper
             new ProjectQueryParser(),
             new ProjectFilterService(searchService),
             new ProjectSortService(),
-            localizationService);
+            localizationService,
+            projectTagIndex);
         var newProject = new NewProjectViewModel(
             unrealEditorLauncher,
             statusBar,

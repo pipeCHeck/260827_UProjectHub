@@ -161,11 +161,17 @@ The main toolbar shall provide:
 
 - Engine filter;
 - Project Type filter;
+- Tag filter populated from the current in-memory catalog;
 - Favorites-only toggle.
 
 Engine filter values should primarily reflect engine versions present in discovered projects, including versions that are currently not installed.
 
 Visible filters combine with search using AND semantics.
+
+The Tag filter uses case-insensitive exact tag identity, preserves the first
+known display casing, and includes tags from missing catalog entries. A saved
+tag selection that no longer exists in the current catalog is normalized to
+All so it cannot leave the project list permanently empty.
 
 ### 3.7 Sorting
 
@@ -241,6 +247,7 @@ Project context menu:
 - Copy Path;
 - Toggle Favorite;
 - Project Details;
+- Tags & Notes, opening Project Details directly on that section;
 - Remove from List, for missing projects.
 
 `Open Existing .sln` is enabled only for a C++ project when one solution can be selected safely. It remains visible but disabled for Blueprint projects and when the solution is missing, ambiguous, or inaccessible. A disabled action must explain the reason in a tooltip.
@@ -367,7 +374,11 @@ Settings are user-owned state.
 
 Project tags and notes are stored only in settings and never in `.uproject`
 descriptors. Tags are trimmed, reject empty values, and prevent
-case-insensitive duplicates. Notes use an explicit Save action.
+case-insensitive duplicates. Double quotes and newline/control characters are
+rejected because they cannot be represented safely by the tag search grammar.
+Known-tag suggestions come only from the current in-memory catalog, prioritize
+prefix matches before contains matches, and do not prevent free tag creation.
+Notes use an explicit Save action.
 
 All in-process settings changes must serialize the complete load-modify-save
 operation through one shared mutation boundary so independent writers cannot

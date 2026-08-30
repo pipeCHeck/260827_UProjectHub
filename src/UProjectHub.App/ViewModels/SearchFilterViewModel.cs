@@ -18,13 +18,17 @@ public sealed class SearchFilterViewModel : ObservableObject
     private readonly ProjectQueryParser _queryParser;
     private readonly ProjectFilterService _filterService;
     private readonly ProjectSortService _sortService;
+    private readonly ProjectTagIndex _tagIndex;
     private readonly LocalizationService? _localization;
     private readonly ObservableCollection<string> _engineOptions = [];
     private readonly ObservableCollection<EngineFilterOption> _engineFilterOptions = [];
+    private readonly ObservableCollection<string> _tagOptions = [];
+    private readonly ObservableCollection<TagFilterOption> _tagFilterOptions = [];
     private IReadOnlyList<UnrealProject> _rawProjects = [];
     private string _searchText = string.Empty;
     private string? _selectedEngine;
     private ProjectType? _selectedProjectType;
+    private string? _selectedTag;
     private bool _favoritesOnly;
     private ProjectSortDefinition _activeSort = new();
     private bool _hasSnapshot;
@@ -35,18 +39,23 @@ public sealed class SearchFilterViewModel : ObservableObject
         ProjectQueryParser queryParser,
         ProjectFilterService filterService,
         ProjectSortService sortService,
-        LocalizationService? localization = null)
+        LocalizationService? localization = null,
+        ProjectTagIndex? tagIndex = null)
     {
         _projectList = projectList ?? throw new ArgumentNullException(nameof(projectList));
         _queryParser = queryParser ?? throw new ArgumentNullException(nameof(queryParser));
         _filterService = filterService ?? throw new ArgumentNullException(nameof(filterService));
         _sortService = sortService ?? throw new ArgumentNullException(nameof(sortService));
+        _tagIndex = tagIndex ?? new ProjectTagIndex();
         _localization = localization;
 
         EngineOptions = new ReadOnlyObservableCollection<string>(_engineOptions);
         EngineFilterOptions = new ReadOnlyObservableCollection<EngineFilterOption>(_engineFilterOptions);
+        TagOptions = new ReadOnlyObservableCollection<string>(_tagOptions);
+        TagFilterOptions = new ReadOnlyObservableCollection<TagFilterOption>(_tagFilterOptions);
         ProjectTypeOptions = CreateProjectTypeOptions();
         _engineFilterOptions.Add(new EngineFilterOption(AllLabel, null));
+        _tagFilterOptions.Add(new TagFilterOption(AllLabel, null));
         if (_localization is not null)
         {
             _localization.LanguageChanged += OnLanguageChanged;
@@ -107,9 +116,27 @@ public sealed class SearchFilterViewModel : ObservableObject
         }
     }
 
+    public string? SelectedTag
+    {
+        get => _selectedTag;
+        set
+        {
+            var normalized = string.IsNullOrWhiteSpace(value) ? null : value;
+            if (SetProperty(ref _selectedTag, normalized))
+            {
+                OnPropertyChanged(nameof(SelectedTagFilterOption));
+                OnCriteriaChanged();
+            }
+        }
+    }
+
     public ReadOnlyObservableCollection<string> EngineOptions { get; }
 
     public ReadOnlyObservableCollection<EngineFilterOption> EngineFilterOptions { get; }
+
+    public ReadOnlyObservableCollection<string> TagOptions { get; }
+
+    public ReadOnlyObservableCollection<TagFilterOption> TagFilterOptions { get; }
 
     public EngineFilterOption SelectedEngineFilterOption
     {
@@ -119,6 +146,16 @@ public sealed class SearchFilterViewModel : ObservableObject
                 StringComparison.OrdinalIgnoreCase))
             ?? _engineFilterOptions[0];
         set => SelectedEngine = value?.Value;
+    }
+
+    public TagFilterOption SelectedTagFilterOption
+    {
+        get => _tagFilterOptions.FirstOrDefault(option => string.Equals(
+                option.Value,
+                SelectedTag,
+                StringComparison.OrdinalIgnoreCase))
+            ?? _tagFilterOptions[0];
+        set => SelectedTag = value?.Value;
     }
 
     public IReadOnlyList<ProjectTypeFilterOption> ProjectTypeOptions { get; private set; }
@@ -140,6 +177,7 @@ public sealed class SearchFilterViewModel : ObservableObject
         !string.IsNullOrWhiteSpace(SearchText)
         || SelectedEngine is not null
         || SelectedProjectType is not null
+        || SelectedTag is not null
         || FavoritesOnly;
 
     public ICommand ResetCommand { get; }
@@ -149,7 +187,8 @@ public sealed class SearchFilterViewModel : ObservableObject
     public VisibleFilterState VisibleFilters => new(
         SelectedEngine,
         SelectedProjectType,
-        FavoritesOnly);
+        FavoritesOnly,
+        SelectedTag);
 
     public void SetSnapshot(ProjectCatalogSnapshot snapshot)
     {
@@ -158,6 +197,8 @@ public sealed class SearchFilterViewModel : ObservableObject
         _rawProjects = snapshot.Projects.ToArray();
         _projectList.SetSnapshot(snapshot);
         RebuildEngineOptions();
+        _tagIndex.Rebuild(_rawProjects);
+        RebuildTagOptions();
         _hasSnapshot = true;
 
         if (SelectedEngine is not null
@@ -169,7 +210,22 @@ public sealed class SearchFilterViewModel : ObservableObject
             OnPropertyChanged(nameof(HasActiveSearchOrFilters));
         }
 
+        var normalizedStaleTag = false;
+        if (SelectedTag is not null
+            && !TagOptions.Contains(SelectedTag, StringComparer.OrdinalIgnoreCase))
+        {
+            _isUpdatingState = true;
+            SelectedTag = null;
+            _isUpdatingState = false;
+            normalizedStaleTag = true;
+            OnPropertyChanged(nameof(HasActiveSearchOrFilters));
+        }
+
         ApplyPipeline();
+        if (normalizedStaleTag)
+        {
+            RaisePersistedStateChanged();
+        }
     }
 
     public void ApplySettings(AppSettings settings)
@@ -180,6 +236,7 @@ public sealed class SearchFilterViewModel : ObservableObject
         SelectedEngine = settings.VisibleFilters.Engine;
         SelectedProjectType = settings.VisibleFilters.ProjectType;
         FavoritesOnly = settings.VisibleFilters.FavoritesOnly;
+        SelectedTag = settings.VisibleFilters.Tag;
         ActiveSort = settings.ActiveSort;
         _isUpdatingState = false;
         OnPropertyChanged(nameof(HasActiveSearchOrFilters));
@@ -194,7 +251,23 @@ public sealed class SearchFilterViewModel : ObservableObject
             OnPropertyChanged(nameof(HasActiveSearchOrFilters));
         }
 
+        var normalizedStaleTag = false;
+        if (_hasSnapshot
+            && SelectedTag is not null
+            && !TagOptions.Contains(SelectedTag, StringComparer.OrdinalIgnoreCase))
+        {
+            _isUpdatingState = true;
+            SelectedTag = null;
+            _isUpdatingState = false;
+            normalizedStaleTag = true;
+            OnPropertyChanged(nameof(HasActiveSearchOrFilters));
+        }
+
         ApplyPipeline();
+        if (normalizedStaleTag)
+        {
+            RaisePersistedStateChanged();
+        }
     }
 
     public void RequestSort(ProjectSortColumn column)
@@ -212,6 +285,7 @@ public sealed class SearchFilterViewModel : ObservableObject
         SearchText = string.Empty;
         SelectedEngine = null;
         SelectedProjectType = null;
+        SelectedTag = null;
         FavoritesOnly = false;
         _isUpdatingState = false;
 
@@ -254,7 +328,8 @@ public sealed class SearchFilterViewModel : ObservableObject
         var filter = new ProjectFilter(
             SelectedEngine,
             SelectedProjectType,
-            FavoritesOnly);
+            FavoritesOnly,
+            SelectedTag);
         var filtered = _rawProjects.Where(project =>
             _filterService.Matches(project, query, filter));
         var sorted = _sortService.Sort(filtered, ActiveSort);
@@ -283,6 +358,20 @@ public sealed class SearchFilterViewModel : ObservableObject
         }
 
         OnPropertyChanged(nameof(SelectedEngineFilterOption));
+    }
+
+    private void RebuildTagOptions()
+    {
+        _tagOptions.Clear();
+        _tagFilterOptions.Clear();
+        _tagFilterOptions.Add(new TagFilterOption(AllLabel, null));
+        foreach (var tag in _tagIndex.KnownTags)
+        {
+            _tagOptions.Add(tag);
+            _tagFilterOptions.Add(new TagFilterOption(tag, tag));
+        }
+
+        OnPropertyChanged(nameof(SelectedTagFilterOption));
     }
 
     private static string? GetEngineOption(UnrealProject project)
@@ -314,6 +403,7 @@ public sealed class SearchFilterViewModel : ObservableObject
         ProjectTypeOptions = CreateProjectTypeOptions();
         OnPropertyChanged(nameof(ProjectTypeOptions));
         RebuildEngineOptions();
+        RebuildTagOptions();
         ApplyPipeline();
     }
 
@@ -344,3 +434,5 @@ public sealed class SearchFilterViewModel : ObservableObject
 public sealed record EngineFilterOption(string Label, string? Value);
 
 public sealed record ProjectTypeFilterOption(string Label, ProjectType? Value);
+
+public sealed record TagFilterOption(string Label, string? Value);

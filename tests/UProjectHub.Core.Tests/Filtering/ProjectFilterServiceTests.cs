@@ -58,6 +58,20 @@ public sealed class ProjectFilterServiceTests
     }
 
     [TestMethod]
+    public void TagFilterUsesCaseInsensitiveExactTagIdentity()
+    {
+        var project = CreateProject() with
+        {
+            Tags = ["Team Project", "Prototype"],
+        };
+
+        Assert.IsTrue(
+            _service.Matches(project, new ProjectFilter(Tag: "team project")));
+        Assert.IsFalse(
+            _service.Matches(project, new ProjectFilter(Tag: "Team")));
+    }
+
+    [TestMethod]
     public void ActiveVisibleFiltersUseAndSemantics()
     {
         var matching = CreateProject(

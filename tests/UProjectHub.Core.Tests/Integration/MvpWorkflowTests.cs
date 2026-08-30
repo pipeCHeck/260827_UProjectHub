@@ -275,7 +275,7 @@ public sealed class MvpWorkflowTests
             var processLauncher = new RecordingProcessLauncher();
             var actionService = new ProjectActionService(
                 catalog,
-                settingsRepository,
+                new SettingsMutationService(settingsRepository),
                 new ManagedProjectRemovalService(
                     catalog,
                     projectCacheRepository,

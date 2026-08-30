@@ -32,10 +32,12 @@ public sealed class ProjectUserMetadataService
         string? tag,
         CancellationToken cancellationToken = default)
     {
-        var normalized = tag?.Trim();
-        if (string.IsNullOrEmpty(normalized))
+        if (!ProjectTagNormalizer.TryNormalizeTag(
+                tag,
+                out var normalized,
+                out var validationError))
         {
-            return Task.FromResult(Failed("A tag cannot be empty."));
+            return Task.FromResult(Failed(GetTagValidationMessage(validationError)));
         }
 
         return UpdateAsync(
@@ -207,4 +209,15 @@ public sealed class ProjectUserMetadataService
 
     private static ProjectUserMetadataResult Failed(string message) =>
         new(false, ErrorMessage: message);
+
+    private static string GetTagValidationMessage(ProjectTagValidationError error) =>
+        error switch
+        {
+            ProjectTagValidationError.Empty => "A tag cannot be empty.",
+            ProjectTagValidationError.DoubleQuote =>
+                "A tag cannot contain a double quote because tag search cannot represent it.",
+            ProjectTagValidationError.ControlCharacter =>
+                "A tag cannot contain a newline or other control character.",
+            _ => "The tag is invalid.",
+        };
 }

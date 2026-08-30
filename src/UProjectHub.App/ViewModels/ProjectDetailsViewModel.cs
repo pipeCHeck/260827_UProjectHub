@@ -2,6 +2,13 @@ using UProjectHub.Core.Diagnostics;
 
 namespace UProjectHub.App.ViewModels;
 
+public enum ProjectDetailsSection
+{
+    Overview = 0,
+    Diagnostics = 1,
+    TagsAndNotes = 2,
+}
+
 public sealed class ProjectDetailsViewModel : IDisposable
 {
     private readonly object _lifetimeGate = new();
@@ -11,12 +18,14 @@ public sealed class ProjectDetailsViewModel : IDisposable
     public ProjectDetailsViewModel(
         ProjectOverviewViewModel overview,
         ProjectDiagnosticsViewModel diagnostics,
-        ProjectNotesViewModel? notes = null)
+        ProjectNotesViewModel? notes = null,
+        ProjectDetailsSection initialSection = ProjectDetailsSection.Overview)
     {
         Overview = overview ?? throw new ArgumentNullException(nameof(overview));
         Diagnostics = diagnostics
             ?? throw new ArgumentNullException(nameof(diagnostics));
         Notes = notes;
+        SelectedSection = initialSection;
     }
 
     public string Name => Overview.Name;
@@ -26,6 +35,10 @@ public sealed class ProjectDetailsViewModel : IDisposable
     public ProjectDiagnosticsViewModel Diagnostics { get; }
 
     public ProjectNotesViewModel? Notes { get; }
+
+    public ProjectDetailsSection SelectedSection { get; }
+
+    public int SelectedTabIndex => (int)SelectedSection;
 
     public async Task RefreshDiagnosticsAsync(
         Func<CancellationToken, Task<ProjectDiagnosticReport?>> refreshAsync)

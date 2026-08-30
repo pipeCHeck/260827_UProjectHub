@@ -73,9 +73,9 @@
                                 Text="{Binding SearchFilter.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                 ClearCommand="{Binding SearchFilter.ClearSearchCommand}" />
 
-            <StackPanel Grid.Row="1"
-                        Margin="{DynamicResource Thickness.SectionTopGap}"
-                        Orientation="Horizontal">
+            <WrapPanel Grid.Row="1"
+                       Margin="{DynamicResource Thickness.SectionTopGap}"
+                       Orientation="Horizontal">
                 <controls:FilterChip Label="{DynamicResource String.EngineVersion}">
                     <controls:FilterChip.ChipContent>
                         <ComboBox Width="{DynamicResource Metric.EngineFilterWidth}"
@@ -97,6 +97,16 @@
                 </controls:FilterChip>
 
                 <controls:FilterChip Margin="{DynamicResource Thickness.ChipGap}"
+                                     Label="{DynamicResource String.Tag}">
+                    <controls:FilterChip.ChipContent>
+                        <ComboBox Width="{DynamicResource Metric.TagFilterWidth}"
+                                  ItemsSource="{Binding SearchFilter.TagFilterOptions}"
+                                  DisplayMemberPath="Label"
+                                  SelectedItem="{Binding SearchFilter.SelectedTagFilterOption, Mode=TwoWay}" />
+                    </controls:FilterChip.ChipContent>
+                </controls:FilterChip>
+
+                <controls:FilterChip Margin="{DynamicResource Thickness.ChipGap}"
                                      Label="{DynamicResource String.FavoritesOnly}"
                                      IsActive="{Binding SearchFilter.FavoritesOnly}">
                     <controls:FilterChip.ChipContent>
@@ -111,7 +121,7 @@
                         Command="{Binding SearchFilter.ResetCommand}"
                         Content="{DynamicResource String.Reset}"
                         IsEnabled="{Binding SearchFilter.HasActiveSearchOrFilters}" />
-            </StackPanel>
+            </WrapPanel>
         </Grid>
 
         <controls:ProjectList Grid.Row="2"

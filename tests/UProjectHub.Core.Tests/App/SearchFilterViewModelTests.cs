@@ -204,6 +204,83 @@ public sealed class SearchFilterViewModelTests
     }
 
     [TestMethod]
+    public void TagOptionsUseAllInMemoryProjectsIncludingMissingAndPreserveFirstCasing()
+    {
+        var fixture = CreateFixture();
+        fixture.ViewModel.SetSnapshot(CreateSnapshot(
+            CreateProject(
+                "Available",
+                @"D:\Projects\Available\Available.uproject",
+                tags: ["게임인재원8기", "Prototype"]),
+            CreateProject(
+                "Missing",
+                @"D:\Projects\Missing\Missing.uproject",
+                tags: ["prototype", "Archive"],
+                projectState: ProjectState.Missing)));
+
+        CollectionAssert.AreEqual(
+            new[] { "Archive", "Prototype", "게임인재원8기" },
+            fixture.ViewModel.TagOptions.ToArray());
+        Assert.AreEqual("All", fixture.ViewModel.SelectedTagFilterOption.Label);
+    }
+
+    [TestMethod]
+    public void TagFilterCombinesWithSearchAndOtherVisibleFilters()
+    {
+        var fixture = CreateFixture();
+        fixture.ViewModel.SetSnapshot(CreateSnapshot(
+            CreateProject(
+                "Matching",
+                @"D:\Projects\Matching\Matching.uproject",
+                projectType: ProjectType.Cpp,
+                isFavorite: true,
+                tags: ["Team Project"]),
+            CreateProject(
+                "WrongTag",
+                @"D:\Projects\WrongTag\WrongTag.uproject",
+                projectType: ProjectType.Cpp,
+                isFavorite: true,
+                tags: ["Other"]),
+            CreateProject(
+                "WrongType",
+                @"D:\Projects\WrongType\WrongType.uproject",
+                projectType: ProjectType.Blueprint,
+                isFavorite: true,
+                tags: ["Team Project"])));
+
+        fixture.ViewModel.SearchText = "Match";
+        fixture.ViewModel.SelectedProjectType = ProjectType.Cpp;
+        fixture.ViewModel.FavoritesOnly = true;
+        fixture.ViewModel.SelectedTag = "team project";
+
+        CollectionAssert.AreEqual(new[] { "Matching" }, VisibleNames(fixture));
+        Assert.AreEqual("Team Project", fixture.ViewModel.SelectedTagFilterOption.Label);
+    }
+
+    [TestMethod]
+    public void PersistedTagFilterIsClearedAndPersistedWhenSnapshotNoLongerContainsIt()
+    {
+        var fixture = CreateFixture();
+        var persistedChanges = 0;
+        fixture.ViewModel.PersistedStateChanged += (_, _) => persistedChanges++;
+        fixture.ViewModel.ApplySettings(new AppSettings
+        {
+            VisibleFilters = new VisibleFilterState(Tag: "Removed"),
+        });
+
+        fixture.ViewModel.SetSnapshot(CreateSnapshot(
+            CreateProject(
+                "Current",
+                @"D:\Projects\Current\Current.uproject",
+                tags: ["Current"] )));
+
+        Assert.IsNull(fixture.ViewModel.SelectedTag);
+        Assert.AreEqual("All", fixture.ViewModel.SelectedTagFilterOption.Label);
+        Assert.AreEqual(1, fixture.ProjectList.VisibleCount);
+        Assert.AreEqual(1, persistedChanges);
+    }
+
+    [TestMethod]
     public void PersistedState_IsAppliedAndValidEngineFilterSurvivesFirstSnapshot()
     {
         var fixture = CreateFixture();
@@ -478,7 +555,9 @@ public sealed class SearchFilterViewModelTests
         ProjectType projectType = ProjectType.Blueprint,
         DateTimeOffset? lastModified = null,
         DateTimeOffset? lastLaunched = null,
-        bool isFavorite = false)
+        bool isFavorite = false,
+        IReadOnlyList<string>? tags = null,
+        ProjectState projectState = ProjectState.Available)
     {
         return new UnrealProject(
             name,
@@ -489,8 +568,11 @@ public sealed class SearchFilterViewModelTests
             lastModified ?? Now,
             lastLaunched,
             isFavorite,
-            ProjectState.Available,
-            EngineResolutionState.Unknown);
+            projectState,
+            EngineResolutionState.Unknown)
+        {
+            Tags = tags ?? [],
+        };
     }
 
     private static string[] VisibleNames(SearchFixture fixture)

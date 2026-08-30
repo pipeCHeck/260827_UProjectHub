@@ -19,25 +19,6 @@ public sealed class ProjectOperations : IProjectOperations
     private readonly Func<CancellationToken, Task<ProjectRescanOperationResult>>? _coordinatedRescan;
 
     public ProjectOperations(
-        ISettingsRepository settingsRepository,
-        ManualEngineValidator manualEngineValidator,
-        ThemeService themeService,
-        LocalizationService localizationService,
-        ProjectCatalog catalog,
-        Func<IReadOnlyList<string>, AppSettings, CancellationToken, Task<ProjectRefreshResult>> rescan,
-        Func<CancellationToken, Task<ProjectRescanOperationResult>>? coordinatedRescan = null)
-        : this(
-            new SettingsMutationService(settingsRepository),
-            manualEngineValidator,
-            themeService,
-            localizationService,
-            catalog,
-            rescan,
-            coordinatedRescan)
-    {
-    }
-
-    public ProjectOperations(
         SettingsMutationService settings,
         ManualEngineValidator manualEngineValidator,
         ThemeService themeService,

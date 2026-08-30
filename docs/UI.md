@@ -97,6 +97,7 @@ Examples:
 
     [ Engine: All ▾ ]
     [ Type: All ▾ ]
+    [ Tag: All ▾ ]
     [ ☆ Favorites ]
 
 Active filters should be visible but not brightly colored.
@@ -263,6 +264,7 @@ Overflow button (`⋮`) and right-click use the same context actions:
     Toggle Favorite
     -------------------
     Project Details
+    Tags & Notes
     Project Cleanup
     Remove from List
 
@@ -297,6 +299,13 @@ points to Generate Visual Studio Project Files.
 Normal density may show up to three compact tag labels plus a remaining-count
 indicator in a project row. Compact density hides row tags. Full tag and note
 editing remains in Project Details.
+
+The `Tags & Notes` context action opens the same Project Details surface with
+that section selected. Tag entry uses the known tags from the current in-memory
+catalog as autocomplete candidates, with prefix matches before contains
+matches. Arrow keys navigate candidates, Enter accepts/adds, Escape dismisses
+the candidate list, and mouse selection remains available. Free tag entry is
+still allowed.
 
 ## 15. Keyboard
 

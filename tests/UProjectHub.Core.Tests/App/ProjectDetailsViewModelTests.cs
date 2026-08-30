@@ -55,6 +55,22 @@ public sealed class ProjectDetailsViewModelTests
         Assert.IsEmpty(diagnostics.Findings);
     }
 
+    [TestMethod]
+    public void DetailsCanRequestTagsAndNotesAsItsInitialSection()
+    {
+        var project = CreateProject(EngineResolutionState.Resolved);
+        var details = new ProjectDetailsViewModel(
+            new ProjectOverviewViewModel(project),
+            new ProjectDiagnosticsViewModel(new ProjectDiagnosticReport(
+                project.ProjectFilePath,
+                Now,
+                Array.Empty<ProjectDiagnosticFinding>())),
+            initialSection: ProjectDetailsSection.TagsAndNotes);
+
+        Assert.AreEqual(ProjectDetailsSection.TagsAndNotes, details.SelectedSection);
+        Assert.AreEqual(2, details.SelectedTabIndex);
+    }
+
     private static UnrealProject CreateProject(
         EngineResolutionState engineState) =>
         new(

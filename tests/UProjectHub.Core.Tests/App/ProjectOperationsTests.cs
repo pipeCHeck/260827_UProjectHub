@@ -168,7 +168,11 @@ public sealed class ProjectOperationsTests
         var sort = new ProjectSortDefinition(
             ProjectSortColumn.EngineVersion,
             SortDirection.Ascending);
-        var filters = new VisibleFilterState("5.10", ProjectType.Cpp, true);
+        var filters = new VisibleFilterState(
+            "5.10",
+            ProjectType.Cpp,
+            true,
+            "Team Project");
 
         var result = await fixture.Service.SaveViewStateAsync(
             sort,
@@ -242,7 +246,7 @@ public sealed class ProjectOperationsTests
         var catalog = new ProjectCatalog();
         var fixture = new Fixture(repository, theme, localization);
         fixture.Service = new ProjectOperations(
-            repository,
+            new SettingsMutationService(repository),
             new ManualEngineValidator(),
             theme,
             localization,

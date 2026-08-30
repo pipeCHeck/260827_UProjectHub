@@ -68,6 +68,25 @@ public sealed class ProjectUserMetadataServiceTests
     }
 
     [TestMethod]
+    [DataRow("Quoted\"Tag", "double quote")]
+    [DataRow("Line\nBreak", "control character")]
+    [DataRow("Tabbed\tTag", "control character")]
+    public async Task AddTagRejectsValuesThatCannotBeRepresentedByTagSearchAsync(
+        string tag,
+        string expectedReason)
+    {
+        var project = CreateProject();
+        var fixture = CreateFixture(project);
+
+        var result = await fixture.Service.AddTagAsync(project.ProjectFilePath, tag);
+
+        Assert.IsFalse(result.IsSuccess);
+        StringAssert.Contains(result.ErrorMessage!, expectedReason);
+        Assert.AreEqual(0, fixture.Repository.SaveCount);
+        Assert.IsEmpty(fixture.Catalog.GetSnapshot().Projects.Single().Tags);
+    }
+
+    [TestMethod]
     public async Task RemoveTagUsesCaseInsensitiveIdentityAndUpdatesCatalogAsync()
     {
         var project = CreateProject() with { Tags = ["Client", "VR"] };
@@ -158,6 +177,38 @@ public sealed class ProjectUserMetadataServiceTests
         Assert.AreEqual(
             "Review the LIGHTING pass.",
             fixture.Repository.Current.ProjectUserStates.Single().Note);
+    }
+
+    [TestMethod]
+    public void NotesViewModelUsesSharedKnownTagsForAutocompleteWithoutBlockingFreeEntry()
+    {
+        var project = CreateProject();
+        var fixture = CreateFixture(project);
+        var tagIndex = new ProjectTagIndex();
+        tagIndex.Rebuild([
+            project with { Tags = ["게임인재원8기", "Game Academy"] },
+        ]);
+        using var viewModel = new ProjectNotesViewModel(
+            project,
+            fixture.Service,
+            tagIndex: tagIndex);
+
+        viewModel.NewTag = "게임인재";
+
+        CollectionAssert.AreEqual(
+            new[] { "게임인재원8기" },
+            viewModel.TagSuggestions.ToArray());
+        Assert.IsTrue(viewModel.IsSuggestionsOpen);
+
+        viewModel.SelectedTagSuggestion = "게임인재원8기";
+
+        Assert.AreEqual("게임인재원8기", viewModel.NewTag);
+        Assert.IsFalse(viewModel.IsSuggestionsOpen);
+
+        viewModel.NewTag = "Entirely New Tag";
+
+        Assert.IsEmpty(viewModel.TagSuggestions);
+        Assert.IsTrue(viewModel.AddTagCommand.CanExecute(null));
     }
 
     private static Fixture CreateFixture(

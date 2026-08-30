@@ -36,31 +36,6 @@ public sealed class ProjectActionService
 
     public ProjectActionService(
         ProjectCatalog catalog,
-        ISettingsRepository settingsRepository,
-        ManagedProjectRemovalService removalService,
-        IUnrealEditorLauncher unrealEditorLauncher,
-        IExplorerLauncher explorerLauncher,
-        IVisualStudioLauncher visualStudioLauncher,
-        IClipboardService clipboardService,
-        Func<UnrealProject, EngineResolution> resolutionAccessor,
-        IAppLogger? logger = null,
-        IProjectFilesGenerator? projectFilesGenerator = null)
-        : this(
-            catalog,
-            new SettingsMutationService(settingsRepository),
-            removalService,
-            unrealEditorLauncher,
-            explorerLauncher,
-            visualStudioLauncher,
-            clipboardService,
-            resolutionAccessor,
-            logger,
-            projectFilesGenerator)
-    {
-    }
-
-    public ProjectActionService(
-        ProjectCatalog catalog,
         SettingsMutationService settings,
         ManagedProjectRemovalService removalService,
         IUnrealEditorLauncher unrealEditorLauncher,

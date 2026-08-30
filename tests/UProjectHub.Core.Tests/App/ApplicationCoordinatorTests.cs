@@ -325,7 +325,7 @@ public sealed class ApplicationCoordinatorTests
         fixture.ResetOperationCounts();
         var legacyRescanCalls = 0;
         var operations = new ProjectOperations(
-            fixture.Settings,
+            new SettingsMutationService(fixture.Settings),
             new ManualEngineValidator(),
             fixture.Theme,
             new LocalizationService(

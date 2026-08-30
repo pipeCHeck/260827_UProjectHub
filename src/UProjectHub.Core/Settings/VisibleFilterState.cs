@@ -5,4 +5,5 @@ namespace UProjectHub.Core.Settings;
 public sealed record VisibleFilterState(
     string? Engine = null,
     ProjectType? ProjectType = null,
-    bool FavoritesOnly = false);
+    bool FavoritesOnly = false,
+    string? Tag = null);

@@ -315,6 +315,120 @@ public sealed class PresentationResourceTests
     }
 
     [STATestMethod]
+    public void ProjectDetailsUsesSemanticInputAndTabStyles()
+    {
+        var dictionary = LoadDictionary("Themes/Inputs.xaml");
+        var surface = new SolidColorBrush(Colors.DarkSlateGray);
+        var text = new SolidColorBrush(Colors.WhiteSmoke);
+        var border = new SolidColorBrush(Colors.DimGray);
+        var textBox = new TextBox
+        {
+            Style = (Style)dictionary[typeof(TextBox)],
+        };
+        textBox.Resources["Brush.Surface"] = surface;
+        textBox.Resources["Brush.TextPrimary"] = text;
+        textBox.Resources["Brush.BorderSubtle"] = border;
+        textBox.Resources["Brush.Focus"] = Brushes.CornflowerBlue;
+        textBox.Resources["Brush.ControlDisabled"] = Brushes.Black;
+        textBox.Resources["Thickness.InputPadding"] = new Thickness(10, 7, 10, 7);
+        textBox.Resources["CornerRadius.Control"] = new CornerRadius(8);
+
+        textBox.ApplyTemplate();
+
+        Assert.AreSame(surface, textBox.Background);
+        Assert.AreSame(text, textBox.Foreground);
+        Assert.AreSame(border, textBox.BorderBrush);
+        Assert.IsNotNull(textBox.Template.FindName("PART_ContentHost", textBox));
+        Assert.IsTrue(dictionary.Contains(typeof(TabControl)));
+        Assert.IsTrue(dictionary.Contains(typeof(TabItem)));
+        Assert.IsTrue(dictionary.Contains("ComboBox.Editable"));
+    }
+
+    [STATestMethod]
+    public void EditableTagComboBoxBindsItsEditorTextToTheComboBoxText()
+    {
+        var application = Application.Current ?? new Application();
+        application.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        var buttons = LoadDictionary("Themes/Buttons.xaml");
+        var inputs = LoadDictionary("Themes/Inputs.xaml");
+        application.Resources.MergedDictionaries.Add(buttons);
+        application.Resources.MergedDictionaries.Add(inputs);
+        var comboBox = new ComboBox
+        {
+            Style = (Style)inputs["ComboBox.Editable"],
+            Text = "Seed",
+        };
+        AddComboBoxResources(comboBox);
+        comboBox.Resources["Brush.Transparent"] = Brushes.Transparent;
+        comboBox.Resources["Brush.ElevatedSurface"] = Brushes.White;
+        comboBox.Resources["Brush.ControlDisabled"] = Brushes.LightGray;
+        comboBox.Resources["Thickness.InputPadding"] = new Thickness(10, 7, 10, 7);
+        comboBox.Resources["CornerRadius.Control"] = new CornerRadius(8);
+        var window = new Window { Content = comboBox };
+
+        try
+        {
+            window.Show();
+            comboBox.ApplyTemplate();
+            window.UpdateLayout();
+            var editor = Assert.IsInstanceOfType<TextBox>(
+                comboBox.Template.FindName("PART_EditableTextBox", comboBox));
+
+            Assert.AreEqual("Seed", editor.Text);
+
+            editor.Text = "Game";
+            window.Dispatcher.Invoke(() => { });
+
+            Assert.AreEqual("Game", comboBox.Text);
+        }
+        finally
+        {
+            window.Close();
+            application.Resources.MergedDictionaries.Remove(inputs);
+            application.Resources.MergedDictionaries.Remove(buttons);
+        }
+    }
+
+    [STATestMethod]
+    public void ProjectDetailsHonorsRequestedInitialTagsAndNotesTab()
+    {
+        var project = new UnrealProject(
+            "Game",
+            new ProjectPath(@"D:\Projects\Game\Game.uproject"),
+            "5.8",
+            "5.8",
+            ProjectType.Cpp,
+            DateTimeOffset.UnixEpoch,
+            LastLaunched: null,
+            IsFavorite: false,
+            ProjectState.Available,
+            EngineResolutionState.Resolved);
+        var details = new ProjectDetailsViewModel(
+            new ProjectOverviewViewModel(project),
+            new ProjectDiagnosticsViewModel(new ProjectDiagnosticReport(
+                project.ProjectFilePath,
+                DateTimeOffset.UnixEpoch,
+                Array.Empty<ProjectDiagnosticFinding>())),
+            initialSection: ProjectDetailsSection.TagsAndNotes);
+        var window = new ProjectDetailsWindow(details);
+
+        var tabs = Assert.IsInstanceOfType<TabControl>(
+            window.FindName("DetailsTabControl"));
+
+        window.Show();
+        try
+        {
+            window.UpdateLayout();
+            Assert.HasCount(3, tabs.Items);
+            Assert.AreEqual(2, tabs.SelectedIndex);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [STATestMethod]
     public void ProjectTagsAreVisibleOnlyInNormalDensity()
     {
         var normal = LoadDictionary("Themes/NormalDensity.xaml");

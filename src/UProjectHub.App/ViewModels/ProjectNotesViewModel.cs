@@ -3,6 +3,7 @@ using System.Windows.Input;
 using UProjectHub.App.Infrastructure;
 using UProjectHub.App.Services;
 using UProjectHub.Core.Models;
+using UProjectHub.Core.Settings;
 
 namespace UProjectHub.App.ViewModels;
 
@@ -10,29 +11,38 @@ public sealed class ProjectNotesViewModel : ObservableObject, IDisposable
 {
     private readonly ProjectUserMetadataService _metadata;
     private readonly LocalizationService? _localization;
+    private readonly ProjectTagIndex? _tagIndex;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private readonly ObservableCollection<string> _tags;
+    private readonly ObservableCollection<string> _tagSuggestions = [];
     private readonly AsyncRelayCommand _addTagCommand;
     private readonly AsyncRelayCommand _removeTagCommand;
     private readonly AsyncRelayCommand _saveNoteCommand;
     private string _newTag = string.Empty;
+    private string? _selectedTagSuggestion;
+    private bool _isSuggestionsOpen;
     private string _noteText;
     private string _savedNote;
-    private string? _statusMessage;
-    private bool _hasError;
+    private string? _tagStatusMessage;
+    private string? _noteStatusMessage;
+    private bool _hasTagError;
+    private bool _hasNoteError;
     private bool _isDisposed;
 
     public ProjectNotesViewModel(
         UnrealProject project,
         ProjectUserMetadataService metadata,
-        LocalizationService? localization = null)
+        LocalizationService? localization = null,
+        ProjectTagIndex? tagIndex = null)
     {
         ProjectPath = project?.ProjectFilePath
             ?? throw new ArgumentNullException(nameof(project));
         _metadata = metadata ?? throw new ArgumentNullException(nameof(metadata));
         _localization = localization;
+        _tagIndex = tagIndex;
         _tags = new ObservableCollection<string>(project.Tags);
         Tags = new ReadOnlyObservableCollection<string>(_tags);
+        TagSuggestions = new ReadOnlyObservableCollection<string>(_tagSuggestions);
         _noteText = project.Note;
         _savedNote = project.Note;
 
@@ -53,8 +63,34 @@ public sealed class ProjectNotesViewModel : ObservableObject, IDisposable
             if (SetProperty(ref _newTag, value ?? string.Empty))
             {
                 _addTagCommand.RaiseCanExecuteChanged();
+                RefreshSuggestions();
             }
         }
+    }
+
+    public ReadOnlyObservableCollection<string> TagSuggestions { get; }
+
+    public string? SelectedTagSuggestion
+    {
+        get => _selectedTagSuggestion;
+        set
+        {
+            if (!SetProperty(ref _selectedTagSuggestion, value) || value is null)
+            {
+                return;
+            }
+
+            _newTag = value;
+            OnPropertyChanged(nameof(NewTag));
+            _addTagCommand.RaiseCanExecuteChanged();
+            IsSuggestionsOpen = false;
+        }
+    }
+
+    public bool IsSuggestionsOpen
+    {
+        get => _isSuggestionsOpen;
+        set => SetProperty(ref _isSuggestionsOpen, value);
     }
 
     public string NoteText
@@ -75,15 +111,18 @@ public sealed class ProjectNotesViewModel : ObservableObject, IDisposable
 
     public string? StatusMessage
     {
-        get => _statusMessage;
-        private set => SetProperty(ref _statusMessage, value);
+        get => TagStatusMessage ?? NoteStatusMessage;
     }
 
-    public bool HasError
-    {
-        get => _hasError;
-        private set => SetProperty(ref _hasError, value);
-    }
+    public bool HasError => HasTagError || HasNoteError;
+
+    public string? TagStatusMessage => _tagStatusMessage;
+
+    public string? NoteStatusMessage => _noteStatusMessage;
+
+    public bool HasTagError => _hasTagError;
+
+    public bool HasNoteError => _hasNoteError;
 
     public ICommand AddTagCommand => _addTagCommand;
 
@@ -97,11 +136,20 @@ public sealed class ProjectNotesViewModel : ObservableObject, IDisposable
 
     private async Task AddTagAsync()
     {
+        if (!ProjectTagNormalizer.TryNormalizeTag(
+                NewTag,
+                out var normalized,
+                out var validationError))
+        {
+            SetTagStatus(GetTagValidationMessage(validationError), isError: true);
+            return;
+        }
+
         var result = await _metadata.AddTagAsync(
             ProjectPath,
-            NewTag,
+            normalized,
             _lifetimeCancellation.Token);
-        if (!Accept(result))
+        if (!AcceptTag(result))
         {
             return;
         }
@@ -121,7 +169,7 @@ public sealed class ProjectNotesViewModel : ObservableObject, IDisposable
             ProjectPath,
             tag,
             _lifetimeCancellation.Token);
-        if (Accept(result))
+        if (AcceptTag(result))
         {
             ReplaceTags(result.Project!.Tags);
         }
@@ -133,28 +181,57 @@ public sealed class ProjectNotesViewModel : ObservableObject, IDisposable
             ProjectPath,
             NoteText,
             _lifetimeCancellation.Token);
-        if (!Accept(result))
+        if (!AcceptNote(result))
         {
             return;
         }
 
         _savedNote = result.Project!.Note;
-        HasError = false;
-        StatusMessage = Localize("String.NoteSaved", "Note saved.");
+        SetNoteStatus(Localize("String.NoteSaved", "Note saved."), isError: false);
         OnPropertyChanged(nameof(IsNoteDirty));
         _saveNoteCommand.RaiseCanExecuteChanged();
     }
 
-    private bool Accept(ProjectUserMetadataResult result)
+    private bool AcceptTag(ProjectUserMetadataResult result)
     {
         if (_isDisposed)
         {
             return false;
         }
 
-        HasError = !result.IsSuccess;
-        StatusMessage = result.IsSuccess ? null : result.ErrorMessage;
+        SetTagStatus(result.IsSuccess ? null : result.ErrorMessage, !result.IsSuccess);
         return result.IsSuccess && result.Project is not null;
+    }
+
+    private bool AcceptNote(ProjectUserMetadataResult result)
+    {
+        if (_isDisposed)
+        {
+            return false;
+        }
+
+        SetNoteStatus(result.IsSuccess ? null : result.ErrorMessage, !result.IsSuccess);
+        return result.IsSuccess && result.Project is not null;
+    }
+
+    private void SetTagStatus(string? message, bool isError)
+    {
+        _tagStatusMessage = message;
+        _hasTagError = isError;
+        OnPropertyChanged(nameof(TagStatusMessage));
+        OnPropertyChanged(nameof(HasTagError));
+        OnPropertyChanged(nameof(StatusMessage));
+        OnPropertyChanged(nameof(HasError));
+    }
+
+    private void SetNoteStatus(string? message, bool isError)
+    {
+        _noteStatusMessage = message;
+        _hasNoteError = isError;
+        OnPropertyChanged(nameof(NoteStatusMessage));
+        OnPropertyChanged(nameof(HasNoteError));
+        OnPropertyChanged(nameof(StatusMessage));
+        OnPropertyChanged(nameof(HasError));
     }
 
     private void ReplaceTags(IEnumerable<string> tags)
@@ -165,6 +242,40 @@ public sealed class ProjectNotesViewModel : ObservableObject, IDisposable
             _tags.Add(tag);
         }
     }
+
+    private void RefreshSuggestions()
+    {
+        _selectedTagSuggestion = null;
+        OnPropertyChanged(nameof(SelectedTagSuggestion));
+        _tagSuggestions.Clear();
+        if (_tagIndex is not null)
+        {
+            foreach (var suggestion in _tagIndex.GetSuggestions(NewTag)
+                         .Where(suggestion => !_tags.Contains(
+                             suggestion,
+                             StringComparer.OrdinalIgnoreCase)))
+            {
+                _tagSuggestions.Add(suggestion);
+            }
+        }
+
+        IsSuggestionsOpen = _tagSuggestions.Count > 0;
+    }
+
+    private string GetTagValidationMessage(ProjectTagValidationError error) =>
+        error switch
+        {
+            ProjectTagValidationError.Empty => Localize(
+                "String.TagEmptyError",
+                "A tag cannot be empty."),
+            ProjectTagValidationError.DoubleQuote => Localize(
+                "String.TagDoubleQuoteError",
+                "A tag cannot contain a double quote because tag search cannot represent it."),
+            ProjectTagValidationError.ControlCharacter => Localize(
+                "String.TagControlCharacterError",
+                "A tag cannot contain a newline or other control character."),
+            _ => Localize("String.TagInvalidError", "The tag is invalid."),
+        };
 
     private string Localize(string key, string fallback) =>
         _localization?.GetString(key) is { } value && value != key

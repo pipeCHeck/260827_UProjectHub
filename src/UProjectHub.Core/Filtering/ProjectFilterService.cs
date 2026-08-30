@@ -30,6 +30,12 @@ public sealed class ProjectFilterService
             return false;
         }
 
+        if (!string.IsNullOrWhiteSpace(filter.Tag)
+            && !project.Tags.Contains(filter.Tag, StringComparer.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
         return !filter.FavoritesOnly || project.IsFavorite;
     }
 

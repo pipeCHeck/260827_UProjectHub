@@ -203,6 +203,11 @@ project-user metadata writes then update only the corresponding fields in the
 in-memory catalog and publish the new snapshot, so current list and search
 results refresh without a rescan.
 
+Production writers receive that shared mutation service through composition;
+they do not construct private mutation services from an `ISettingsRepository`.
+Known tag filtering and autocomplete use only an in-memory projection of the
+current catalog and perform no filesystem work.
+
 ## 6. Discovery Boundaries
 
 Recommended conceptual components:

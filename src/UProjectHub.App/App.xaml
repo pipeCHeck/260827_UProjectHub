@@ -9,6 +9,7 @@
                 <ResourceDictionary Source="Themes/Spacing.xaml" />
                 <ResourceDictionary Source="Themes/Motion.xaml" />
                 <ResourceDictionary Source="Themes/Buttons.xaml" />
+                <ResourceDictionary Source="Themes/Inputs.xaml" />
                 <ResourceDictionary Source="Themes/Menus.xaml" />
                 <ResourceDictionary Source="Themes/ScrollBars.xaml" />
                 <ResourceDictionary Source="Themes/DataGrid.xaml" />
