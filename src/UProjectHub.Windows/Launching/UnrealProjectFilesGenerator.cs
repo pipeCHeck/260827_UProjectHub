@@ -69,9 +69,15 @@ public sealed class UnrealProjectFilesGenerator : IProjectFilesGenerator
         return ProjectFileGenerationPreparation.Available(request);
     }
 
+    public Task<ProjectFileGenerationResult> GenerateAsync(
+        ProjectFileGenerationRequest request,
+        CancellationToken cancellationToken = default) =>
+        GenerateAsync(request, cancellationToken, outputProgress: null);
+
     public async Task<ProjectFileGenerationResult> GenerateAsync(
         ProjectFileGenerationRequest request,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken,
+        IProgress<ExternalProcessOutput>? outputProgress)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -91,7 +97,8 @@ public sealed class UnrealProjectFilesGenerator : IProjectFilesGenerator
         {
             var processResult = await _processRunner.RunAsync(
                 request.Process,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                outputProgress).ConfigureAwait(false);
             var status = processResult.Status switch
             {
                 ExternalProcessStatus.Succeeded =>

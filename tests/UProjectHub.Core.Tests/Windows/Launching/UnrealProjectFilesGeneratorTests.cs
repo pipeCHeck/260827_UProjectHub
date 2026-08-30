@@ -160,6 +160,45 @@ public sealed class UnrealProjectFilesGeneratorTests
     }
 
     [TestMethod]
+    public async Task GenerateForwardsStreamingOutputBeforeProcessCompletes()
+    {
+        using var fixture = GenerationFixture.Create(installedBuild: true);
+        var release = new TaskCompletionSource<ExternalProcessResult>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var outputReceived = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var runner = new FakeExternalProcessRunner(
+            (_, _, progress) =>
+            {
+                progress!.Report(new ExternalProcessOutput(
+                    ExternalProcessOutputStream.StandardOutput,
+                    "streamed-before-exit"));
+                return release.Task;
+            });
+        var generator = new UnrealProjectFilesGenerator(
+            runner,
+            new VisualStudioSolutionLocator());
+        var request = generator.Prepare(fixture.Project, fixture.Engine).Request!;
+        var progress = new InlineProgress<ExternalProcessOutput>(output =>
+        {
+            if (output.Text == "streamed-before-exit")
+            {
+                outputReceived.TrySetResult();
+            }
+        });
+
+        var generation = generator.GenerateAsync(
+            request,
+            CancellationToken.None,
+            progress);
+        await outputReceived.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.IsFalse(generation.IsCompleted);
+        release.SetResult(SuccessfulProcessResult());
+        _ = await generation;
+    }
+
+    [TestMethod]
     public async Task GenerateZeroExitKeepsMissingSolutionResultDistinct()
     {
         using var fixture = GenerationFixture.Create(installedBuild: true);
@@ -316,6 +355,11 @@ public sealed class UnrealProjectFilesGeneratorTests
             ExternalProcessRequest,
             CancellationToken,
             Task<ExternalProcessResult>> _run;
+        private readonly Func<
+            ExternalProcessRequest,
+            CancellationToken,
+            IProgress<ExternalProcessOutput>?,
+            Task<ExternalProcessResult>>? _streamingRun;
 
         public FakeExternalProcessRunner(
             Func<
@@ -327,6 +371,19 @@ public sealed class UnrealProjectFilesGeneratorTests
                 "Process execution was not expected."));
         }
 
+        public FakeExternalProcessRunner(
+            Func<
+                ExternalProcessRequest,
+                CancellationToken,
+                IProgress<ExternalProcessOutput>?,
+                Task<ExternalProcessResult>> streamingRun)
+        {
+            _streamingRun = streamingRun
+                ?? throw new ArgumentNullException(nameof(streamingRun));
+            _run = (_, _) => throw new InvalidOperationException(
+                "Non-streaming process execution was not expected.");
+        }
+
         public int RunCount { get; private set; }
 
         public Task<ExternalProcessResult> RunAsync(
@@ -336,6 +393,23 @@ public sealed class UnrealProjectFilesGeneratorTests
             RunCount++;
             return _run(request, cancellationToken);
         }
+
+
+        public Task<ExternalProcessResult> RunAsync(
+            ExternalProcessRequest request,
+            CancellationToken cancellationToken,
+            IProgress<ExternalProcessOutput>? outputProgress)
+        {
+            RunCount++;
+            return _streamingRun is null
+                ? _run(request, cancellationToken)
+                : _streamingRun(request, cancellationToken, outputProgress);
+        }
+    }
+
+    private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
     }
 
     private sealed class GenerationFixture : IDisposable

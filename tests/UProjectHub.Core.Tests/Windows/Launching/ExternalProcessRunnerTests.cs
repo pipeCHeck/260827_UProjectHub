@@ -6,6 +6,71 @@ namespace UProjectHub.Core.Tests.Windows.Launching;
 public sealed class ExternalProcessRunnerTests
 {
     [TestMethod]
+    public async Task RunStreamsOutputBeforeProcessExits()
+    {
+        var runner = new ExternalProcessRunner();
+        var firstOutput = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var progress = new InlineProgress<ExternalProcessOutput>(output =>
+        {
+            if (output.Text.Contains("early-output", StringComparison.Ordinal))
+            {
+                firstOutput.TrySetResult();
+            }
+        });
+        var request = new ExternalProcessRequest(
+            Path.Combine(Environment.SystemDirectory, "cmd.exe"),
+            [
+                "/d",
+                "/s",
+                "/c",
+                "echo early-output & ping 127.0.0.1 -n 3 >nul & echo late-output",
+            ]);
+
+        var run = runner.RunAsync(request, CancellationToken.None, progress);
+        await firstOutput.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.IsFalse(run.IsCompleted);
+        var result = await run;
+        Assert.Contains("late-output", result.StandardOutputTail);
+    }
+
+    [TestMethod]
+    public async Task RunStreamsStandardOutputAndStandardError()
+    {
+        var runner = new ExternalProcessRunner();
+        var streamed = new List<ExternalProcessOutput>();
+        var progress = new InlineProgress<ExternalProcessOutput>(output =>
+        {
+            lock (streamed)
+            {
+                streamed.Add(output);
+            }
+        });
+        var request = new ExternalProcessRequest(
+            Path.Combine(Environment.SystemDirectory, "cmd.exe"),
+            [
+                "/d",
+                "/s",
+                "/c",
+                "echo standard-output & echo standard-error 1>&2",
+            ]);
+
+        var result = await runner.RunAsync(
+            request,
+            CancellationToken.None,
+            progress);
+
+        Assert.AreEqual(ExternalProcessStatus.Succeeded, result.Status);
+        Assert.IsTrue(streamed.Any(output =>
+            output.Stream == ExternalProcessOutputStream.StandardOutput
+            && output.Text.Contains("standard-output", StringComparison.Ordinal)));
+        Assert.IsTrue(streamed.Any(output =>
+            output.Stream == ExternalProcessOutputStream.StandardError
+            && output.Text.Contains("standard-error", StringComparison.Ordinal)));
+    }
+
+    [TestMethod]
     public async Task RunCapturesOutputAndNonZeroExitCode()
     {
         var runner = new ExternalProcessRunner();
@@ -74,6 +139,33 @@ public sealed class ExternalProcessRunnerTests
     }
 
     [TestMethod]
+    public async Task RunManyStreamedChunksKeepsFinalOutputBounded()
+    {
+        const int outputLimit = 256;
+        var runner = new ExternalProcessRunner(outputLimit);
+        var streamedCharacterCount = 0L;
+        var progress = new InlineProgress<ExternalProcessOutput>(output =>
+            Interlocked.Add(ref streamedCharacterCount, output.Text.Length));
+        var request = new ExternalProcessRequest(
+            Path.Combine(Environment.SystemDirectory, "cmd.exe"),
+            [
+                "/d",
+                "/s",
+                "/c",
+                "for /L %i in (1,1,20000) do @echo 0123456789ABCDEF",
+            ]);
+
+        var result = await runner.RunAsync(
+            request,
+            CancellationToken.None,
+            progress);
+
+        Assert.AreEqual(ExternalProcessStatus.Succeeded, result.Status);
+        Assert.IsGreaterThan(outputLimit, streamedCharacterCount);
+        Assert.IsLessThanOrEqualTo(outputLimit, result.StandardOutputTail.Length);
+    }
+
+    [TestMethod]
     public async Task RunReturnsFailedToStartInsteadOfThrowing()
     {
         var runner = new ExternalProcessRunner();
@@ -104,6 +196,32 @@ public sealed class ExternalProcessRunnerTests
     }
 
     [TestMethod]
+    public async Task RunCancellationRemainsResponsiveDuringHeavyStreaming()
+    {
+        var runner = new ExternalProcessRunner();
+        var firstOutput = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var progress = new InlineProgress<ExternalProcessOutput>(_ =>
+            firstOutput.TrySetResult());
+        var request = new ExternalProcessRequest(
+            Path.Combine(Environment.SystemDirectory, "cmd.exe"),
+            [
+                "/d",
+                "/s",
+                "/c",
+                "for /L %i in (1,1,1000000) do @echo high-volume-output-%i",
+            ]);
+        using var cancellation = new CancellationTokenSource();
+
+        var run = runner.RunAsync(request, cancellation.Token, progress);
+        await firstOutput.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        cancellation.Cancel();
+        var result = await run.WaitAsync(TimeSpan.FromSeconds(8));
+
+        Assert.AreEqual(ExternalProcessStatus.Cancelled, result.Status);
+    }
+
+    [TestMethod]
     public async Task CancellationCleanupWaitIsBoundedWhenCleanupDoesNotFinish()
     {
         var neverCompletes = new TaskCompletionSource(
@@ -116,5 +234,10 @@ public sealed class ExternalProcessRunnerTests
             .WaitAsync(TimeSpan.FromSeconds(1));
 
         Assert.IsFalse(completed);
+    }
+
+    private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
     }
 }

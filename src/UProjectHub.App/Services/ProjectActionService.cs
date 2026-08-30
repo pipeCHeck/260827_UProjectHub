@@ -132,7 +132,8 @@ public sealed class ProjectActionService
 
     public Task<ProjectFileGenerationResult> GenerateProjectFilesAsync(
         ProjectFileGenerationRequest request,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IProgress<ExternalProcessOutput>? outputProgress = null)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -147,7 +148,10 @@ public sealed class ProjectActionService
                 SolutionSelection: null));
         }
 
-        return _projectFilesGenerator.GenerateAsync(request, cancellationToken);
+        return _projectFilesGenerator.GenerateAsync(
+            request,
+            cancellationToken,
+            outputProgress);
     }
 
     public bool CanRemoveFromList(UnrealProject project)

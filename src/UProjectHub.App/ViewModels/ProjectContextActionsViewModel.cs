@@ -122,9 +122,11 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
 
         _showGenerateProjectFiles(new GenerateProjectFilesViewModel(
             request,
-            cancellationToken => _actions.GenerateProjectFilesAsync(
+            (outputProgress, cancellationToken) =>
+                _actions.GenerateProjectFilesAsync(
                 request,
-                cancellationToken),
+                cancellationToken,
+                outputProgress),
             RefreshSolutionActionsAsync,
             _localization));
     }

@@ -9,6 +9,121 @@ namespace UProjectHub.Core.Tests.App;
 public sealed class GenerateProjectFilesViewModelTests
 {
     [TestMethod]
+    public async Task StreamingOutputAppearsBeforeGenerationCompletesAsync()
+    {
+        var outputReported = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<ProjectFileGenerationResult>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var fixture = CreateFixture(async (progress, _) =>
+        {
+            progress!.Report(new ExternalProcessOutput(
+                ExternalProcessOutputStream.StandardOutput,
+                "discovering modules\n"));
+            outputReported.SetResult();
+            return await release.Task;
+        });
+
+        var generation = fixture.ViewModel.GenerateCommand.ExecuteAsync();
+        await outputReported.Task;
+        await WaitUntilAsync(() => fixture.ViewModel.OutputDetails.Contains(
+            "discovering modules",
+            StringComparison.Ordinal));
+
+        Assert.IsFalse(generation.IsCompleted);
+        Assert.IsTrue(fixture.ViewModel.IsRunning);
+
+        release.SetResult(SuccessResult());
+        await generation;
+    }
+
+    [TestMethod]
+    public async Task StreamingPreservesReportedOrderAndStreamIdentityAsync()
+    {
+        var reported = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<ProjectFileGenerationResult>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var fixture = CreateFixture(async (progress, _) =>
+        {
+            progress!.Report(new ExternalProcessOutput(
+                ExternalProcessOutputStream.StandardOutput,
+                "first\n"));
+            progress.Report(new ExternalProcessOutput(
+                ExternalProcessOutputStream.StandardError,
+                "second\n"));
+            progress.Report(new ExternalProcessOutput(
+                ExternalProcessOutputStream.StandardOutput,
+                "third\n"));
+            reported.SetResult();
+            return await release.Task;
+        });
+
+        var generation = fixture.ViewModel.GenerateCommand.ExecuteAsync();
+        await reported.Task;
+        await WaitUntilAsync(() => fixture.ViewModel.OutputDetails.Contains(
+            "third",
+            StringComparison.Ordinal));
+
+        var first = fixture.ViewModel.OutputDetails.IndexOf(
+            "[stdout] first",
+            StringComparison.Ordinal);
+        var second = fixture.ViewModel.OutputDetails.IndexOf(
+            "[stderr] second",
+            StringComparison.Ordinal);
+        var third = fixture.ViewModel.OutputDetails.IndexOf(
+            "[stdout] third",
+            StringComparison.Ordinal);
+        Assert.IsGreaterThanOrEqualTo(0, first);
+        Assert.IsGreaterThan(first, second);
+        Assert.IsGreaterThan(second, third);
+
+        release.SetResult(SuccessResult());
+        await generation;
+    }
+
+    [TestMethod]
+    public async Task HighVolumeStreamingUsesBoundedBufferAndBatchedUpdatesAsync()
+    {
+        var reported = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<ProjectFileGenerationResult>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var fixture = CreateFixture(async (progress, _) =>
+        {
+            for (var index = 0; index < 20_000; index++)
+            {
+                progress!.Report(new ExternalProcessOutput(
+                    ExternalProcessOutputStream.StandardOutput,
+                    $"line-{index:D5}-0123456789ABCDEF\n"));
+            }
+
+            reported.SetResult();
+            return await release.Task;
+        });
+        var outputUpdates = 0;
+        fixture.ViewModel.PropertyChanged += (_, eventArgs) =>
+        {
+            if (eventArgs.PropertyName == nameof(
+                GenerateProjectFilesViewModel.OutputDetails))
+            {
+                Interlocked.Increment(ref outputUpdates);
+            }
+        };
+
+        var generation = fixture.ViewModel.GenerateCommand.ExecuteAsync();
+        await reported.Task;
+        await WaitUntilAsync(() => fixture.ViewModel.HasOutputDetails);
+        await Task.Delay(250);
+
+        Assert.IsLessThanOrEqualTo(40 * 1024, fixture.ViewModel.OutputDetails.Length);
+        Assert.IsLessThanOrEqualTo(4, outputUpdates);
+
+        release.SetResult(SuccessResult());
+        await generation;
+    }
+
+    [TestMethod]
     public void ConfirmationShowsExactTargetsAndDoesNotStartAutomatically()
     {
         var fixture = CreateFixture();
@@ -113,22 +228,123 @@ public sealed class GenerateProjectFilesViewModelTests
         Assert.AreEqual(1, fixture.RefreshCount);
     }
 
+    [TestMethod]
+    public async Task CancelThenRetryIgnoresLateOutputFromPreviousRunAsync()
+    {
+        IProgress<ExternalProcessOutput>? firstProgress = null;
+        var firstStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseSecond = new TaskCompletionSource<ProjectFileGenerationResult>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var attempt = 0;
+        var fixture = CreateFixture(async (progress, cancellationToken) =>
+        {
+            attempt++;
+            if (attempt == 1)
+            {
+                firstProgress = progress;
+                progress!.Report(new ExternalProcessOutput(
+                    ExternalProcessOutputStream.StandardOutput,
+                    "old-live\n"));
+                firstStarted.SetResult();
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                }
+
+                return CancelledResult("old-final");
+            }
+
+            progress!.Report(new ExternalProcessOutput(
+                ExternalProcessOutputStream.StandardOutput,
+                "new-live\n"));
+            secondStarted.SetResult();
+            return await releaseSecond.Task;
+        });
+
+        var firstRun = fixture.ViewModel.GenerateCommand.ExecuteAsync();
+        await firstStarted.Task;
+        fixture.ViewModel.CancelCommand.Execute(null);
+        await firstRun;
+
+        var secondRun = fixture.ViewModel.GenerateCommand.ExecuteAsync();
+        await secondStarted.Task;
+        firstProgress!.Report(new ExternalProcessOutput(
+            ExternalProcessOutputStream.StandardError,
+            "old-late\n"));
+        await WaitUntilAsync(() => fixture.ViewModel.OutputDetails.Contains(
+            "new-live",
+            StringComparison.Ordinal));
+
+        Assert.DoesNotContain("old-late", fixture.ViewModel.OutputDetails);
+
+        releaseSecond.SetResult(SuccessResult());
+        await secondRun;
+    }
+
+    [TestMethod]
+    public async Task DisposeIgnoresLateStreamingOutputAsync()
+    {
+        IProgress<ExternalProcessOutput>? capturedProgress = null;
+        var started = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var fixture = CreateFixture(async (progress, cancellationToken) =>
+        {
+            capturedProgress = progress;
+            started.SetResult();
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+
+            return CancelledResult("cancelled-final");
+        });
+
+        var generation = fixture.ViewModel.GenerateCommand.ExecuteAsync();
+        await started.Task;
+        fixture.ViewModel.Dispose();
+        await generation;
+        var outputAfterDispose = fixture.ViewModel.OutputDetails;
+
+        capturedProgress!.Report(new ExternalProcessOutput(
+            ExternalProcessOutputStream.StandardOutput,
+            "late-after-close\n"));
+        await Task.Delay(200);
+
+        Assert.AreEqual(outputAfterDispose, fixture.ViewModel.OutputDetails);
+    }
+
     private static Fixture CreateFixture(
         ProjectFileGenerationResult? result = null) =>
-        CreateFixture(_ => Task.FromResult(result ?? SuccessResult()));
+        CreateFixture((_, _) => Task.FromResult(result ?? SuccessResult()));
 
     private static Fixture CreateFixture(
         Func<CancellationToken, Task<ProjectFileGenerationResult>> generate)
+        => CreateFixture((_, cancellationToken) => generate(cancellationToken));
+
+    private static Fixture CreateFixture(
+        Func<
+            IProgress<ExternalProcessOutput>?,
+            CancellationToken,
+            Task<ProjectFileGenerationResult>> generate)
     {
         var generateCount = 0;
         var refreshCount = 0;
         var request = CreateRequest();
         var viewModel = new GenerateProjectFilesViewModel(
             request,
-            async cancellationToken =>
+            async (progress, cancellationToken) =>
             {
                 generateCount++;
-                return await generate(cancellationToken);
+                return await generate(progress, cancellationToken);
             },
             () =>
             {
@@ -181,6 +397,29 @@ public sealed class GenerateProjectFilesViewModelTests
             VisualStudioSolutionSelection.Available(
                 @"D:\Projects\Game\Game.sln",
                 [@"D:\Projects\Game\Game.sln"]));
+
+    private static ProjectFileGenerationResult CancelledResult(string output) =>
+        new(
+            ProjectFileGenerationStatus.Cancelled,
+            ExitCode: null,
+            StandardOutputTail: output,
+            StandardErrorTail: string.Empty,
+            ErrorMessage: "The operation was cancelled.",
+            SolutionSelection: null);
+
+    private static async Task WaitUntilAsync(Func<bool> predicate)
+    {
+        var timeout = DateTime.UtcNow + TimeSpan.FromSeconds(3);
+        while (!predicate())
+        {
+            if (DateTime.UtcNow >= timeout)
+            {
+                Assert.Fail("The expected asynchronous state was not observed.");
+            }
+
+            await Task.Delay(20);
+        }
+    }
 
     private sealed record Fixture(
         GenerateProjectFilesViewModel ViewModel,

@@ -82,6 +82,8 @@
                          AcceptsReturn="True"
                          FontFamily="Consolas"
                          Text="{Binding OutputDetails, Mode=OneWay}"
+                         TextChanged="OutputDetailsTextBox_OnTextChanged"
+                         ScrollViewer.ScrollChanged="OutputDetailsTextBox_OnScrollChanged"
                          TextWrapping="NoWrap"
                          HorizontalScrollBarVisibility="Auto"
                          VerticalScrollBarVisibility="Auto"

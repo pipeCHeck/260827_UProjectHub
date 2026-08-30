@@ -29,6 +29,16 @@ public enum ExternalProcessStatus
     Cancelled,
 }
 
+public enum ExternalProcessOutputStream
+{
+    StandardOutput,
+    StandardError,
+}
+
+public sealed record ExternalProcessOutput(
+    ExternalProcessOutputStream Stream,
+    string Text);
+
 public sealed record ExternalProcessResult(
     ExternalProcessStatus Status,
     int? ExitCode,
@@ -44,4 +54,10 @@ public interface IExternalProcessRunner
     Task<ExternalProcessResult> RunAsync(
         ExternalProcessRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<ExternalProcessResult> RunAsync(
+        ExternalProcessRequest request,
+        CancellationToken cancellationToken,
+        IProgress<ExternalProcessOutput>? outputProgress) =>
+        RunAsync(request, cancellationToken);
 }

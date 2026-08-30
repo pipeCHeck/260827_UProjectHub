@@ -11,6 +11,12 @@ public interface IProjectFilesGenerator
     Task<ProjectFileGenerationResult> GenerateAsync(
         ProjectFileGenerationRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<ProjectFileGenerationResult> GenerateAsync(
+        ProjectFileGenerationRequest request,
+        CancellationToken cancellationToken,
+        IProgress<ExternalProcessOutput>? outputProgress) =>
+        GenerateAsync(request, cancellationToken);
 }
 
 public sealed record ProjectFileGenerationPreparation(

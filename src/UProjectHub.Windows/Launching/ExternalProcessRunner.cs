@@ -23,9 +23,15 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
         _outputLimit = outputLimit;
     }
 
+    public Task<ExternalProcessResult> RunAsync(
+        ExternalProcessRequest request,
+        CancellationToken cancellationToken = default) =>
+        RunAsync(request, cancellationToken, outputProgress: null);
+
     public async Task<ExternalProcessResult> RunAsync(
         ExternalProcessRequest request,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken,
+        IProgress<ExternalProcessOutput>? outputProgress)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -67,8 +73,19 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
 
         var standardOutput = new OutputTailBuffer(_outputLimit);
         var standardError = new OutputTailBuffer(_outputLimit);
-        var outputTask = CaptureAsync(process.StandardOutput, standardOutput);
-        var errorTask = CaptureAsync(process.StandardError, standardError);
+        var serializedProgress = outputProgress is null
+            ? null
+            : new SerializedOutputProgress(outputProgress);
+        var outputTask = CaptureAsync(
+            process.StandardOutput,
+            standardOutput,
+            ExternalProcessOutputStream.StandardOutput,
+            serializedProgress);
+        var errorTask = CaptureAsync(
+            process.StandardError,
+            standardError,
+            ExternalProcessOutputStream.StandardError,
+            serializedProgress);
 
         try
         {
@@ -88,7 +105,7 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
             if (!cleanupCompleted)
             {
                 ObserveFailure(cleanupTask);
-                return Cancelled(string.Empty, string.Empty);
+                return Cancelled(standardOutput.Value, standardError.Value);
             }
 
             return Cancelled(standardOutput.Value, standardError.Value);
@@ -113,7 +130,9 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
 
     private static async Task CaptureAsync(
         StreamReader reader,
-        OutputTailBuffer tail)
+        OutputTailBuffer tail,
+        ExternalProcessOutputStream stream,
+        SerializedOutputProgress? progress)
     {
         var buffer = new char[2048];
         while (true)
@@ -124,7 +143,9 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
                 return;
             }
 
-            tail.Append(buffer.AsSpan(0, count));
+            var text = new string(buffer, 0, count);
+            tail.Append(text.AsSpan());
+            progress?.Report(new ExternalProcessOutput(stream, text));
         }
     }
 
@@ -234,6 +255,7 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
 
     private sealed class OutputTailBuffer
     {
+        private readonly object _gate = new();
         private readonly int _limit;
         private readonly StringBuilder _builder;
 
@@ -243,24 +265,50 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
             _builder = new StringBuilder(limit);
         }
 
-        public string Value => _builder.ToString();
+        public string Value
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return _builder.ToString();
+                }
+            }
+        }
 
         public void Append(ReadOnlySpan<char> value)
         {
-            if (value.Length >= _limit)
+            lock (_gate)
             {
-                _builder.Clear();
-                _builder.Append(value[^_limit..]);
-                return;
-            }
+                if (value.Length >= _limit)
+                {
+                    _builder.Clear();
+                    _builder.Append(value[^_limit..]);
+                    return;
+                }
 
-            var overflow = _builder.Length + value.Length - _limit;
-            if (overflow > 0)
+                var overflow = _builder.Length + value.Length - _limit;
+                if (overflow > 0)
+                {
+                    _builder.Remove(0, overflow);
+                }
+
+                _builder.Append(value);
+            }
+        }
+    }
+
+    private sealed class SerializedOutputProgress(
+        IProgress<ExternalProcessOutput> progress)
+    {
+        private readonly object _gate = new();
+
+        public void Report(ExternalProcessOutput output)
+        {
+            lock (_gate)
             {
-                _builder.Remove(0, overflow);
+                progress.Report(output);
             }
-
-            _builder.Append(value);
         }
     }
 }

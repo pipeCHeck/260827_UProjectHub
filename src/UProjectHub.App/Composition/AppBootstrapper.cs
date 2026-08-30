@@ -311,7 +311,14 @@ public sealed class AppBootstrapper
         {
             Owner = Application.Current?.MainWindow,
         };
-        _ = window.ShowDialog();
+        try
+        {
+            _ = window.ShowDialog();
+        }
+        finally
+        {
+            viewModel.Dispose();
+        }
     }
 
     private static async Task SaveViewStateAfterAsync(
