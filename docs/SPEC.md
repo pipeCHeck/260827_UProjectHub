@@ -248,6 +248,7 @@ Project context menu:
 - Toggle Favorite;
 - Project Details;
 - Tags & Notes, opening Project Details directly on that section;
+- Source Control, opening Project Details directly on that section;
 - Remove from List, for missing projects.
 
 `Open Existing .sln` is enabled only for a C++ project when one solution can be selected safely. It remains visible but disabled for Blueprint projects and when the solution is missing, ambiguous, or inaccessible. A disabled action must explain the reason in a tooltip.
@@ -275,11 +276,27 @@ solution findings. A missing `.sln` is an actionable Info only when Generate
 Visual Studio Project Files is currently available, and is never by itself a
 project-health Warning.
 
-`Project Details` contains only an Overview section and a Diagnostics section
-in this phase. Overview preserves the metadata previously shown by Project
+`Project Details` contains Overview, Diagnostics, Tags & Notes, and Source
+Control sections. Overview preserves the metadata previously shown by Project
 Information. Diagnostics presents all basic findings independently so a
 failure to inspect one fact does not prevent the remaining findings or another
 project from being shown.
+
+#### Git status
+
+The list displays `Not Repository`, `Clean`, `Changed`, `Failed`, or
+`Git Unavailable`. Staged, unstaged, and untracked entries all produce
+`Changed`. Projects nested below a repository root are recognized.
+
+Git inspection never delays cached startup or project-list publication. It
+runs in a separate background queue with at most two concurrent queries and
+publishes row results progressively. Git executable availability is shared for
+the process lifetime so an unavailable installation is not probed per project.
+
+The Source Control section refreshes the selected project immediately, shows
+configured remotes, and may open only validated HTTP or HTTPS remote URLs.
+Git commands are read-only, cancellable, and time-bounded. Commit, Pull, Push,
+Fetch, Checkout, and branch mutation are not included.
 
 ### 3.12 Keyboard Interaction
 
@@ -447,8 +464,8 @@ The MVP shall not include:
 - project-file generation without an explicit user confirmation;
 - project cloning;
 - project backups;
-- Git integration;
-- Git status;
+- Git repository mutations such as Commit, Pull, Push, Fetch, Checkout, or
+  branch changes;
 - plugin management;
 - project-size calculation;
 - full project tagging system;
@@ -467,7 +484,12 @@ Read-only queries and project-changing operations are separate capabilities.
 - Switch Unreal Engine Version is a descriptor mutation because it changes `EngineAssociation`. It is a separate later feature and must never select a target engine or run without explicit user selection and confirmation.
 - Project Cleanup is a destructive operation available only through explicit per-item selection and a final confirmation. It is limited to the project-root `Intermediate`, `DerivedDataCache`, `.vs`, and `Binaries` folders plus one uniquely identified top-level `.sln`. Every target is recomputed and validated immediately before deletion; recursive size and deletion traversal must reject reparse points and must never follow links outside the project.
 
-Expensive read-only work such as recursive size analysis, Git inspection, plugin dependency checks, or log/crash analysis runs only for a selected project after an explicit user request. It must not run automatically during startup or full-list loading.
+Expensive read-only work such as recursive size analysis, plugin dependency
+checks, or log/crash analysis runs only for a selected project after an
+explicit user request. Low-cost Git status is the exception: it may run after
+the list is already visible through its independent, concurrency-limited
+background queue. Remote enumeration runs only for the selected Source Control
+section or its explicit Refresh action.
 
 ## 9. Definition of Done
 

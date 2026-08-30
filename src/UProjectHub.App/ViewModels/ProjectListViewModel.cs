@@ -14,6 +14,7 @@ public sealed class ProjectListViewModel : ObservableObject
         _contextActionsFactory;
     private readonly LocalizationService? _localization;
     private readonly ProjectDiagnosticSnapshotStore? _diagnostics;
+    private readonly ProjectGitStatusStore? _gitStatuses;
     private int _totalCount;
     private int _visibleCount;
     private IReadOnlyList<ColumnLayoutState> _columnLayout = [];
@@ -22,11 +23,13 @@ public sealed class ProjectListViewModel : ObservableObject
         Func<UnrealProject, ProjectContextActionsViewModel>?
             contextActionsFactory = null,
         LocalizationService? localization = null,
-        ProjectDiagnosticSnapshotStore? diagnostics = null)
+        ProjectDiagnosticSnapshotStore? diagnostics = null,
+        ProjectGitStatusStore? gitStatuses = null)
     {
         _contextActionsFactory = contextActionsFactory;
         _localization = localization;
         _diagnostics = diagnostics;
+        _gitStatuses = gitStatuses;
         if (_diagnostics is not null)
         {
             _diagnostics.SnapshotChanged += OnDiagnosticSnapshotChanged;
@@ -34,6 +37,10 @@ public sealed class ProjectListViewModel : ObservableObject
         if (_localization is not null)
         {
             _localization.LanguageChanged += OnLanguageChanged;
+        }
+        if (_gitStatuses is not null)
+        {
+            _gitStatuses.StatusChanged += OnGitStatusChanged;
         }
         Rows = new ReadOnlyObservableCollection<ProjectRowViewModel>(_rows);
     }
@@ -73,6 +80,10 @@ public sealed class ProjectListViewModel : ObservableObject
         _diagnostics?.Prune(snapshot.Projects);
 
         SetRows(snapshot.Projects, snapshot.Projects.Count);
+        if (_gitStatuses is not null)
+        {
+            _ = _gitStatuses.UpdateCatalog(snapshot.Projects);
+        }
     }
 
     public void SetVisibleProjects(IEnumerable<UnrealProject> projects)
@@ -89,7 +100,8 @@ public sealed class ProjectListViewModel : ObservableObject
                 project,
                 _contextActionsFactory?.Invoke(project),
                 _diagnostics?.TryGet(project),
-                _localization))
+                _localization,
+                _gitStatuses?.TryGet(project)))
             .ToArray();
 
         _rows.Clear();
@@ -147,6 +159,18 @@ public sealed class ProjectListViewModel : ObservableObject
         foreach (var row in _rows)
         {
             row.RefreshDiagnosticPresentation();
+            row.RefreshGitPresentation();
+        }
+    }
+
+    private void OnGitStatusChanged(
+        object? sender,
+        ProjectGitStatusChangedEventArgs eventArgs)
+    {
+        foreach (var row in _rows.Where(row =>
+                     row.Project.ProjectFilePath.Equals(eventArgs.ProjectPath)))
+        {
+            row.UpdateGitStatus(eventArgs.Status);
         }
     }
 }

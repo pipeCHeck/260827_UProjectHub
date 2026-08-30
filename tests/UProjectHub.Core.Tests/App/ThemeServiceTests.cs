@@ -10,19 +10,21 @@ namespace UProjectHub.Core.Tests.App;
 public sealed class ThemeServiceTests
 {
     [TestMethod]
-    [DataRow(1000d, true, true)]
-    [DataRow(999d, true, false)]
-    [DataRow(820d, true, false)]
-    [DataRow(819d, false, false)]
+    [DataRow(1000d, true, true, true)]
+    [DataRow(999d, true, false, true)]
+    [DataRow(820d, true, false, true)]
+    [DataRow(819d, false, false, false)]
     public void ResponsiveColumns_UseActualDataGridWidthThresholds(
         double actualWidth,
         bool showType,
-        bool showLastLaunched)
+        bool showLastLaunched,
+        bool showGit)
     {
         var layout = ResponsiveColumnsBehavior.GetLayout(actualWidth);
 
         Assert.AreEqual(showType, layout.ShowType);
         Assert.AreEqual(showLastLaunched, layout.ShowLastLaunched);
+        Assert.AreEqual(showGit, layout.ShowGit);
     }
 
     [TestMethod]

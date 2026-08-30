@@ -265,6 +265,7 @@ Overflow button (`⋮`) and right-click use the same context actions:
     -------------------
     Project Details
     Tags & Notes
+    Source Control
     Project Cleanup
     Remove from List
 
@@ -279,7 +280,7 @@ Overflow button (`⋮`) and right-click use the same context actions:
 ### 14.1 Project Details
 
 `Project Details` replaces the former Project Information dialog and provides
-three keyboard-accessible, scrollable sections:
+four keyboard-accessible, scrollable sections:
 
 - **Overview** contains the existing project path, engine, type, state,
   favorite, and timestamp fields.
@@ -290,9 +291,12 @@ three keyboard-accessible, scrollable sections:
   the user chooses Save. Every Project Details close path uses one unsaved-note
   confirmation boundary, offering Continue editing or Close without saving and
   never saving automatically.
+- **Source Control** shows the selected project's current Git state,
+  repository root, and configured remotes, with an explicit Refresh action.
+  A validated web remote may be opened in the default browser.
 
-Do not add empty Storage, Source Control, or advanced-diagnostic tabs in this
-phase. Normal projects have no `Healthy` or `Ready` row label. The list
+Do not add empty Storage or advanced-diagnostic tabs in this phase. Normal
+projects have no `Healthy` or `Ready` row label. The list
 shows only its primary Error or Warning, or a lower-emphasis actionable Info
 when no problem is present. Engine problems take precedence over solution
 findings. A generatable missing `.sln` uses the informational treatment and
@@ -308,6 +312,11 @@ catalog as autocomplete candidates, with prefix matches before contains
 matches. Arrow keys navigate candidates, Enter accepts/adds, Escape dismisses
 the candidate list, and mouse selection remains available. Free tag entry is
 still allowed.
+
+The project list includes a compact Git status column. `Clean` uses quiet
+secondary text, while `Changed` receives stronger warning emphasis. Git status
+arrives progressively after the cached list is interactive and the optional
+column is hidden at narrow widths.
 
 ## 15. Keyboard
 

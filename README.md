@@ -55,6 +55,7 @@ dotnet run --project src/UProjectHub.App
 - Unreal, project folder, copy path, existing Visual Studio solution, Project Details, and Missing-only removal actions
 - Explicitly confirmed Visual Studio project-file generation through the resolved engine's supported UnrealBuildTool entry point
 - Low-cost basic diagnostics with quiet list priority and Overview/Diagnostics details
+- Progressive, concurrency-limited Git status with Source Control details and safe remote URL opening
 - Explicitly confirmed cleanup of selected generated project-root folders and a uniquely identified project solution
 - Light/dark semantic themes, normal/compact density, responsive columns, and system-aware subtle motion
 - Runtime English/Korean UI switching with persisted language selection
@@ -96,7 +97,7 @@ UProject Hub does not modify `.uproject` descriptors, change `EngineAssociation`
 
 - Project creation, deletion, conversion, repair, or Unreal configuration editing
 - Shell/batch fallbacks or unsupported UnrealBuildTool generation layouts
-- Git, plugin, build, cooking, or packaging management
+- Git repository mutations, plugin, build, cooking, or packaging management
 - Recursive drive-wide discovery or per-project `FileSystemWatcher` infrastructure
 - Telemetry, analytics, or remote logging
 - Visual Studio installation discovery

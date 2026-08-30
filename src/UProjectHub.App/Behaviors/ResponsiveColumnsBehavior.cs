@@ -47,15 +47,24 @@ public static class ResponsiveColumnsBehavior
     {
         if (actualWidth >= WideThreshold)
         {
-            return new ResponsiveColumnLayout(ShowType: true, ShowLastLaunched: true);
+            return new ResponsiveColumnLayout(
+                ShowType: true,
+                ShowLastLaunched: true,
+                ShowGit: true);
         }
 
         if (actualWidth >= MediumThreshold)
         {
-            return new ResponsiveColumnLayout(ShowType: true, ShowLastLaunched: false);
+            return new ResponsiveColumnLayout(
+                ShowType: true,
+                ShowLastLaunched: false,
+                ShowGit: true);
         }
 
-        return new ResponsiveColumnLayout(ShowType: false, ShowLastLaunched: false);
+        return new ResponsiveColumnLayout(
+            ShowType: false,
+            ShowLastLaunched: false,
+            ShowGit: false);
     }
 
     private static void OnIsEnabledChanged(
@@ -124,6 +133,10 @@ public static class ResponsiveColumnsBehavior
             {
                 isVisible &= responsiveLayout.ShowType;
             }
+            else if (string.Equals(columnId, "GitState", StringComparison.Ordinal))
+            {
+                isVisible &= responsiveLayout.ShowGit;
+            }
 
             column.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
 
@@ -137,4 +150,5 @@ public static class ResponsiveColumnsBehavior
 
 public readonly record struct ResponsiveColumnLayout(
     bool ShowType,
-    bool ShowLastLaunched);
+    bool ShowLastLaunched,
+    bool ShowGit);

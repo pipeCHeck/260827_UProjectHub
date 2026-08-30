@@ -96,6 +96,20 @@ public partial class ProjectDetailsWindow : Window
         Close();
     }
 
+    private async void OnDetailsSectionChanged(
+        object sender,
+        SelectionChangedEventArgs eventArgs)
+    {
+        if (!ReferenceEquals(eventArgs.OriginalSource, DetailsTabControl)
+            || DetailsTabControl.SelectedIndex != (int)ProjectDetailsSection.SourceControl
+            || DataContext is not ProjectDetailsViewModel details)
+        {
+            return;
+        }
+
+        await details.ActivateSourceControlAsync();
+    }
+
     private void OnCloseRequested(object sender, RoutedEventArgs eventArgs) =>
         Close();
 

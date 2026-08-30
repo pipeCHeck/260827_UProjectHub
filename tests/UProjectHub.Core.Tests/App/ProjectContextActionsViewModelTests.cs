@@ -12,6 +12,7 @@ using UProjectHub.Core.Settings;
 using UProjectHub.Core.Tests.Time;
 using UProjectHub.Windows.Launching;
 using UProjectHub.Windows.Cleanup;
+using UProjectHub.Windows.SourceControl;
 
 namespace UProjectHub.Core.Tests.App;
 
@@ -53,6 +54,24 @@ public sealed class ProjectContextActionsViewModelTests
         var details = fixture.DetailsRequests.Single();
         Assert.AreEqual(ProjectDetailsSection.TagsAndNotes, details.SelectedSection);
         Assert.AreEqual(2, details.SelectedTabIndex);
+    }
+
+    [TestMethod]
+    public async Task SourceControlActionOpensDetailsAndImmediatelyRefreshesGitAsync()
+    {
+        var fixture = CreateFixture(
+            CreateProject(ProjectType.Cpp, ProjectState.Available),
+            withGit: true);
+        await using var gitStore = fixture.GitStore!;
+
+        await ExecuteAsync(fixture.ViewModel.SourceControlCommand);
+
+        var details = fixture.DetailsRequests.Single();
+        Assert.AreEqual(ProjectDetailsSection.SourceControl, details.SelectedSection);
+        Assert.AreEqual(3, details.SelectedTabIndex);
+        Assert.IsNotNull(details.SourceControl);
+        Assert.IsTrue(fixture.GitService!.IncludedRemotes);
+        details.Dispose();
     }
 
     [TestMethod]
@@ -322,7 +341,8 @@ public sealed class ProjectContextActionsViewModelTests
     private static Fixture CreateFixture(
         UnrealProject project,
         VisualStudioSolutionState solutionState =
-            VisualStudioSolutionState.Available)
+            VisualStudioSolutionState.Available,
+        bool withGit = false)
     {
         var catalog = new ProjectCatalog();
         catalog.Upsert(project);
@@ -371,6 +391,14 @@ public sealed class ProjectContextActionsViewModelTests
         var generationRequests = new List<GenerateProjectFilesViewModel>();
         var cleanupRequests = new List<ProjectCleanupViewModel>();
         var cleanupService = new FakeCleanupService(project);
+        var gitService = withGit ? new FakeGitStatusService() : null;
+        var gitStore = gitService is null
+            ? null
+            : new ProjectGitStatusStore(gitService, new ImmediateDispatcher());
+        if (gitStore is not null)
+        {
+            _ = gitStore.UpdateCatalog([project]);
+        }
         var viewModel = new ProjectContextActionsViewModel(
             project,
             actions,
@@ -378,7 +406,9 @@ public sealed class ProjectContextActionsViewModelTests
             generationRequests.Add,
             cleanupRequests.Add,
             cleanupService,
-            diagnostics: diagnosticStore);
+            diagnostics: diagnosticStore,
+            gitStatuses: gitStore,
+            webUrlLauncher: withGit ? new FakeWebUrlLauncher() : null);
         return new Fixture(
             project,
             viewModel,
@@ -392,7 +422,9 @@ public sealed class ProjectContextActionsViewModelTests
             projectFilesGenerator,
             generationRequests,
             cleanupService,
-            cleanupRequests);
+            cleanupRequests,
+            gitStore,
+            gitService);
     }
 
     private static UnrealProject CreateProject(
@@ -426,7 +458,9 @@ public sealed class ProjectContextActionsViewModelTests
         FakeProjectFilesGenerator ProjectFilesGenerator,
         List<GenerateProjectFilesViewModel> GenerationRequests,
         FakeCleanupService CleanupService,
-        List<ProjectCleanupViewModel> CleanupRequests);
+        List<ProjectCleanupViewModel> CleanupRequests,
+        ProjectGitStatusStore? GitStore,
+        FakeGitStatusService? GitService);
 
     private sealed class FakeSettingsRepository(AppSettings settings) : ISettingsRepository
     {
@@ -608,5 +642,36 @@ public sealed class ProjectContextActionsViewModelTests
             return Task.FromResult(new ProjectCleanupResult(
                 Array.Empty<ProjectCleanupItemResult>()));
         }
+    }
+
+    private sealed class ImmediateDispatcher : IUiDispatcher
+    {
+        public Task InvokeAsync(
+            Action action,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            action();
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeGitStatusService : IGitStatusService
+    {
+        public bool IncludedRemotes { get; private set; }
+
+        public Task<GitProjectStatus> GetStatusAsync(
+            string projectDirectory,
+            bool includeRemotes = false,
+            CancellationToken cancellationToken = default)
+        {
+            IncludedRemotes |= includeRemotes;
+            return Task.FromResult(new GitProjectStatus(GitProjectState.Clean));
+        }
+    }
+
+    private sealed class FakeWebUrlLauncher : IWebUrlLauncher
+    {
+        public LaunchResult Open(string url) => LaunchResult.Succeeded();
     }
 }

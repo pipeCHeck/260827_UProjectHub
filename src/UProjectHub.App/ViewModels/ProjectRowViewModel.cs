@@ -3,22 +3,26 @@ using UProjectHub.App.Infrastructure;
 using UProjectHub.App.Services;
 using UProjectHub.Core.Diagnostics;
 using UProjectHub.Core.Models;
+using UProjectHub.Windows.SourceControl;
 
 namespace UProjectHub.App.ViewModels;
 
 public sealed class ProjectRowViewModel : ObservableObject
 {
     private ProjectDiagnosticReport? _diagnosticReport;
+    private GitProjectStatus? _gitStatus;
 
     public ProjectRowViewModel(
         UnrealProject project,
         ProjectContextActionsViewModel? contextActions = null,
         ProjectDiagnosticReport? diagnosticReport = null,
-        LocalizationService? localization = null)
+        LocalizationService? localization = null,
+        GitProjectStatus? gitStatus = null)
     {
         Project = project ?? throw new ArgumentNullException(nameof(project));
         ContextActions = contextActions;
         _diagnosticReport = diagnosticReport;
+        _gitStatus = gitStatus;
         _localization = localization;
     }
 
@@ -29,6 +33,26 @@ public sealed class ProjectRowViewModel : ObservableObject
     public ProjectContextActionsViewModel? ContextActions { get; }
 
     public ProjectDiagnosticReport? DiagnosticReport => _diagnosticReport;
+
+    public GitProjectStatus? GitStatus => _gitStatus;
+
+    public GitProjectState? GitState => GitStatus?.State;
+
+    public string GitStatusDisplay => GitState switch
+    {
+        GitProjectState.NotRepository => Localize(
+            "String.GitNotRepository",
+            "Not Repository"),
+        GitProjectState.Clean => Localize("String.GitClean", "Clean"),
+        GitProjectState.Changed => Localize("String.GitChanged", "Changed"),
+        GitProjectState.Failed => Localize("String.GitFailed", "Failed"),
+        GitProjectState.GitUnavailable => Localize(
+            "String.GitUnavailable",
+            "Git Unavailable"),
+        _ => string.Empty,
+    };
+
+    public bool IsGitChanged => GitState == GitProjectState.Changed;
 
     public bool IsFavorite => Project.IsFavorite;
 
@@ -92,6 +116,23 @@ public sealed class ProjectRowViewModel : ObservableObject
         RefreshDiagnosticPresentation();
     }
 
+    public void UpdateGitStatus(GitProjectStatus? status)
+    {
+        if (!SetProperty(ref _gitStatus, status, nameof(GitStatus)))
+        {
+            return;
+        }
+
+        RefreshGitPresentation();
+    }
+
+    public void RefreshGitPresentation()
+    {
+        OnPropertyChanged(nameof(GitState));
+        OnPropertyChanged(nameof(GitStatusDisplay));
+        OnPropertyChanged(nameof(IsGitChanged));
+    }
+
     public void RefreshDiagnosticPresentation()
     {
         OnPropertyChanged(nameof(PrimaryDiagnostic));
@@ -104,4 +145,9 @@ public sealed class ProjectRowViewModel : ObservableObject
     {
         return values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
     }
+
+    private string Localize(string key, string fallback) =>
+        _localization?.GetString(key) is { } value && value != key
+            ? value
+            : fallback;
 }

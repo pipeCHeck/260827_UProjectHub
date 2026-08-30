@@ -45,6 +45,7 @@ public sealed class ApplicationCoordinator
     private readonly StatusBarViewModel _statusBar;
     private readonly BackgroundRefreshService _backgroundRefresh;
     private readonly ProjectDiagnosticSnapshotStore? _diagnostics;
+    private readonly ProjectGitStatusStore? _gitStatuses;
     private readonly IUiDispatcher _dispatcher;
     private readonly IAppLogger _logger;
     private readonly SemaphoreSlim _operationGate = new(1, 1);
@@ -66,7 +67,8 @@ public sealed class ApplicationCoordinator
         IUiDispatcher dispatcher,
         IAppLogger logger,
         LocalizationService? localizationService = null,
-        ProjectDiagnosticSnapshotStore? diagnostics = null)
+        ProjectDiagnosticSnapshotStore? diagnostics = null,
+        ProjectGitStatusStore? gitStatuses = null)
     {
         _settingsRepository = settingsRepository ?? throw new ArgumentNullException(nameof(settingsRepository));
         _projectCacheRepository = projectCacheRepository ?? throw new ArgumentNullException(nameof(projectCacheRepository));
@@ -79,6 +81,7 @@ public sealed class ApplicationCoordinator
         _statusBar = statusBar ?? throw new ArgumentNullException(nameof(statusBar));
         _backgroundRefresh = backgroundRefresh ?? throw new ArgumentNullException(nameof(backgroundRefresh));
         _diagnostics = diagnostics;
+        _gitStatuses = gitStatuses;
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -162,6 +165,11 @@ public sealed class ApplicationCoordinator
         catch (OperationCanceledException)
         {
             _logger.Info("Background operation canceled during shutdown.");
+        }
+
+        if (_gitStatuses is not null)
+        {
+            await _gitStatuses.DisposeAsync();
         }
     }
 

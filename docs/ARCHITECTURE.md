@@ -90,6 +90,7 @@ Expected areas:
     Engines/
     Registry/
     Launching/
+    SourceControl/
     Storage/
 
 Responsibilities:
@@ -101,6 +102,7 @@ Responsibilities:
 - Windows Registry access;
 - Explorer launch;
 - process launch;
+- time-bounded, cancellable, read-only Git status and remote inspection;
 - opening an existing Visual Studio `.sln` for an applicable C++ project;
 - running an explicitly confirmed Unreal project-file generation process and capturing its bounded result;
 - local application-data path resolution.
@@ -207,6 +209,13 @@ Production writers receive that shared mutation service through composition;
 they do not construct private mutation services from an `ISettingsRepository`.
 Known tag filtering and autocomplete use only an in-memory projection of the
 current catalog and perform no filesystem work.
+
+Git status is a separate derived snapshot. `ProjectListViewModel.SetSnapshot`
+only synchronizes catalog identity and queues missing status work; it never
+waits for Git or performs process I/O. Two background workers publish targeted
+row updates through the UI dispatcher. Explicit Source Control refreshes use a
+priority queue, and per-project revisions prevent older background results or
+removed projects from overwriting current state.
 
 ## 6. Discovery Boundaries
 

@@ -34,6 +34,8 @@
                       Command="{Binding ProjectDetailsCommand}" />
             <MenuItem Header="{DynamicResource String.TagsAndNotes}"
                       Command="{Binding TagsAndNotesCommand}" />
+            <MenuItem Header="{DynamicResource String.SourceControl}"
+                      Command="{Binding SourceControlCommand}" />
             <MenuItem Header="{DynamicResource String.ProjectCleanup}"
                       Command="{Binding ProjectCleanupCommand}"
                       ToolTip="{Binding ProjectCleanupUnavailableReason}" />
@@ -193,6 +195,33 @@
                                     SortMemberPath="ProjectType"
                                     ElementStyle="{StaticResource DataGrid.TextCellContent}"
                                     Binding="{Binding TypeDisplay}" />
+                <DataGridTemplateColumn Header="{DynamicResource String.Git}"
+                                        Width="120"
+                                        MinWidth="110"
+                                        CanUserSort="False"
+                                        SortMemberPath="GitState">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Margin="{DynamicResource Thickness.ListCellPadding}"
+                                       VerticalAlignment="Center"
+                                       Text="{Binding GitStatusDisplay}"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip="{Binding GitStatus.ErrorMessage}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{DynamicResource Brush.TextSecondary}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsGitChanged}" Value="True">
+                                                <Setter Property="Foreground" Value="{DynamicResource Brush.WarningText}" />
+                                                <Setter Property="FontWeight" Value="SemiBold" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTextColumn Header="{DynamicResource String.LastModified}"
                                     Width="135"
                                     MinWidth="125"

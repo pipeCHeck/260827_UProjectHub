@@ -4,6 +4,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
 using UProjectHub.App.Controls;
+using UProjectHub.App.Services;
 using UProjectHub.App.ViewModels;
 using UProjectHub.App.Views;
 using UProjectHub.Core.Diagnostics;
@@ -11,6 +12,7 @@ using UProjectHub.Core.Models;
 using UProjectHub.Core.Paths;
 using UProjectHub.Core.Settings;
 using UProjectHub.Windows.Launching;
+using UProjectHub.Windows.SourceControl;
 using AppThemeMode = UProjectHub.Core.Settings.ThemeMode;
 
 namespace UProjectHub.Core.Tests.App;
@@ -243,7 +245,7 @@ public sealed class PresentationResourceTests
     }
 
     [STATestMethod]
-    public void ProjectDetailsShellContainsScrollableOverviewDiagnosticsAndTagsNotes()
+    public void ProjectDetailsShellContainsAllFourScrollableSections()
     {
         var project = new UnrealProject(
             "Game",
@@ -281,8 +283,10 @@ public sealed class PresentationResourceTests
             window.FindName("DiagnosticsScrollViewer"));
         var tagsAndNotes = Assert.IsInstanceOfType<ScrollViewer>(
             window.FindName("TagsNotesScrollViewer"));
+        var sourceControl = Assert.IsInstanceOfType<ScrollViewer>(
+            window.FindName("SourceControlScrollViewer"));
 
-        Assert.HasCount(3, tabs.Items);
+        Assert.HasCount(4, tabs.Items);
         Assert.AreEqual(
             ScrollBarVisibility.Auto,
             overview.VerticalScrollBarVisibility);
@@ -292,6 +296,9 @@ public sealed class PresentationResourceTests
         Assert.AreEqual(
             ScrollBarVisibility.Auto,
             tagsAndNotes.VerticalScrollBarVisibility);
+        Assert.AreEqual(
+            ScrollBarVisibility.Auto,
+            sourceControl.VerticalScrollBarVisibility);
 
         var detailsTextStyle = Assert.IsInstanceOfType<Style>(
             window.Resources[typeof(TextBlock)]);
@@ -419,11 +426,74 @@ public sealed class PresentationResourceTests
         try
         {
             window.UpdateLayout();
-            Assert.HasCount(3, tabs.Items);
+            Assert.HasCount(4, tabs.Items);
             Assert.AreEqual(2, tabs.SelectedIndex);
         }
         finally
         {
+            window.Close();
+        }
+    }
+
+    [TestMethod]
+    public void ProjectListIncludesGitColumnAndSourceControlContextAction()
+    {
+        var xaml = File.ReadAllText(FindRepositoryFile(
+            "src",
+            "UProjectHub.App",
+            "Controls",
+            "ProjectList.xaml"));
+
+        StringAssert.Contains(xaml, "SortMemberPath=\"GitState\"");
+        StringAssert.Contains(xaml, "Command=\"{Binding SourceControlCommand}\"");
+    }
+
+    [STATestMethod]
+    public async Task SelectingSourceControlTabStartsSelectedProjectRefreshAsync()
+    {
+        var project = new UnrealProject(
+            "Game",
+            new ProjectPath(@"D:\Projects\Game\Game.uproject"),
+            "5.8",
+            "5.8",
+            ProjectType.Cpp,
+            DateTimeOffset.UnixEpoch,
+            LastLaunched: null,
+            IsFavorite: false,
+            ProjectState.Available,
+            EngineResolutionState.Resolved);
+        var git = new RecordingGitStatusService();
+        await using var store = new ProjectGitStatusStore(
+            git,
+            new ImmediateUiDispatcher());
+        _ = store.UpdateCatalog([project]);
+        var sourceControl = new ProjectSourceControlViewModel(
+            project,
+            store,
+            new NoOpWebUrlLauncher());
+        using var details = new ProjectDetailsViewModel(
+            new ProjectOverviewViewModel(project),
+            new ProjectDiagnosticsViewModel(new ProjectDiagnosticReport(
+                project.ProjectFilePath,
+                DateTimeOffset.UnixEpoch,
+                [])),
+            sourceControl: sourceControl);
+        var window = new ProjectDetailsWindow(details);
+
+        window.Show();
+        try
+        {
+            var tabs = Assert.IsInstanceOfType<TabControl>(
+                window.FindName("DetailsTabControl"));
+            tabs.SelectedIndex = 3;
+
+            await git.RemoteQueryStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+            Assert.IsTrue(git.IncludedRemotes);
+        }
+        finally
+        {
+            details.Dispose();
             window.Close();
         }
     }
@@ -530,6 +600,24 @@ public sealed class PresentationResourceTests
                 $"/UProjectHub.App;component/{relativePath}",
                 UriKind.Relative));
 
+    private static string FindRepositoryFile(params string[] relativeSegments)
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory);
+             directory is not null;
+             directory = directory.Parent)
+        {
+            var candidate = Path.Combine(
+                [directory.FullName, .. relativeSegments]);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        throw new FileNotFoundException(
+            $"Could not locate repository file: {Path.Combine(relativeSegments)}");
+    }
+
     private static void AddButtonResources(Button button, Brush foreground)
     {
         button.Resources["Brush.Surface"] = Brushes.Transparent;
@@ -603,4 +691,44 @@ public sealed class PresentationResourceTests
     }
 
     public sealed record FavoritePresentationState(bool IsFavorite);
+
+    private sealed class ImmediateUiDispatcher : IUiDispatcher
+    {
+        public Task InvokeAsync(
+            Action action,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            action();
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingGitStatusService : IGitStatusService
+    {
+        public TaskCompletionSource RemoteQueryStarted { get; } = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public bool IncludedRemotes { get; private set; }
+
+        public async Task<GitProjectStatus> GetStatusAsync(
+            string projectDirectory,
+            bool includeRemotes = false,
+            CancellationToken cancellationToken = default)
+        {
+            IncludedRemotes |= includeRemotes;
+            if (includeRemotes)
+            {
+                RemoteQueryStarted.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+
+            return new GitProjectStatus(GitProjectState.Clean);
+        }
+    }
+
+    private sealed class NoOpWebUrlLauncher : IWebUrlLauncher
+    {
+        public LaunchResult Open(string url) => LaunchResult.Succeeded();
+    }
 }

@@ -7,6 +7,7 @@ public enum ProjectDetailsSection
     Overview = 0,
     Diagnostics = 1,
     TagsAndNotes = 2,
+    SourceControl = 3,
 }
 
 public sealed class ProjectDetailsViewModel : IDisposable
@@ -19,12 +20,14 @@ public sealed class ProjectDetailsViewModel : IDisposable
         ProjectOverviewViewModel overview,
         ProjectDiagnosticsViewModel diagnostics,
         ProjectNotesViewModel? notes = null,
-        ProjectDetailsSection initialSection = ProjectDetailsSection.Overview)
+        ProjectDetailsSection initialSection = ProjectDetailsSection.Overview,
+        ProjectSourceControlViewModel? sourceControl = null)
     {
         Overview = overview ?? throw new ArgumentNullException(nameof(overview));
         Diagnostics = diagnostics
             ?? throw new ArgumentNullException(nameof(diagnostics));
         Notes = notes;
+        SourceControl = sourceControl;
         SelectedSection = initialSection;
     }
 
@@ -36,9 +39,14 @@ public sealed class ProjectDetailsViewModel : IDisposable
 
     public ProjectNotesViewModel? Notes { get; }
 
+    public ProjectSourceControlViewModel? SourceControl { get; }
+
     public ProjectDetailsSection SelectedSection { get; }
 
     public int SelectedTabIndex => (int)SelectedSection;
+
+    public Task ActivateSourceControlAsync() =>
+        SourceControl?.ActivateAsync() ?? Task.CompletedTask;
 
     public async Task RefreshDiagnosticsAsync(
         Func<CancellationToken, Task<ProjectDiagnosticReport?>> refreshAsync)
@@ -95,5 +103,6 @@ public sealed class ProjectDetailsViewModel : IDisposable
         _lifetimeCancellation.Cancel();
         _lifetimeCancellation.Dispose();
         Notes?.Dispose();
+        SourceControl?.Dispose();
     }
 }

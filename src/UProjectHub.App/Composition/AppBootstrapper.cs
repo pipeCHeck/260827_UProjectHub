@@ -26,6 +26,7 @@ using UProjectHub.Windows.Projects;
 using UProjectHub.Windows.Registry;
 using UProjectHub.Windows.Storage;
 using UProjectHub.Windows.Cleanup;
+using UProjectHub.Windows.SourceControl;
 using AppThemeMode = UProjectHub.Core.Settings.ThemeMode;
 
 namespace UProjectHub.App.Composition;
@@ -79,16 +80,25 @@ public sealed class AppBootstrapper
 
         var catalog = new ProjectCatalog();
         var currentEngines = new CurrentEngineSnapshot();
+        var dispatcher = new WpfUiDispatcher(
+            Application.Current?.Dispatcher
+                ?? System.Windows.Threading.Dispatcher.CurrentDispatcher);
         var removalService = new ManagedProjectRemovalService(
             catalog,
             projectCacheRepository,
             settingsMutations);
         var processLauncher = new ProcessLauncher();
+        var externalProcessRunner = new ExternalProcessRunner();
         var unrealEditorLauncher = new UnrealEditorLauncher(processLauncher, clock);
         var solutionLocator = new VisualStudioSolutionLocator();
         var projectFilesGenerator = new UnrealProjectFilesGenerator(
-            new ExternalProcessRunner(),
+            externalProcessRunner,
             solutionLocator);
+        var gitStatuses = new ProjectGitStatusStore(
+            new GitStatusService(externalProcessRunner),
+            dispatcher,
+            maxConcurrency: 2);
+        var webUrlLauncher = new WebUrlLauncher(processLauncher);
         var projectCleanupService = new ProjectCleanupService(solutionLocator);
         var projectActions = new ProjectActionService(
             catalog,
@@ -123,9 +133,12 @@ public sealed class AppBootstrapper
                 localizationService,
                 diagnosticStore,
                 projectUserMetadata,
-                projectTagIndex),
+                projectTagIndex,
+                gitStatuses,
+                webUrlLauncher),
             localizationService,
-            diagnosticStore);
+            diagnosticStore,
+            gitStatuses);
         var searchService = new ProjectSearchService(clock);
         var searchFilter = new SearchFilterViewModel(
             projectList,
@@ -157,9 +170,6 @@ public sealed class AppBootstrapper
             discoveryService,
             bestEffortProjectCache);
 
-        var dispatcher = new WpfUiDispatcher(
-            Application.Current?.Dispatcher
-                ?? System.Windows.Threading.Dispatcher.CurrentDispatcher);
         var manualEngineValidator = new ManualEngineValidator();
 
         ApplicationCoordinator? coordinator = null;
@@ -235,7 +245,8 @@ public sealed class AppBootstrapper
             dispatcher,
             logger,
             localizationService,
-            diagnosticStore);
+            diagnosticStore,
+            gitStatuses);
 
         projectOperations = new ProjectOperations(
             settingsMutations,

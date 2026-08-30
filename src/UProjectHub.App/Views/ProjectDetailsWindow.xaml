@@ -42,6 +42,7 @@
                     Grid.Row="1"
                     Margin="{DynamicResource Thickness.DialogSectionGap}"
                     SelectedIndex="{Binding SelectedTabIndex, Mode=OneTime}"
+                    SelectionChanged="OnDetailsSectionChanged"
                     Background="{DynamicResource Brush.Transparent}"
                     BorderBrush="{DynamicResource Brush.BorderSubtle}"
                     Foreground="{DynamicResource Brush.TextPrimary}">
@@ -282,6 +283,118 @@
                                 </TextBlock>
                             </StackPanel>
                         </DockPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="{DynamicResource String.SourceControl}">
+                <ScrollViewer x:Name="SourceControlScrollViewer"
+                              Padding="{DynamicResource Thickness.DetailsTabContent}"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel DataContext="{Binding SourceControl}">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right"
+                                    MinWidth="88"
+                                    Command="{Binding RefreshCommand}"
+                                    Content="{DynamicResource String.Refresh}" />
+                            <StackPanel>
+                                <TextBlock Style="{DynamicResource Text.SectionTitle}"
+                                           Text="{DynamicResource String.SourceControl}" />
+                                <TextBlock Margin="{DynamicResource Thickness.DetailsFieldGap}"
+                                           Foreground="{DynamicResource Brush.TextSecondary}"
+                                           Text="{DynamicResource String.SourceControlDescription}"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <Border Margin="{DynamicResource Thickness.NotesSectionGap}"
+                                Padding="{DynamicResource Thickness.DiagnosticItemPadding}"
+                                Background="{DynamicResource Brush.Surface}"
+                                BorderBrush="{DynamicResource Brush.BorderSubtle}"
+                                BorderThickness="1"
+                                CornerRadius="{DynamicResource CornerRadius.Control}">
+                            <StackPanel>
+                                <TextBlock Foreground="{DynamicResource Brush.TextSecondary}"
+                                           Text="{DynamicResource String.GitStatus}" />
+                                <TextBlock Margin="{DynamicResource Thickness.DetailsFieldGap}"
+                                           FontWeight="SemiBold"
+                                           Text="{Binding StateDisplay}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding State}" Value="Changed">
+                                                    <Setter Property="Foreground" Value="{DynamicResource Brush.WarningText}" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding State}" Value="Failed">
+                                                    <Setter Property="Foreground" Value="{DynamicResource Brush.ErrorText}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock Margin="{DynamicResource Thickness.DetailsFieldGap}"
+                                           Foreground="{DynamicResource Brush.TextSecondary}"
+                                           Text="{Binding RepositoryRoot}"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Margin="{DynamicResource Thickness.DetailsFieldGap}"
+                                           Foreground="{DynamicResource Brush.ErrorText}"
+                                           Text="{Binding ErrorMessage}"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Margin="{DynamicResource Thickness.NotesSectionGap}"
+                                   Style="{DynamicResource Text.SectionTitle}"
+                                   Text="{DynamicResource String.GitRemotes}" />
+                        <TextBlock Margin="{DynamicResource Thickness.DetailsFieldGap}"
+                                   Foreground="{DynamicResource Brush.TextSecondary}"
+                                   Text="{DynamicResource String.GitNoRemotes}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasRemotes}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <ItemsControl Margin="{DynamicResource Thickness.DetailsFieldGap}"
+                                      ItemsSource="{Binding Remotes}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Margin="{DynamicResource Thickness.DiagnosticItemGap}"
+                                            Padding="{DynamicResource Thickness.DiagnosticItemPadding}"
+                                            Background="{DynamicResource Brush.Surface}"
+                                            BorderBrush="{DynamicResource Brush.BorderSubtle}"
+                                            BorderThickness="1"
+                                            CornerRadius="{DynamicResource CornerRadius.Control}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock FontWeight="SemiBold"
+                                                           Text="{Binding Name}" />
+                                                <TextBlock Margin="{DynamicResource Thickness.DetailsFieldGap}"
+                                                           Foreground="{DynamicResource Brush.TextSecondary}"
+                                                           Text="{Binding Url}"
+                                                           TextWrapping="Wrap" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1"
+                                                    Margin="{DynamicResource Thickness.DetailsActionGap}"
+                                                    MinWidth="88"
+                                                    Command="{Binding OpenCommand}"
+                                                    Content="{DynamicResource String.OpenRemoteRepository}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

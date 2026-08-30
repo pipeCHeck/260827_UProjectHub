@@ -20,6 +20,8 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
     private readonly ProjectDiagnosticSnapshotStore? _diagnostics;
     private readonly ProjectUserMetadataService? _metadata;
     private readonly ProjectTagIndex? _tagIndex;
+    private readonly ProjectGitStatusStore? _gitStatuses;
+    private readonly IWebUrlLauncher? _webUrlLauncher;
     private readonly RelayCommand _openInVisualStudioCommand;
     private readonly RelayCommand _generateProjectFilesCommand;
     private ProjectActionResult? _lastResult;
@@ -34,7 +36,9 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
         LocalizationService? localization = null,
         ProjectDiagnosticSnapshotStore? diagnostics = null,
         ProjectUserMetadataService? metadata = null,
-        ProjectTagIndex? tagIndex = null)
+        ProjectTagIndex? tagIndex = null,
+        ProjectGitStatusStore? gitStatuses = null,
+        IWebUrlLauncher? webUrlLauncher = null)
     {
         _project = project ?? throw new ArgumentNullException(nameof(project));
         _actions = actions ?? throw new ArgumentNullException(nameof(actions));
@@ -50,6 +54,8 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
         _diagnostics = diagnostics;
         _metadata = metadata;
         _tagIndex = tagIndex;
+        _gitStatuses = gitStatuses;
+        _webUrlLauncher = webUrlLauncher;
 
         OpenProjectCommand = new AsyncRelayCommand(
             OpenProjectAsync,
@@ -72,6 +78,9 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
             () => ShowProjectDetailsAsync(ProjectDetailsSection.Overview));
         TagsAndNotesCommand = new AsyncRelayCommand(
             () => ShowProjectDetailsAsync(ProjectDetailsSection.TagsAndNotes));
+        SourceControlCommand = new AsyncRelayCommand(
+            () => ShowProjectDetailsAsync(ProjectDetailsSection.SourceControl),
+            () => _gitStatuses is not null && _webUrlLauncher is not null);
         RemoveFromListCommand = new AsyncRelayCommand(
             RemoveFromListAsync,
             () => CanRemoveFromList);
@@ -127,6 +136,8 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
     public ICommand ProjectDetailsCommand { get; }
 
     public ICommand TagsAndNotesCommand { get; }
+
+    public ICommand SourceControlCommand { get; }
 
     public ICommand ProjectCleanupCommand { get; }
 
@@ -199,15 +210,25 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
                     _metadata,
                     _localization,
                     _tagIndex),
-            initialSection);
+            initialSection,
+            _gitStatuses is not null && _webUrlLauncher is not null
+                ? new ProjectSourceControlViewModel(
+                    _project,
+                    _gitStatuses,
+                    _webUrlLauncher,
+                    _localization)
+                : null);
         var refreshTask = _diagnostics is null
             ? Task.CompletedTask
             : details.RefreshDiagnosticsAsync(
                 cancellationToken => _diagnostics.RefreshAsync(
                     _project,
                     cancellationToken));
+        var gitRefreshTask = initialSection == ProjectDetailsSection.SourceControl
+            ? details.ActivateSourceControlAsync()
+            : Task.CompletedTask;
         _showDetails(details);
-        await refreshTask;
+        await Task.WhenAll(refreshTask, gitRefreshTask);
     }
 
     private async Task RefreshSolutionActionsAsync()
