@@ -135,12 +135,14 @@ public sealed class ProjectListViewModelTests
             projectType: ProjectType.Cpp,
             engineState: EngineResolutionState.Resolved);
         var store = CreateDiagnosticStore();
+        store.Prune([healthy, engineMissing, solutionMissing]);
         store.Replace(store.CreateSnapshot(
         [
             healthy,
             engineMissing,
             solutionMissing,
-        ]));
+        ]),
+        [healthy, engineMissing, solutionMissing]);
         var viewModel = new ProjectListViewModel(diagnostics: store);
 
         viewModel.SetSnapshot(CreateSnapshot(
@@ -165,7 +167,7 @@ public sealed class ProjectListViewModelTests
     }
 
     [TestMethod]
-    public void RefreshedSolutionDiagnosticUpdatesExistingRowImmediately()
+    public async Task RefreshedSolutionDiagnosticUpdatesExistingRowImmediatelyAsync()
     {
         var project = CreateProject(
             "Game",
@@ -174,7 +176,8 @@ public sealed class ProjectListViewModelTests
             engineState: EngineResolutionState.Resolved);
         var locator = new MutableSolutionLocator();
         var store = CreateDiagnosticStore(locator);
-        store.Replace(store.CreateSnapshot([project]));
+        store.Prune([project]);
+        store.Replace(store.CreateSnapshot([project]), [project]);
         var viewModel = new ProjectListViewModel(diagnostics: store);
         viewModel.SetSnapshot(CreateSnapshot(project));
         Assert.AreEqual(
@@ -184,7 +187,7 @@ public sealed class ProjectListViewModelTests
         locator.Selection = VisualStudioSolutionSelection.Available(
             @"C:\Projects\Game\Game.sln",
             [@"C:\Projects\Game\Game.sln"]);
-        store.Refresh(project);
+        await store.RefreshAsync(project);
 
         Assert.AreEqual(string.Empty, viewModel.Rows[0].DiagnosticMessage);
         Assert.IsNull(viewModel.Rows[0].DiagnosticSeverity);
@@ -223,7 +226,10 @@ public sealed class ProjectListViewModelTests
             @"C:\Projects\Retained\Retained.uproject",
             projectType: ProjectType.Cpp);
         var store = CreateDiagnosticStore();
-        store.Replace(store.CreateSnapshot([removed, retained]));
+        store.Prune([removed, retained]);
+        store.Replace(
+            store.CreateSnapshot([removed, retained]),
+            [removed, retained]);
         var viewModel = new ProjectListViewModel(diagnostics: store);
         viewModel.SetSnapshot(CreateSnapshot(removed, retained));
 

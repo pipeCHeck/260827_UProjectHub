@@ -50,7 +50,7 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
         CopyPathCommand = new RelayCommand(
             () => LastResult = _actions.CopyProjectPath(_project));
         ToggleFavoriteCommand = new AsyncRelayCommand(ToggleFavoriteAsync);
-        ProjectDetailsCommand = new RelayCommand(ShowProjectDetails);
+        ProjectDetailsCommand = new AsyncRelayCommand(ShowProjectDetailsAsync);
         RemoveFromListCommand = new AsyncRelayCommand(
             RemoveFromListAsync,
             () => CanRemoveFromList);
@@ -125,27 +125,39 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
             cancellationToken => _actions.GenerateProjectFilesAsync(
                 request,
                 cancellationToken),
-            RefreshSolutionActions,
+            RefreshSolutionActionsAsync,
             _localization));
     }
 
-    private void ShowProjectDetails()
+    private async Task ShowProjectDetailsAsync()
     {
-        var report = _diagnostics?.Get(_project)
+        var report = _diagnostics?.TryGet(_project)
             ?? new ProjectDiagnosticReport(
                 _project.ProjectFilePath,
                 DateTimeOffset.UtcNow,
                 Array.Empty<ProjectDiagnosticFinding>());
-        _showDetails(new ProjectDetailsViewModel(
+        var details = new ProjectDetailsViewModel(
             new ProjectOverviewViewModel(
                 _project,
                 localization: _localization),
-            new ProjectDiagnosticsViewModel(report, _localization)));
+            new ProjectDiagnosticsViewModel(report, _localization));
+        var refreshTask = _diagnostics is null
+            ? Task.CompletedTask
+            : details.RefreshDiagnosticsAsync(
+                cancellationToken => _diagnostics.RefreshAsync(
+                    _project,
+                    cancellationToken));
+        _showDetails(details);
+        await refreshTask;
     }
 
-    private void RefreshSolutionActions()
+    private async Task RefreshSolutionActionsAsync()
     {
-        _diagnostics?.Refresh(_project);
+        if (_diagnostics is not null)
+        {
+            await _diagnostics.RefreshAsync(_project);
+        }
+
         _openInVisualStudioCommand.RaiseCanExecuteChanged();
         _generateProjectFilesCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(CanOpenInVisualStudio));

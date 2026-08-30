@@ -95,6 +95,7 @@ public sealed class ApplicationCoordinatorTests
 
         fixture.ReleaseRefresh.TrySetResult();
         await fixture.EngineCache.Saved.Task;
+        await WaitForOperationReadyAsync(fixture.Status);
 
         Assert.AreEqual(1, fixture.SolutionLocator.LocateCount);
         Assert.AreEqual(
@@ -175,6 +176,69 @@ public sealed class ApplicationCoordinatorTests
     }
 
     [TestMethod]
+    public async Task DiagnosticCancellationDoesNotDiscardCompletedRefreshCachesAsync()
+    {
+        var fixture = CreateFixture(
+            CreateSettings(),
+            [
+                CreateCacheEntry(
+                    ProjectState.Available,
+                    new ProjectPath(@"C:\Cached\First.uproject"),
+                    ProjectType.Cpp),
+                CreateCacheEntry(
+                    ProjectState.Available,
+                    new ProjectPath(@"C:\Cached\Second.uproject"),
+                    ProjectType.Cpp),
+            ],
+            [CreateEngineEntry("5.8", @"C:\CachedUE58")]);
+        fixture.FreshEngines = [CreateEngine("5.8", @"D:\FreshUE58")];
+        await fixture.Coordinator.StartAsync();
+        await fixture.EngineCache.Saved.Task;
+        await WaitForOperationReadyAsync(fixture.Status);
+        var projectSaveCount = fixture.ProjectCache.SaveCount;
+        var engineSaveCount = fixture.EngineCache.SaveCount;
+        using var cancellation = new CancellationTokenSource();
+        fixture.SolutionLocator.OnLocate = cancellation.Cancel;
+
+        var refreshed = await fixture.Coordinator.RefreshAsync(
+            cancellation.Token);
+
+        Assert.IsTrue(refreshed);
+        Assert.AreEqual(projectSaveCount + 1, fixture.ProjectCache.SaveCount);
+        Assert.AreEqual(engineSaveCount + 1, fixture.EngineCache.SaveCount);
+        Assert.IsNotNull(fixture.ProjectCache.LastSaved);
+        Assert.IsNotNull(fixture.EngineCache.LastSaved);
+        await fixture.Coordinator.StopAsync();
+    }
+
+    [TestMethod]
+    public async Task DiagnosticFailureDoesNotDiscardCompletedRefreshCachesAsync()
+    {
+        var fixture = CreateFixture(
+            CreateSettings(),
+            [CreateCacheEntry(ProjectState.Available)],
+            [CreateEngineEntry("5.8", @"C:\CachedUE58")]);
+        await fixture.Coordinator.StartAsync();
+        await fixture.EngineCache.Saved.Task;
+        await WaitForOperationReadyAsync(fixture.Status);
+        var projectSaveCount = fixture.ProjectCache.SaveCount;
+        var engineSaveCount = fixture.EngineCache.SaveCount;
+        fixture.DiagnosticStore.SnapshotChanged += (_, _) =>
+            throw new IOException("diagnostic presentation failed");
+
+        var refreshed = await fixture.Coordinator.RefreshAsync();
+
+        Assert.IsTrue(refreshed);
+        Assert.AreEqual(projectSaveCount + 1, fixture.ProjectCache.SaveCount);
+        Assert.AreEqual(engineSaveCount + 1, fixture.EngineCache.SaveCount);
+        Assert.IsTrue(fixture.Logger.Messages.Any(message =>
+            message.Contains(
+                "Diagnostics refresh failed",
+                StringComparison.Ordinal)));
+        await fixture.Coordinator.StopAsync();
+    }
+
+    [TestMethod]
     public async Task StartupLightweightDiscoveryAddsNewProjectToFinalCache()
     {
         var fixture = CreateFixture(CreateSettings(), [], []);
@@ -225,6 +289,7 @@ public sealed class ApplicationCoordinatorTests
         var fixture = CreateFixture(CreateSettings(), [], []);
         await fixture.Coordinator.StartAsync();
         await fixture.EngineCache.Saved.Task;
+        await WaitForOperationReadyAsync(fixture.Status);
         fixture.ResetOperationCounts();
 
         var refreshed = await fixture.Coordinator.RefreshAsync();
@@ -247,6 +312,7 @@ public sealed class ApplicationCoordinatorTests
         var fixture = CreateFixture(CreateSettings(), [], []);
         await fixture.Coordinator.StartAsync();
         await fixture.EngineCache.Saved.Task;
+        await WaitForOperationReadyAsync(fixture.Status);
         fixture.ResetOperationCounts();
         var legacyRescanCalls = 0;
         var operations = new ProjectOperations(
@@ -309,6 +375,41 @@ public sealed class ApplicationCoordinatorTests
         Assert.IsFalse(fixture.Status.IsOperationActive);
         Assert.IsTrue(fixture.Logger.Messages.Any(message =>
             message.Contains("cancel", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static async Task WaitForOperationReadyAsync(
+        StatusBarViewModel status)
+    {
+        if (!status.IsOperationActive)
+        {
+            return;
+        }
+
+        var ready = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        System.ComponentModel.PropertyChangedEventHandler? handler = null;
+        handler = (_, eventArgs) =>
+        {
+            if (eventArgs.PropertyName == nameof(StatusBarViewModel.IsOperationActive)
+                && !status.IsOperationActive)
+            {
+                ready.TrySetResult();
+            }
+        };
+        status.PropertyChanged += handler;
+        try
+        {
+            if (!status.IsOperationActive)
+            {
+                return;
+            }
+
+            await ready.Task;
+        }
+        finally
+        {
+            status.PropertyChanged -= handler;
+        }
     }
 
     private static Fixture CreateFixture(
@@ -374,7 +475,8 @@ public sealed class ApplicationCoordinatorTests
             status,
             main,
             dispatcher,
-            solutionLocator);
+            solutionLocator,
+            diagnosticStore);
         var background = new BackgroundRefreshService(
             catalog,
             currentEngines,
@@ -450,7 +552,8 @@ public sealed class ApplicationCoordinatorTests
         StatusBarViewModel status,
         MainViewModel main,
         RecordingDispatcher dispatcher,
-        CountingSolutionLocator solutionLocator)
+        CountingSolutionLocator solutionLocator,
+        ProjectDiagnosticSnapshotStore diagnosticStore)
     {
         public ApplicationCoordinator Coordinator { get; set; } = null!;
         public FakeSettingsRepository Settings { get; } = settings;
@@ -463,6 +566,7 @@ public sealed class ApplicationCoordinatorTests
         public StatusBarViewModel Status { get; } = status;
         public MainViewModel Main { get; } = main;
         public CountingSolutionLocator SolutionLocator { get; } = solutionLocator;
+        public ProjectDiagnosticSnapshotStore DiagnosticStore { get; } = diagnosticStore;
         public RecordingLogger Logger { get; } = new();
         public int RefreshCalls { get; private set; }
         public int RescanCalls { get; private set; }
@@ -566,6 +670,7 @@ public sealed class ApplicationCoordinatorTests
     {
         public Exception? SaveException { get; set; }
         public ProjectCacheDocument? LastSaved { get; private set; }
+        public int SaveCount { get; private set; }
 
         public Task<ProjectCacheDocument> LoadAsync(CancellationToken cancellationToken = default)
         {
@@ -575,6 +680,7 @@ public sealed class ApplicationCoordinatorTests
 
         public Task SaveAsync(ProjectCacheDocument document, CancellationToken cancellationToken = default)
         {
+            SaveCount++;
             if (SaveException is not null)
             {
                 return Task.FromException(SaveException);
@@ -590,6 +696,7 @@ public sealed class ApplicationCoordinatorTests
         List<string>? order) : IEngineCacheRepository
     {
         public EngineCacheDocument? LastSaved { get; private set; }
+        public int SaveCount { get; private set; }
         public TaskCompletionSource Saved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Task<EngineCacheDocument> LoadAsync(CancellationToken cancellationToken = default)
@@ -600,6 +707,7 @@ public sealed class ApplicationCoordinatorTests
 
         public Task SaveAsync(EngineCacheDocument document, CancellationToken cancellationToken = default)
         {
+            SaveCount++;
             LastSaved = document;
             Saved.TrySetResult();
             return Task.CompletedTask;
@@ -642,10 +750,12 @@ public sealed class ApplicationCoordinatorTests
     private sealed class CountingSolutionLocator : IVisualStudioSolutionLocator
     {
         public int LocateCount { get; private set; }
+        public Action? OnLocate { get; set; }
 
         public VisualStudioSolutionSelection Locate(UnrealProject project)
         {
             LocateCount++;
+            OnLocate?.Invoke();
             return VisualStudioSolutionSelection.Missing();
         }
     }

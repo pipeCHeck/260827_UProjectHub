@@ -52,6 +52,7 @@ dotnet run --project src/UProjectHub.App
 - Safe Resolved/Missing/Ambiguous/Unknown engine resolution
 - Explicit UnrealEditor launch with argument-list handling
 - Unreal, project folder, copy path, existing Visual Studio solution, Project Details, and Missing-only removal actions
+- Explicitly confirmed Visual Studio project-file generation through the resolved engine's supported UnrealBuildTool entry point
 - Low-cost basic diagnostics with quiet list priority and Overview/Diagnostics details
 - Light/dark semantic themes, normal/compact density, responsive columns, and system-aware subtle motion
 - Runtime English/Korean UI switching with persisted language selection
@@ -85,14 +86,14 @@ User-owned settings, disposable caches, and logs are stored below:
 
 The application does not use the user's real LocalAppData, Registry, Unreal installation, or processes during automated tests.
 
-## Read-only project policy
+## Project mutation policy
 
-UProject Hub is read-only with respect to Unreal projects. It does not modify `.uproject` descriptors, change `EngineAssociation`, generate project files, convert engine versions, or delete project directories/files. “Remove from List” removes only UProject Hub's managed catalog/cache/settings entry for a Missing project.
+UProject Hub does not modify `.uproject` descriptors, change `EngineAssociation`, convert engine versions, or delete project directories/files. Generate Visual Studio Project Files is the one supported generated-file mutation: it runs only after explicit confirmation and may create or replace `.sln` and related generated project-file output. “Remove from List” removes only UProject Hub's managed catalog/cache/settings entry for a Missing project.
 
 ## MVP non-goals
 
 - Project creation, deletion, conversion, repair, or Unreal configuration editing
-- Generate Project Files or UnrealBuildTool orchestration
+- Shell/batch fallbacks or unsupported UnrealBuildTool generation layouts
 - Git, plugin, build, cooking, or packaging management
 - Recursive drive-wide discovery or per-project `FileSystemWatcher` infrastructure
 - Telemetry, analytics, or remote logging

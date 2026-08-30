@@ -125,8 +125,9 @@ public sealed class ProjectDiagnosticsServiceTests
             lastEvent = eventArgs;
         };
 
+        store.Prune([project]);
         var snapshot = store.CreateSnapshot([project]);
-        store.Replace(snapshot);
+        store.Replace(snapshot, [project]);
         var first = store.TryGet(project);
         var second = store.TryGet(project);
 
@@ -137,6 +138,71 @@ public sealed class ProjectDiagnosticsServiceTests
         Assert.IsTrue(lastEvent.IsFullSnapshot);
         Assert.IsNull(lastEvent.ProjectPath);
         Assert.IsNull(lastEvent.Report);
+    }
+
+    [TestMethod]
+    public async Task OlderBulkSnapshotDoesNotOverwriteNewerProjectRefreshAsync()
+    {
+        var bulkEntered = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseBulk = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var callCount = 0;
+        var locator = new FakeSolutionLocator(_ =>
+        {
+            if (Interlocked.Increment(ref callCount) == 1)
+            {
+                bulkEntered.TrySetResult();
+                releaseBulk.Task.GetAwaiter().GetResult();
+                return VisualStudioSolutionSelection.Missing();
+            }
+
+            return VisualStudioSolutionSelection.Available(
+                @"D:\Projects\Game\Game.sln",
+                [@"D:\Projects\Game\Game.sln"]);
+        });
+        var store = CreateStore(locator);
+        var project = CreateProject();
+        store.Prune([project]);
+
+        var bulkTask = Task.Run(() => store.CreateSnapshot([project]));
+        await bulkEntered.Task;
+        await store.RefreshAsync(project);
+        releaseBulk.TrySetResult();
+        var olderBulk = await bulkTask;
+
+        store.Replace(olderBulk, [project]);
+
+        Assert.IsNotNull(store.TryGet(project));
+        Assert.IsEmpty(store.TryGet(project)!.Findings);
+    }
+
+    [TestMethod]
+    public async Task BulkSnapshotDoesNotRestoreProjectRemovedDuringCalculationAsync()
+    {
+        var bulkEntered = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseBulk = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var locator = new FakeSolutionLocator(_ =>
+        {
+            bulkEntered.TrySetResult();
+            releaseBulk.Task.GetAwaiter().GetResult();
+            return VisualStudioSolutionSelection.Missing();
+        });
+        var store = CreateStore(locator);
+        var project = CreateProject();
+        store.Prune([project]);
+
+        var bulkTask = Task.Run(() => store.CreateSnapshot([project]));
+        await bulkEntered.Task;
+        store.Prune([]);
+        releaseBulk.TrySetResult();
+        var staleBulk = await bulkTask;
+
+        store.Replace(staleBulk, []);
+
+        Assert.IsNull(store.TryGet(project));
     }
 
     [TestMethod]
@@ -176,6 +242,13 @@ public sealed class ProjectDiagnosticsServiceTests
         Assert.IsEmpty(report.Findings);
         Assert.AreEqual(0, locator.LocateCount);
     }
+
+    private static ProjectDiagnosticSnapshotStore CreateStore(
+        IVisualStudioSolutionLocator locator) =>
+        new(new ProjectDiagnosticsService(
+            new BasicProjectDiagnosticsService(new FakeClock(Now)),
+            locator,
+            _ => true));
 
     private static UnrealProject CreateProject(
         string name = "Game",

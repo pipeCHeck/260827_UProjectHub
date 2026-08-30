@@ -130,7 +130,11 @@ public sealed class GenerateProjectFilesViewModelTests
                 generateCount++;
                 return await generate(cancellationToken);
             },
-            () => refreshCount++);
+            () =>
+            {
+                refreshCount++;
+                return Task.CompletedTask;
+            });
         return new Fixture(
             viewModel,
             () => generateCount,

@@ -229,7 +229,7 @@ public sealed class PresentationResourceTests
         var viewModel = new GenerateProjectFilesViewModel(
             request,
             _ => throw new InvalidOperationException("Generation was not expected."),
-            () => { });
+            () => Task.CompletedTask);
         var window = new GenerateProjectFilesWindow(viewModel);
 
         var output = Assert.IsInstanceOfType<TextBox>(

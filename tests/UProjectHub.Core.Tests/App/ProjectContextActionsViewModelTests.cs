@@ -1,12 +1,15 @@
 using System.Windows.Input;
+using UProjectHub.App.Infrastructure;
 using UProjectHub.App.Services;
 using UProjectHub.App.ViewModels;
 using UProjectHub.Core.Cache;
 using UProjectHub.Core.Catalog;
+using UProjectHub.Core.Diagnostics;
 using UProjectHub.Core.Engines;
 using UProjectHub.Core.Models;
 using UProjectHub.Core.Paths;
 using UProjectHub.Core.Settings;
+using UProjectHub.Core.Tests.Time;
 using UProjectHub.Windows.Launching;
 
 namespace UProjectHub.Core.Tests.App;
@@ -126,6 +129,95 @@ public sealed class ProjectContextActionsViewModelTests
     }
 
     [TestMethod]
+    public async Task SuccessfulGenerationRefreshesLatestDiagnosticsOffCallingThreadAsync()
+    {
+        var fixture = CreateFixture(
+            CreateProject(ProjectType.Cpp, ProjectState.Available),
+            VisualStudioSolutionState.Missing);
+        await fixture.DiagnosticStore.RefreshAsync(fixture.Project);
+        Assert.HasCount(1, fixture.DiagnosticStore.TryGet(fixture.Project)!.Findings);
+        fixture.ProjectFilesGenerator.OnGenerate = () =>
+            fixture.VisualStudio.SolutionState = VisualStudioSolutionState.Available;
+        fixture.ViewModel.GenerateProjectFilesCommand.Execute(null);
+        var uiContext = new InlineSynchronizationContext();
+        var previousContext = SynchronizationContext.Current;
+        fixture.VisualStudio.LastLocateContext = null;
+
+        SynchronizationContext.SetSynchronizationContext(uiContext);
+        var execution = fixture.GenerationRequests.Single()
+            .GenerateCommand.ExecuteAsync();
+        SynchronizationContext.SetSynchronizationContext(previousContext);
+        await execution;
+
+        Assert.AreNotSame(
+            uiContext,
+            fixture.VisualStudio.LastLocateContext);
+        Assert.IsEmpty(
+            fixture.DiagnosticStore.TryGet(fixture.Project)!.Findings);
+    }
+
+    [TestMethod]
+    public async Task ProjectDetailsShowsImmediatelyAndRunsSolutionLookupOffCallingThreadAsync()
+    {
+        var fixture = CreateFixture(
+            CreateProject(ProjectType.Cpp, ProjectState.Available),
+            VisualStudioSolutionState.Missing);
+        var lookupStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseLookup = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.VisualStudio.OnLocate = () =>
+        {
+            lookupStarted.TrySetResult();
+            releaseLookup.Task.GetAwaiter().GetResult();
+        };
+        var uiContext = new InlineSynchronizationContext();
+        var previousContext = SynchronizationContext.Current;
+
+        SynchronizationContext.SetSynchronizationContext(uiContext);
+        var execution = ((AsyncRelayCommand)fixture.ViewModel.ProjectDetailsCommand)
+            .ExecuteAsync();
+        SynchronizationContext.SetSynchronizationContext(previousContext);
+        await lookupStarted.Task;
+
+        Assert.HasCount(1, fixture.DetailsRequests);
+        Assert.AreNotSame(
+            uiContext,
+            fixture.VisualStudio.LastLocateContext);
+        releaseLookup.TrySetResult();
+        await execution;
+        Assert.HasCount(1, fixture.DetailsRequests[0].Diagnostics.Findings);
+    }
+
+    [TestMethod]
+    public async Task ClosedProjectDetailsIgnoresLateDiagnosticResultAsync()
+    {
+        var fixture = CreateFixture(
+            CreateProject(ProjectType.Cpp, ProjectState.Available),
+            VisualStudioSolutionState.Missing);
+        var lookupStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseLookup = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.VisualStudio.OnLocate = () =>
+        {
+            lookupStarted.TrySetResult();
+            releaseLookup.Task.GetAwaiter().GetResult();
+        };
+
+        var execution = ((AsyncRelayCommand)fixture.ViewModel.ProjectDetailsCommand)
+            .ExecuteAsync();
+        await lookupStarted.Task;
+        var details = fixture.DetailsRequests.Single();
+        details.Dispose();
+        await execution.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.IsEmpty(details.Diagnostics.Findings);
+        Assert.IsTrue(details.Diagnostics.HasNoFindings);
+        releaseLookup.TrySetResult();
+    }
+
+    [TestMethod]
     public async Task CommandsDelegateToOneActionServiceAndInformationUsesPresentationCallbackAsync()
     {
         var fixture = CreateFixture(CreateProject(ProjectType.Cpp, ProjectState.Available));
@@ -234,13 +326,20 @@ public sealed class ProjectContextActionsViewModelTests
             clipboard,
             _ => resolution,
             projectFilesGenerator: projectFilesGenerator);
+        var diagnosticStore = new ProjectDiagnosticSnapshotStore(
+            new ProjectDiagnosticsService(
+                new BasicProjectDiagnosticsService(new FakeClock(Now)),
+                visualStudio,
+                _ => true));
+        diagnosticStore.Prune([project]);
         var detailsRequests = new List<ProjectDetailsViewModel>();
         var generationRequests = new List<GenerateProjectFilesViewModel>();
         var viewModel = new ProjectContextActionsViewModel(
             project,
             actions,
             detailsRequests.Add,
-            generationRequests.Add);
+            generationRequests.Add,
+            diagnostics: diagnosticStore);
         return new Fixture(
             project,
             viewModel,
@@ -250,6 +349,7 @@ public sealed class ProjectContextActionsViewModelTests
             visualStudio,
             clipboard,
             detailsRequests,
+            diagnosticStore,
             projectFilesGenerator,
             generationRequests);
     }
@@ -281,6 +381,7 @@ public sealed class ProjectContextActionsViewModelTests
         FakeVisualStudioLauncher VisualStudio,
         FakeClipboardService Clipboard,
         List<ProjectDetailsViewModel> DetailsRequests,
+        ProjectDiagnosticSnapshotStore DiagnosticStore,
         FakeProjectFilesGenerator ProjectFilesGenerator,
         List<GenerateProjectFilesViewModel> GenerationRequests);
 
@@ -333,19 +434,29 @@ public sealed class ProjectContextActionsViewModelTests
     }
 
     private sealed class FakeVisualStudioLauncher(
-        VisualStudioSolutionState solutionState) : IVisualStudioLauncher
+        VisualStudioSolutionState solutionState)
+        : IVisualStudioLauncher, IVisualStudioSolutionLocator
     {
         public VisualStudioSolutionState SolutionState { get; set; } = solutionState;
 
         public int OpenCount { get; private set; }
+
+        public SynchronizationContext? LastLocateContext { get; set; }
+
+        public Action? OnLocate { get; set; }
 
         public bool CanOpenSolution(UnrealProject project) =>
             project.ProjectType == ProjectType.Cpp
             && SolutionState == VisualStudioSolutionState.Available;
 
         public VisualStudioSolutionSelection LocateSolution(
-            UnrealProject project) =>
-            SolutionState switch
+            UnrealProject project) => Locate(project);
+
+        public VisualStudioSolutionSelection Locate(UnrealProject project)
+        {
+            LastLocateContext = SynchronizationContext.Current;
+            OnLocate?.Invoke();
+            return SolutionState switch
             {
                 VisualStudioSolutionState.Available =>
                     VisualStudioSolutionSelection.Available(
@@ -366,6 +477,7 @@ public sealed class ProjectContextActionsViewModelTests
                     SolutionState,
                     null),
             };
+        }
 
         public LaunchResult OpenSolution(UnrealProject project)
         {
@@ -382,6 +494,12 @@ public sealed class ProjectContextActionsViewModelTests
         {
             Text = text;
         }
+    }
+
+    private sealed class InlineSynchronizationContext : SynchronizationContext
+    {
+        public override void Post(SendOrPostCallback callback, object? state) =>
+            callback(state);
     }
 
     private sealed class FakeProjectFilesGenerator : IProjectFilesGenerator

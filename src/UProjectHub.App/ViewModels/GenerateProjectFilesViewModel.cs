@@ -9,7 +9,7 @@ public sealed class GenerateProjectFilesViewModel : ObservableObject
 {
     private readonly Func<CancellationToken, Task<ProjectFileGenerationResult>>
         _generateAsync;
-    private readonly Action _solutionStateChanged;
+    private readonly Func<Task> _solutionStateChanged;
     private readonly LocalizationService? _localization;
     private readonly RelayCommand _cancelCommand;
     private CancellationTokenSource? _cancellationSource;
@@ -22,7 +22,7 @@ public sealed class GenerateProjectFilesViewModel : ObservableObject
     public GenerateProjectFilesViewModel(
         ProjectFileGenerationRequest request,
         Func<CancellationToken, Task<ProjectFileGenerationResult>> generateAsync,
-        Action solutionStateChanged,
+        Func<Task> solutionStateChanged,
         LocalizationService? localization = null)
     {
         Request = request ?? throw new ArgumentNullException(nameof(request));
@@ -144,7 +144,7 @@ public sealed class GenerateProjectFilesViewModel : ObservableObject
 
             if (result.IsSuccess)
             {
-                _solutionStateChanged();
+                await _solutionStateChanged();
             }
         }
         finally

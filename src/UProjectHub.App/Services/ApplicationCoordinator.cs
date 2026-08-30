@@ -236,9 +236,9 @@ public sealed class ApplicationCoordinator
             await _dispatcher.InvokeAsync(
                 () => _mainViewModel.SetEngines(result.Engines),
                 cancellationToken);
-            await RefreshDiagnosticsAsync(result.Snapshot, cancellationToken);
             LogIssues(result);
             await SaveFinalCachesAsync(result, cancellationToken);
+            await TryRefreshDiagnosticsAsync(result.Snapshot, cancellationToken);
             _logger.Info($"{operationName} completed.");
             return result;
         }
@@ -263,7 +263,7 @@ public sealed class ApplicationCoordinator
         }
     }
 
-    private async Task RefreshDiagnosticsAsync(
+    private async Task TryRefreshDiagnosticsAsync(
         ProjectCatalogSnapshot catalogSnapshot,
         CancellationToken cancellationToken)
     {
@@ -272,14 +272,31 @@ public sealed class ApplicationCoordinator
             return;
         }
 
-        var diagnosticSnapshot = await Task.Run(
-            () => _diagnostics.CreateSnapshot(
-                catalogSnapshot.Projects,
-                cancellationToken),
-            cancellationToken).ConfigureAwait(false);
-        await _dispatcher.InvokeAsync(
-            () => _diagnostics.Replace(diagnosticSnapshot),
-            cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var diagnosticSnapshot = await Task.Run(
+                () => _diagnostics.CreateSnapshot(
+                    catalogSnapshot.Projects,
+                    cancellationToken),
+                cancellationToken).ConfigureAwait(false);
+            await _dispatcher.InvokeAsync(
+                () => _diagnostics.Replace(
+                    diagnosticSnapshot,
+                    _catalog.GetSnapshot().Projects),
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.Info(
+                "Diagnostics refresh canceled after core refresh completed.");
+        }
+        catch (Exception exception)
+        {
+            _logger.Error(
+                "Diagnostics refresh failed after core refresh completed.",
+                exception);
+        }
     }
 
     private async Task<AppSettings> LoadSettingsAsync(CancellationToken cancellationToken)
