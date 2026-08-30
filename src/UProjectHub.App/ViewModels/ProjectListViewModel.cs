@@ -70,7 +70,7 @@ public sealed class ProjectListViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(snapshot);
 
-        _diagnostics?.Refresh(snapshot.Projects);
+        _diagnostics?.Prune(snapshot.Projects);
 
         SetRows(snapshot.Projects, snapshot.Projects.Count);
     }
@@ -88,7 +88,7 @@ public sealed class ProjectListViewModel : ObservableObject
             .Select(project => new ProjectRowViewModel(
                 project,
                 _contextActionsFactory?.Invoke(project),
-                _diagnostics?.Get(project),
+                _diagnostics?.TryGet(project),
                 _localization))
             .ToArray();
 
@@ -119,6 +119,21 @@ public sealed class ProjectListViewModel : ObservableObject
         object? sender,
         ProjectDiagnosticSnapshotChangedEventArgs eventArgs)
     {
+        if (eventArgs.IsFullSnapshot)
+        {
+            foreach (var row in _rows)
+            {
+                row.UpdateDiagnosticReport(_diagnostics?.TryGet(row.Project));
+            }
+
+            return;
+        }
+
+        if (eventArgs.ProjectPath is null || eventArgs.Report is null)
+        {
+            return;
+        }
+
         foreach (var row in _rows.Where(row =>
                      row.Project.ProjectFilePath.Equals(eventArgs.ProjectPath)))
         {

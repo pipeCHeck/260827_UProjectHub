@@ -73,9 +73,8 @@ public sealed class ProjectRowViewModel : ObservableObject
 
     public string StateMessage => DiagnosticMessage;
 
-    public void UpdateDiagnosticReport(ProjectDiagnosticReport report)
+    public void UpdateDiagnosticReport(ProjectDiagnosticReport? report)
     {
-        ArgumentNullException.ThrowIfNull(report);
         if (!SetProperty(
                 ref _diagnosticReport,
                 report,

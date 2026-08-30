@@ -135,6 +135,12 @@ public sealed class ProjectListViewModelTests
             projectType: ProjectType.Cpp,
             engineState: EngineResolutionState.Resolved);
         var store = CreateDiagnosticStore();
+        store.Replace(store.CreateSnapshot(
+        [
+            healthy,
+            engineMissing,
+            solutionMissing,
+        ]));
         var viewModel = new ProjectListViewModel(diagnostics: store);
 
         viewModel.SetSnapshot(CreateSnapshot(
@@ -168,6 +174,7 @@ public sealed class ProjectListViewModelTests
             engineState: EngineResolutionState.Resolved);
         var locator = new MutableSolutionLocator();
         var store = CreateDiagnosticStore(locator);
+        store.Replace(store.CreateSnapshot([project]));
         var viewModel = new ProjectListViewModel(diagnostics: store);
         viewModel.SetSnapshot(CreateSnapshot(project));
         Assert.AreEqual(
@@ -181,6 +188,49 @@ public sealed class ProjectListViewModelTests
 
         Assert.AreEqual(string.Empty, viewModel.Rows[0].DiagnosticMessage);
         Assert.IsNull(viewModel.Rows[0].DiagnosticSeverity);
+    }
+
+    [TestMethod]
+    public void RepeatedSnapshotsConsumeCachedDiagnosticsWithoutSolutionLookup()
+    {
+        var project = CreateProject(
+            "Game",
+            @"C:\Projects\Game\Game.uproject",
+            projectType: ProjectType.Cpp,
+            engineState: EngineResolutionState.Resolved);
+        var locator = new CountingSolutionLocator();
+        var store = CreateDiagnosticStore(locator);
+        var viewModel = new ProjectListViewModel(diagnostics: store);
+        var snapshot = CreateSnapshot(project);
+
+        viewModel.SetSnapshot(snapshot);
+        viewModel.SetSnapshot(snapshot);
+        viewModel.SetSnapshot(snapshot);
+
+        Assert.AreEqual(0, locator.LocateCount);
+        Assert.IsNull(viewModel.Rows.Single().DiagnosticReport);
+    }
+
+    [TestMethod]
+    public void SnapshotRemovesDiagnosticsForProjectsNoLongerInCatalog()
+    {
+        var removed = CreateProject(
+            "Removed",
+            @"C:\Projects\Removed\Removed.uproject",
+            projectType: ProjectType.Cpp);
+        var retained = CreateProject(
+            "Retained",
+            @"C:\Projects\Retained\Retained.uproject",
+            projectType: ProjectType.Cpp);
+        var store = CreateDiagnosticStore();
+        store.Replace(store.CreateSnapshot([removed, retained]));
+        var viewModel = new ProjectListViewModel(diagnostics: store);
+        viewModel.SetSnapshot(CreateSnapshot(removed, retained));
+
+        viewModel.SetSnapshot(CreateSnapshot(retained));
+
+        Assert.IsNull(store.TryGet(removed));
+        Assert.IsNotNull(store.TryGet(retained));
     }
 
     [TestMethod]
@@ -337,5 +387,16 @@ public sealed class ProjectListViewModelTests
 
         public VisualStudioSolutionSelection Locate(UnrealProject project) =>
             Selection;
+    }
+
+    private sealed class CountingSolutionLocator : IVisualStudioSolutionLocator
+    {
+        public int LocateCount { get; private set; }
+
+        public VisualStudioSolutionSelection Locate(UnrealProject project)
+        {
+            LocateCount++;
+            return VisualStudioSolutionSelection.Missing();
+        }
     }
 }

@@ -107,7 +107,7 @@ public sealed class ProjectDiagnosticsServiceTests
     }
 
     [TestMethod]
-    public void SnapshotStoreDoesNotRepeatSolutionLookupForCachedReads()
+    public void SnapshotStoreBuildAndReplaceRaisesOneBulkEventAndCachesReads()
     {
         var locator = new FakeSolutionLocator(
             _ => VisualStudioSolutionSelection.Missing());
@@ -117,13 +117,26 @@ public sealed class ProjectDiagnosticsServiceTests
             _ => true);
         var store = new ProjectDiagnosticSnapshotStore(diagnostics);
         var project = CreateProject();
+        var eventCount = 0;
+        ProjectDiagnosticSnapshotChangedEventArgs? lastEvent = null;
+        store.SnapshotChanged += (_, eventArgs) =>
+        {
+            eventCount++;
+            lastEvent = eventArgs;
+        };
 
-        store.Refresh([project]);
-        var first = store.Get(project);
-        var second = store.Get(project);
+        var snapshot = store.CreateSnapshot([project]);
+        store.Replace(snapshot);
+        var first = store.TryGet(project);
+        var second = store.TryGet(project);
 
         Assert.AreSame(first, second);
         Assert.AreEqual(1, locator.LocateCount);
+        Assert.AreEqual(1, eventCount);
+        Assert.IsNotNull(lastEvent);
+        Assert.IsTrue(lastEvent.IsFullSnapshot);
+        Assert.IsNull(lastEvent.ProjectPath);
+        Assert.IsNull(lastEvent.Report);
     }
 
     [TestMethod]

@@ -73,6 +73,37 @@ public sealed class ApplicationCoordinatorTests
     }
 
     [TestMethod]
+    public async Task Start_CachedCppRowsPublishBeforeDiagnosticsAndRefreshCalculatesThemOnce()
+    {
+        var cachedEngine = CreateEngineEntry("5.8", @"C:\CachedUE58");
+        var freshEngine = CreateEngine("5.8", @"D:\FreshUE58");
+        var fixture = CreateFixture(
+            CreateSettings(),
+            [CreateCacheEntry(ProjectState.Available, projectType: ProjectType.Cpp)],
+            [cachedEngine]);
+        fixture.FreshEngines = [freshEngine];
+        fixture.BlockRefresh = true;
+
+        var start = fixture.Coordinator.StartAsync();
+        await fixture.RefreshStarted.Task;
+
+        Assert.IsTrue(start.IsCompletedSuccessfully);
+        await start;
+        Assert.HasCount(1, fixture.Main.ProjectList.Rows);
+        Assert.AreEqual(0, fixture.SolutionLocator.LocateCount);
+        Assert.IsNull(fixture.Main.ProjectList.Rows.Single().DiagnosticReport);
+
+        fixture.ReleaseRefresh.TrySetResult();
+        await fixture.EngineCache.Saved.Task;
+
+        Assert.AreEqual(1, fixture.SolutionLocator.LocateCount);
+        Assert.AreEqual(
+            ProjectDiagnosticSeverity.Info,
+            fixture.Main.ProjectList.Rows.Single().DiagnosticSeverity);
+        await fixture.Coordinator.StopAsync();
+    }
+
+    [TestMethod]
     public async Task Start_MergesUserStateUsesCachedEnginesAndAppliesPersistedPresentation()
     {
         var launched = new DateTimeOffset(2026, 8, 20, 4, 5, 6, TimeSpan.Zero);
@@ -306,7 +337,15 @@ public sealed class ApplicationCoordinatorTests
                 ["String.StatusReady"] = "Ready",
             });
         var status = new StatusBarViewModel(localization);
-        var projectList = new ProjectListViewModel(localization: localization);
+        var solutionLocator = new CountingSolutionLocator();
+        var diagnosticStore = new ProjectDiagnosticSnapshotStore(
+            new ProjectDiagnosticsService(
+                new BasicProjectDiagnosticsService(new SystemClock()),
+                solutionLocator,
+                _ => true));
+        var projectList = new ProjectListViewModel(
+            localization: localization,
+            diagnostics: diagnosticStore);
         var search = new SearchFilterViewModel(
             projectList,
             new ProjectQueryParser(),
@@ -334,7 +373,8 @@ public sealed class ApplicationCoordinatorTests
             localization,
             status,
             main,
-            dispatcher);
+            dispatcher,
+            solutionLocator);
         var background = new BackgroundRefreshService(
             catalog,
             currentEngines,
@@ -358,7 +398,8 @@ public sealed class ApplicationCoordinatorTests
             background,
             dispatcher,
             fixture.Logger,
-            localization);
+            localization,
+            diagnosticStore);
         return fixture;
     }
 
@@ -369,12 +410,13 @@ public sealed class ApplicationCoordinatorTests
 
     private static ProjectCacheEntry CreateCacheEntry(
         ProjectState state,
-        ProjectPath? path = null) => new(
+        ProjectPath? path = null,
+        ProjectType projectType = ProjectType.Blueprint) => new(
         path ?? new ProjectPath(@"C:\Cached\Game.uproject"),
         "Game",
         "5.8",
         "5.8",
-        ProjectType.Blueprint,
+        projectType,
         new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero),
         state,
         EngineResolutionState.Unknown);
@@ -407,7 +449,8 @@ public sealed class ApplicationCoordinatorTests
         LocalizationService localization,
         StatusBarViewModel status,
         MainViewModel main,
-        RecordingDispatcher dispatcher)
+        RecordingDispatcher dispatcher,
+        CountingSolutionLocator solutionLocator)
     {
         public ApplicationCoordinator Coordinator { get; set; } = null!;
         public FakeSettingsRepository Settings { get; } = settings;
@@ -419,6 +462,7 @@ public sealed class ApplicationCoordinatorTests
         public LocalizationService Localization { get; } = localization;
         public StatusBarViewModel Status { get; } = status;
         public MainViewModel Main { get; } = main;
+        public CountingSolutionLocator SolutionLocator { get; } = solutionLocator;
         public RecordingLogger Logger { get; } = new();
         public int RefreshCalls { get; private set; }
         public int RescanCalls { get; private set; }
@@ -593,6 +637,17 @@ public sealed class ApplicationCoordinatorTests
     {
         public Task<UnrealKnownProjectRootsResult> GetKnownRootsAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(new UnrealKnownProjectRootsResult([], []));
+    }
+
+    private sealed class CountingSolutionLocator : IVisualStudioSolutionLocator
+    {
+        public int LocateCount { get; private set; }
+
+        public VisualStudioSolutionSelection Locate(UnrealProject project)
+        {
+            LocateCount++;
+            return VisualStudioSolutionSelection.Missing();
+        }
     }
 
     private sealed class FakeUnrealEditorLauncher : IUnrealEditorLauncher

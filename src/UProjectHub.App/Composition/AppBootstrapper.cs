@@ -221,7 +221,8 @@ public sealed class AppBootstrapper
             backgroundRefresh,
             dispatcher,
             logger,
-            localizationService);
+            localizationService,
+            diagnosticStore);
 
         projectOperations = new ProjectOperations(
             settingsRepository,

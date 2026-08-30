@@ -44,6 +44,7 @@ public sealed class ApplicationCoordinator
     private readonly MainViewModel _mainViewModel;
     private readonly StatusBarViewModel _statusBar;
     private readonly BackgroundRefreshService _backgroundRefresh;
+    private readonly ProjectDiagnosticSnapshotStore? _diagnostics;
     private readonly IUiDispatcher _dispatcher;
     private readonly IAppLogger _logger;
     private readonly SemaphoreSlim _operationGate = new(1, 1);
@@ -64,7 +65,8 @@ public sealed class ApplicationCoordinator
         BackgroundRefreshService backgroundRefresh,
         IUiDispatcher dispatcher,
         IAppLogger logger,
-        LocalizationService? localizationService = null)
+        LocalizationService? localizationService = null,
+        ProjectDiagnosticSnapshotStore? diagnostics = null)
     {
         _settingsRepository = settingsRepository ?? throw new ArgumentNullException(nameof(settingsRepository));
         _projectCacheRepository = projectCacheRepository ?? throw new ArgumentNullException(nameof(projectCacheRepository));
@@ -76,6 +78,7 @@ public sealed class ApplicationCoordinator
         _mainViewModel = mainViewModel ?? throw new ArgumentNullException(nameof(mainViewModel));
         _statusBar = statusBar ?? throw new ArgumentNullException(nameof(statusBar));
         _backgroundRefresh = backgroundRefresh ?? throw new ArgumentNullException(nameof(backgroundRefresh));
+        _diagnostics = diagnostics;
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -233,6 +236,7 @@ public sealed class ApplicationCoordinator
             await _dispatcher.InvokeAsync(
                 () => _mainViewModel.SetEngines(result.Engines),
                 cancellationToken);
+            await RefreshDiagnosticsAsync(result.Snapshot, cancellationToken);
             LogIssues(result);
             await SaveFinalCachesAsync(result, cancellationToken);
             _logger.Info($"{operationName} completed.");
@@ -257,6 +261,25 @@ public sealed class ApplicationCoordinator
                 _statusBar.SetLocalizedStatus("String.StatusReady", "Ready");
             });
         }
+    }
+
+    private async Task RefreshDiagnosticsAsync(
+        ProjectCatalogSnapshot catalogSnapshot,
+        CancellationToken cancellationToken)
+    {
+        if (_diagnostics is null)
+        {
+            return;
+        }
+
+        var diagnosticSnapshot = await Task.Run(
+            () => _diagnostics.CreateSnapshot(
+                catalogSnapshot.Projects,
+                cancellationToken),
+            cancellationToken).ConfigureAwait(false);
+        await _dispatcher.InvokeAsync(
+            () => _diagnostics.Replace(diagnosticSnapshot),
+            cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<AppSettings> LoadSettingsAsync(CancellationToken cancellationToken)
