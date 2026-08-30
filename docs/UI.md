@@ -287,7 +287,9 @@ three keyboard-accessible, scrollable sections:
   stable priority.
 - **Tags & Notes** edits user-owned project tags and the project note. Tag
   changes are explicit add/remove actions. Notes remain visibly unsaved until
-  the user chooses Save.
+  the user chooses Save. Every Project Details close path uses one unsaved-note
+  confirmation boundary, offering Continue editing or Close without saving and
+  never saving automatically.
 
 Do not add empty Storage, Source Control, or advanced-diagnostic tabs in this
 phase. Normal projects have no `Healthy` or `Ready` row label. The list

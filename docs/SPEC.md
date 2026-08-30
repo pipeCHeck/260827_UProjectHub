@@ -378,7 +378,9 @@ case-insensitive duplicates. Double quotes and newline/control characters are
 rejected because they cannot be represented safely by the tag search grammar.
 Known-tag suggestions come only from the current in-memory catalog, prioritize
 prefix matches before contains matches, and do not prevent free tag creation.
-Notes use an explicit Save action.
+Notes use an explicit Save action. Closing Project Details with an unsaved note
+requires an explicit choice to continue editing or close without saving; closing
+never saves the note automatically.
 
 All in-process settings changes must serialize the complete load-modify-save
 operation through one shared mutation boundary so independent writers cannot

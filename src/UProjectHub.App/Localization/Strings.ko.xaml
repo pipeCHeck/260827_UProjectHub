@@ -38,6 +38,10 @@
     <sys:String x:Key="String.TagControlCharacterError">태그에는 줄바꿈이나 기타 제어 문자를 사용할 수 없습니다.</sys:String>
     <sys:String x:Key="String.TagInvalidError">사용할 수 없는 태그입니다.</sys:String>
     <sys:String x:Key="String.UnsavedChanges">저장하지 않은 변경 사항</sys:String>
+    <sys:String x:Key="String.UnsavedNoteCloseTitle">저장하지 않은 메모를 버릴까요?</sys:String>
+    <sys:String x:Key="String.UnsavedNoteCloseDescription">저장되지 않은 메모 변경 사항이 있습니다. 계속 편집하거나 저장하지 않고 닫을 수 있습니다.</sys:String>
+    <sys:String x:Key="String.ContinueEditing">계속 편집</sys:String>
+    <sys:String x:Key="String.CloseWithoutSaving">저장하지 않고 닫기</sys:String>
     <sys:String x:Key="String.DiagnosticsDescription">기본 진단은 현재 프로젝트 상태, 엔진 판정, 프로젝트 최상위의 Visual Studio 솔루션 상태만 사용합니다. 재귀 검사는 수행하지 않습니다.</sys:String>
     <sys:String x:Key="String.DiagnosticsEmpty">확인이 필요한 기본 진단 항목이 없습니다.</sys:String>
     <sys:String x:Key="String.DiagnosticSeverityInfo">정보</sys:String>

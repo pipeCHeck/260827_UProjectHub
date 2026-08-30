@@ -46,6 +46,10 @@ public sealed class LocalizationServiceTests
         "String.StateBroken",
         "String.Apply",
         "String.Close",
+        "String.UnsavedNoteCloseTitle",
+        "String.UnsavedNoteCloseDescription",
+        "String.ContinueEditing",
+        "String.CloseWithoutSaving",
         "String.Language",
         "String.StatusReady",
         "String.NewProject",
@@ -139,8 +143,8 @@ public sealed class LocalizationServiceTests
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!
             .InformationalVersion;
 
-        Assert.AreEqual("0.5.2 r", informationalVersion);
-        Assert.AreEqual("v0.5.2 r", AppVersion.Display);
+        Assert.AreEqual("0.5.3 r", informationalVersion);
+        Assert.AreEqual("v0.5.3 r", AppVersion.Display);
     }
 
     private static int CountLocalizationDictionaries(ResourceDictionary resources) =>

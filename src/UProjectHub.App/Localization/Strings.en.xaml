@@ -38,6 +38,10 @@
     <sys:String x:Key="String.TagControlCharacterError">A tag cannot contain a newline or other control character.</sys:String>
     <sys:String x:Key="String.TagInvalidError">The tag is invalid.</sys:String>
     <sys:String x:Key="String.UnsavedChanges">Unsaved changes</sys:String>
+    <sys:String x:Key="String.UnsavedNoteCloseTitle">Discard unsaved note?</sys:String>
+    <sys:String x:Key="String.UnsavedNoteCloseDescription">This note has changes that have not been saved. You can continue editing or close without saving.</sys:String>
+    <sys:String x:Key="String.ContinueEditing">Continue editing</sys:String>
+    <sys:String x:Key="String.CloseWithoutSaving">Close without saving</sys:String>
     <sys:String x:Key="String.DiagnosticsDescription">Basic diagnostics use the current project, engine resolution, and top-level Visual Studio solution state. No recursive scan is performed.</sys:String>
     <sys:String x:Key="String.DiagnosticsEmpty">No basic diagnostics need attention.</sys:String>
     <sys:String x:Key="String.DiagnosticSeverityInfo">Info</sys:String>

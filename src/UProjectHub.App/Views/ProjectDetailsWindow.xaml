@@ -18,7 +18,8 @@
         behaviors:MotionFeedbackBehavior.IsOpacityFeedbackEnabled="True"
         behaviors:MotionFeedbackBehavior.RestingOpacity="0"
         behaviors:MotionFeedbackBehavior.ActiveOpacity="1"
-        behaviors:MotionFeedbackBehavior.IsOpacityFeedbackActive="{Binding IsVisible, RelativeSource={RelativeSource Self}}">
+        behaviors:MotionFeedbackBehavior.IsOpacityFeedbackActive="{Binding IsVisible, RelativeSource={RelativeSource Self}}"
+        KeyDown="OnWindowKeyDown">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <Style TargetType="TextBlock">
@@ -249,7 +250,8 @@
                                    Foreground="{DynamicResource Brush.TextSecondary}"
                                    Text="{DynamicResource String.NoteExplicitSaveDescription}"
                                    TextWrapping="Wrap" />
-                        <TextBox Margin="{DynamicResource Thickness.DetailsFieldGap}"
+                        <TextBox x:Name="NoteTextBox"
+                                 Margin="{DynamicResource Thickness.DetailsFieldGap}"
                                  MinHeight="160"
                                  AcceptsReturn="True"
                                  VerticalContentAlignment="Top"
@@ -285,10 +287,48 @@
             </TabItem>
         </TabControl>
 
-        <Button Grid.Row="2"
+        <Button x:Name="CloseButton"
+                Grid.Row="2"
                 MinWidth="88"
                 HorizontalAlignment="Right"
-                IsCancel="True"
+                Click="OnCloseRequested"
                 Content="{DynamicResource String.Close}" />
+
+        <Grid x:Name="UnsavedNoteCloseConfirmation"
+              Grid.RowSpan="3"
+              Panel.ZIndex="10"
+              Background="{DynamicResource Brush.WindowBackground}"
+              Visibility="Collapsed">
+            <Border MaxWidth="460"
+                    Padding="24"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Background="{DynamicResource Brush.ElevatedSurface}"
+                    BorderBrush="{DynamicResource Brush.BorderSubtle}"
+                    BorderThickness="1"
+                    CornerRadius="{DynamicResource CornerRadius.Surface}">
+                <StackPanel>
+                    <TextBlock Style="{DynamicResource Text.SectionTitle}"
+                               Text="{DynamicResource String.UnsavedNoteCloseTitle}" />
+                    <TextBlock Margin="{DynamicResource Thickness.DetailsFieldGap}"
+                               Foreground="{DynamicResource Brush.TextSecondary}"
+                               Text="{DynamicResource String.UnsavedNoteCloseDescription}"
+                               TextWrapping="Wrap" />
+                    <StackPanel Margin="{DynamicResource Thickness.NotesSectionGap}"
+                                HorizontalAlignment="Right"
+                                Orientation="Horizontal">
+                        <Button x:Name="ContinueEditingButton"
+                                MinWidth="112"
+                                Click="OnContinueEditing"
+                                Content="{DynamicResource String.ContinueEditing}" />
+                        <Button x:Name="CloseWithoutSavingButton"
+                                Margin="{DynamicResource Thickness.DetailsActionGap}"
+                                MinWidth="144"
+                                Click="OnCloseWithoutSaving"
+                                Content="{DynamicResource String.CloseWithoutSaving}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
     </Grid>
 </Window>
