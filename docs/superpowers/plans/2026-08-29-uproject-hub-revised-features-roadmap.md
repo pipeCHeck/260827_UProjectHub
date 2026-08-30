@@ -208,7 +208,7 @@
 **신규 구조 제안:** Core의 `ProjectCacheFolderKind`, `CacheCleanupPlan`, `CacheCleanupResult`; Windows의 `ProjectCacheCleanupPlanner`, `ProjectCacheCleaner`; App의 `CacheCleanupViewModel`과 2단계 확인 대화상자.
 
 - [ ] 대상은 `Intermediate`, `DerivedDataCache`, `.vs` enum으로만 생성한다.
-- [ ] 분석 결과를 예상 확보 logical size로 재사용하되 stale 표시와 재분석 버튼을 제공한다.
+- [ ] 분석 결과를 삭제 대상 파일의 예상 logical size로 재사용하되 stale 표시와 재분석 버튼을 제공한다.
 - [ ] 1차 화면에서 폴더별 exact path/size를 개별 선택하고, 2차 최종 확인에서 삭제 영향과 다음 실행 지연을 표시한다.
 - [ ] root containment, exact immediate child, case-insensitive canonical path, reparse point 정책을 실행 직전에 다시 검증한다.
 - [ ] editor/build 사용 여부는 best-effort preflight로 안내하고, 확정할 수 없으면 삭제 중 sharing/access failure를 폴더별 결과로 반환한다.

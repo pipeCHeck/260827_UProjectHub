@@ -103,7 +103,7 @@
                                         <TextBlock Grid.Column="2"
                                                    Margin="12,0,0,0"
                                                    Foreground="{DynamicResource Brush.TextSecondary}"
-                                                   Text="{Binding SizeText}" />
+                                                   Text="{Binding FileSizeText}" />
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -172,7 +172,7 @@
                                                ToolTip="{Binding Path}" />
                                     <TextBlock Grid.Column="2"
                                                Margin="12,0,0,0"
-                                               Text="{Binding SizeText}" />
+                                               Text="{Binding FileSizeText}" />
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -180,10 +180,10 @@
 
                     <StackPanel Margin="0,8,0,0" Orientation="Horizontal">
                         <TextBlock FontWeight="SemiBold"
-                                   Text="{DynamicResource String.ProjectCleanupSelectedSize}" />
+                                   Text="{DynamicResource String.ProjectCleanupSelectedFileSize}" />
                         <TextBlock Margin="4,0,0,0"
                                    FontWeight="SemiBold"
-                                   Text="{Binding SelectedSizeText}" />
+                                   Text="{Binding SelectedFileSizeText}" />
                     </StackPanel>
                     <ProgressBar Margin="0,16,0,0"
                                  Height="4"

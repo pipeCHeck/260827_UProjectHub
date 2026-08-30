@@ -24,7 +24,7 @@ public sealed record ProjectCleanupItemInspection(
     string? Path,
     bool Exists,
     bool CanDelete,
-    long SizeBytes,
+    long FileSizeBytes,
     string? ErrorMessage,
     IReadOnlyList<string> CandidatePaths);
 
@@ -40,13 +40,13 @@ public sealed record ProjectCleanupItemResult(
     ProjectCleanupTargetKind Kind,
     string? Path,
     ProjectCleanupItemStatus Status,
-    long FreedBytes,
+    long DeletedBytes,
     string? ErrorMessage);
 
 public sealed record ProjectCleanupResult(
     IReadOnlyList<ProjectCleanupItemResult> Items)
 {
-    public long FreedBytes => Items.Sum(item => item.FreedBytes);
+    public long DeletedBytes => Items.Sum(item => item.DeletedBytes);
 }
 
 public interface IProjectCleanupService

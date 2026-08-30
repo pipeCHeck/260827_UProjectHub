@@ -24,7 +24,7 @@ public sealed class ProjectCleanupViewModel : ObservableObject, IDisposable
     private bool _isConfirmationVisible;
     private bool _isDisposed;
     private string _statusText;
-    private long _freedBytes;
+    private long _deletedBytes;
 
     public ProjectCleanupViewModel(
         UnrealProject project,
@@ -114,23 +114,23 @@ public sealed class ProjectCleanupViewModel : ObservableObject, IDisposable
         Items.Any(item =>
             item.Kind == ProjectCleanupTargetKind.Solution && item.IsSelected);
 
-    public string SelectedSizeText => FormatBytes(Items
+    public string SelectedFileSizeText => FormatBytes(Items
         .Where(item => item.IsSelected && item.CanDelete)
-        .Sum(item => item.SizeBytes));
+        .Sum(item => item.FileSizeBytes));
 
-    public long FreedBytes
+    public long DeletedBytes
     {
-        get => _freedBytes;
+        get => _deletedBytes;
         private set
         {
-            if (SetProperty(ref _freedBytes, value))
+            if (SetProperty(ref _deletedBytes, value))
             {
-                OnPropertyChanged(nameof(FreedSizeText));
+                OnPropertyChanged(nameof(DeletedFileSizeText));
             }
         }
     }
 
-    public string FreedSizeText => FormatBytes(FreedBytes);
+    public string DeletedFileSizeText => FormatBytes(DeletedBytes);
 
     public string StatusText
     {
@@ -241,7 +241,7 @@ public sealed class ProjectCleanupViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            FreedBytes = result.FreedBytes;
+            DeletedBytes = result.DeletedBytes;
             await _cleanupCompleted();
             var refreshed = await _cleanupService.InspectAsync(
                 _project,
@@ -262,8 +262,8 @@ public sealed class ProjectCleanupViewModel : ObservableObject, IDisposable
                     CultureInfo.CurrentCulture,
                     Localize(
                         "String.ProjectCleanupCompleted",
-                        "Cleanup completed. Freed {0}."),
-                    FreedSizeText);
+                        "Cleanup completed. Deleted file size: {0}."),
+                    DeletedFileSizeText);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
@@ -302,7 +302,13 @@ public sealed class ProjectCleanupViewModel : ObservableObject, IDisposable
                 GetDisplayName(inspected.Kind),
                 Localize("String.ProjectCleanupPresent", "Present"),
                 Localize("String.ProjectCleanupNotFound", "Not found"),
-                Localize("String.ProjectCleanupBlocked", "Blocked"));
+                Localize("String.ProjectCleanupBlocked", "Blocked"),
+                Localize(
+                    "String.ProjectCleanupDeletedFileSizeFormat",
+                    "Deleted file size — {0}"),
+                Localize("String.ProjectCleanupAlreadyAbsent", "Already absent"),
+                Localize("String.ProjectCleanupItemUnavailable", "Unavailable"),
+                Localize("String.ProjectCleanupItemFailed", "Failed"));
             item.PropertyChanged += OnItemPropertyChanged;
             Items.Add(item);
         }
@@ -354,7 +360,7 @@ public sealed class ProjectCleanupViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CanClose));
         OnPropertyChanged(nameof(ShowBinariesWarning));
         OnPropertyChanged(nameof(ShowSolutionInformation));
-        OnPropertyChanged(nameof(SelectedSizeText));
+        OnPropertyChanged(nameof(SelectedFileSizeText));
         _beginConfirmationCommand.RaiseCanExecuteChanged();
         _cancelConfirmationCommand.RaiseCanExecuteChanged();
         _confirmCleanupCommand.RaiseCanExecuteChanged();
@@ -407,6 +413,10 @@ public sealed class ProjectCleanupItemViewModel : ObservableObject
     private readonly string _presentText;
     private readonly string _notFoundText;
     private readonly string _blockedText;
+    private readonly string _deletedFileSizeFormat;
+    private readonly string _alreadyAbsentText;
+    private readonly string _unavailableText;
+    private readonly string _failedText;
 
     internal ProjectCleanupItemViewModel(
         ProjectCleanupItemInspection inspection,
@@ -414,13 +424,21 @@ public sealed class ProjectCleanupItemViewModel : ObservableObject
         string displayName,
         string presentText,
         string notFoundText,
-        string blockedText)
+        string blockedText,
+        string deletedFileSizeFormat,
+        string alreadyAbsentText,
+        string unavailableText,
+        string failedText)
     {
         Kind = inspection.Kind;
         DisplayName = displayName;
         _presentText = presentText;
         _notFoundText = notFoundText;
         _blockedText = blockedText;
+        _deletedFileSizeFormat = deletedFileSizeFormat;
+        _alreadyAbsentText = alreadyAbsentText;
+        _unavailableText = unavailableText;
+        _failedText = failedText;
         _isSelected = isSelected;
         Update(inspection);
     }
@@ -451,9 +469,9 @@ public sealed class ProjectCleanupItemViewModel : ObservableObject
 
     public string? Path => _path;
 
-    public long SizeBytes => _sizeBytes;
+    public long FileSizeBytes => _sizeBytes;
 
-    public string SizeText => ProjectCleanupViewModel.FormatBytes(SizeBytes);
+    public string FileSizeText => ProjectCleanupViewModel.FormatBytes(FileSizeBytes);
 
     public string? DetailText => _detailText;
 
@@ -484,7 +502,7 @@ public sealed class ProjectCleanupItemViewModel : ObservableObject
                 : null);
         _exists = inspection.Exists;
         _canDelete = inspection.CanDelete;
-        _sizeBytes = inspection.SizeBytes;
+        _sizeBytes = inspection.FileSizeBytes;
         _detailText = inspection.ErrorMessage;
         if (!_canDelete)
         {
@@ -496,8 +514,8 @@ public sealed class ProjectCleanupItemViewModel : ObservableObject
         OnPropertyChanged(nameof(CanDelete));
         OnPropertyChanged(nameof(CanSelect));
         OnPropertyChanged(nameof(IsSelected));
-        OnPropertyChanged(nameof(SizeBytes));
-        OnPropertyChanged(nameof(SizeText));
+        OnPropertyChanged(nameof(FileSizeBytes));
+        OnPropertyChanged(nameof(FileSizeText));
         OnPropertyChanged(nameof(DetailText));
         OnPropertyChanged(nameof(AvailabilityText));
     }
@@ -507,11 +525,14 @@ public sealed class ProjectCleanupItemViewModel : ObservableObject
         _resultText = result.Status switch
         {
             ProjectCleanupItemStatus.Deleted =>
-                $"Deleted — {ProjectCleanupViewModel.FormatBytes(result.FreedBytes)}",
-            ProjectCleanupItemStatus.NotFound => "Already absent",
+                string.Format(
+                    CultureInfo.CurrentCulture,
+                    _deletedFileSizeFormat,
+                    ProjectCleanupViewModel.FormatBytes(result.DeletedBytes)),
+            ProjectCleanupItemStatus.NotFound => _alreadyAbsentText,
             ProjectCleanupItemStatus.Unavailable =>
-                result.ErrorMessage ?? "Unavailable",
-            _ => result.ErrorMessage ?? "Failed",
+                result.ErrorMessage ?? _unavailableText,
+            _ => result.ErrorMessage ?? _failedText,
         };
         OnPropertyChanged(nameof(ResultText));
     }

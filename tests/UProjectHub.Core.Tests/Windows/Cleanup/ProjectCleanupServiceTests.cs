@@ -60,7 +60,7 @@ public sealed class ProjectCleanupServiceTests
                 ProjectCleanupTargetKind.Solution,
             ]));
 
-        Assert.AreEqual(90, result.FreedBytes);
+        Assert.AreEqual(90, result.DeletedBytes);
         Assert.IsTrue(result.Items.All(item =>
             item.Status == ProjectCleanupItemStatus.Deleted));
         Assert.IsFalse(Directory.Exists(Path.Combine(fixture.RootPath, "Intermediate")));
@@ -162,7 +162,7 @@ public sealed class ProjectCleanupServiceTests
         var item = inspection.Items.Single(entry =>
             entry.Kind == ProjectCleanupTargetKind.Intermediate);
         Assert.IsFalse(item.CanDelete);
-        Assert.AreEqual(0, item.SizeBytes);
+        Assert.AreEqual(0, item.FileSizeBytes);
         Assert.AreEqual(ProjectCleanupItemStatus.Failed, result.Items.Single().Status);
         Assert.IsTrue(File.Exists(Path.Combine(linkPath, "must-not-count.bin")));
         Assert.IsTrue(File.Exists(Path.Combine(fixture.RootPath, "Intermediate", "ordinary.bin")));
@@ -191,7 +191,7 @@ public sealed class ProjectCleanupServiceTests
             var item = inspection.Items.Single(entry =>
                 entry.Kind == ProjectCleanupTargetKind.Intermediate);
             Assert.IsFalse(item.CanDelete);
-            Assert.AreEqual(0, item.SizeBytes);
+            Assert.AreEqual(0, item.FileSizeBytes);
             Assert.AreEqual(ProjectCleanupItemStatus.Failed, result.Items.Single().Status);
             Assert.IsTrue(File.Exists(externalFile));
             Assert.IsTrue(Directory.Exists(linkPath));
@@ -241,7 +241,7 @@ public sealed class ProjectCleanupServiceTests
         Assert.IsTrue(item.Exists);
         Assert.IsTrue(item.CanDelete);
         Assert.AreEqual(Path.GetFullPath(expectedPath), item.Path);
-        Assert.AreEqual(expectedSize, item.SizeBytes);
+        Assert.AreEqual(expectedSize, item.FileSizeBytes);
     }
 
     private static void CreateDirectoryJunction(string linkPath, string targetPath)

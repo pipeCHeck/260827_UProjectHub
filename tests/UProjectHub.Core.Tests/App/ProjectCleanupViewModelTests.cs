@@ -25,7 +25,7 @@ public sealed class ProjectCleanupViewModelTests
         Assert.IsFalse(Item(viewModel, ProjectCleanupTargetKind.Binaries).IsSelected);
         Assert.IsFalse(Item(viewModel, ProjectCleanupTargetKind.Solution).IsSelected);
         Assert.AreEqual(@"D:\Projects\Game\Intermediate", Item(viewModel, ProjectCleanupTargetKind.Intermediate).Path);
-        Assert.AreEqual("10 B", Item(viewModel, ProjectCleanupTargetKind.Intermediate).SizeText);
+        Assert.AreEqual("10 B", Item(viewModel, ProjectCleanupTargetKind.Intermediate).FileSizeText);
         Assert.AreEqual("Present", Item(viewModel, ProjectCleanupTargetKind.Intermediate).AvailabilityText);
         Assert.IsTrue(viewModel.CanBeginConfirmation);
         Assert.IsFalse(viewModel.IsConfirmationVisible);
@@ -126,10 +126,15 @@ public sealed class ProjectCleanupViewModelTests
                 ProjectCleanupTargetKind.Solution,
             },
             service.LastRequest!.Targets.ToArray());
-        Assert.AreEqual(60, viewModel.FreedBytes);
-        Assert.AreEqual("60 B", viewModel.FreedSizeText);
+        Assert.AreEqual(60, viewModel.DeletedBytes);
+        Assert.AreEqual("60 B", viewModel.DeletedFileSizeText);
+        Assert.AreEqual(
+            "Cleanup completed. Deleted file size: 60 B.",
+            viewModel.StatusText);
         Assert.IsFalse(Item(viewModel, ProjectCleanupTargetKind.Intermediate).Exists);
-        Assert.AreEqual("Deleted — 10 B", Item(viewModel, ProjectCleanupTargetKind.Intermediate).ResultText);
+        Assert.AreEqual(
+            "Deleted file size — 10 B",
+            Item(viewModel, ProjectCleanupTargetKind.Intermediate).ResultText);
         Assert.AreEqual(1, callbackCount);
         Assert.IsFalse(viewModel.IsConfirmationVisible);
     }

@@ -189,7 +189,7 @@ public sealed class ProjectCleanupService : IProjectCleanupService
         CancellationToken cancellationToken)
     {
         string? path = null;
-        long freedBytes = 0;
+        long deletedBytes = 0;
         try
         {
             if (kind == ProjectCleanupTargetKind.Solution)
@@ -231,8 +231,8 @@ public sealed class ProjectCleanupService : IProjectCleanupService
                 RejectReparsePoint(path);
                 var length = new FileInfo(path).Length;
                 File.Delete(path);
-                freedBytes = length;
-                return Result(kind, path, ProjectCleanupItemStatus.Deleted, freedBytes);
+                deletedBytes = length;
+                return Result(kind, path, ProjectCleanupItemStatus.Deleted, deletedBytes);
             }
 
             path = GetDirectoryTarget(root, kind);
@@ -243,8 +243,8 @@ public sealed class ProjectCleanupService : IProjectCleanupService
             }
 
             _ = CalculateDirectorySize(root, path, cancellationToken);
-            DeleteDirectoryTree(root, path, cancellationToken, ref freedBytes);
-            return Result(kind, path, ProjectCleanupItemStatus.Deleted, freedBytes);
+            DeleteDirectoryTree(root, path, cancellationToken, ref deletedBytes);
+            return Result(kind, path, ProjectCleanupItemStatus.Deleted, deletedBytes);
         }
         catch (Exception exception) when (IsExpectedFileSystemFailure(exception))
         {
@@ -252,7 +252,7 @@ public sealed class ProjectCleanupService : IProjectCleanupService
                 kind,
                 path,
                 ProjectCleanupItemStatus.Failed,
-                freedBytes,
+                deletedBytes,
                 exception.Message);
         }
     }
@@ -291,7 +291,7 @@ public sealed class ProjectCleanupService : IProjectCleanupService
         string root,
         string directoryPath,
         CancellationToken cancellationToken,
-        ref long freedBytes)
+        ref long deletedBytes)
     {
         ValidateContainedPath(root, directoryPath);
         RejectReparsePoint(directoryPath);
@@ -303,13 +303,13 @@ public sealed class ProjectCleanupService : IProjectCleanupService
             RejectReparsePoint(entry.FullName);
             if (entry is DirectoryInfo)
             {
-                DeleteDirectoryTree(root, entry.FullName, cancellationToken, ref freedBytes);
+                DeleteDirectoryTree(root, entry.FullName, cancellationToken, ref deletedBytes);
             }
             else
             {
                 var length = ((FileInfo)entry).Length;
                 File.Delete(entry.FullName);
-                freedBytes = checked(freedBytes + length);
+                deletedBytes = checked(deletedBytes + length);
             }
         }
 
@@ -434,9 +434,9 @@ public sealed class ProjectCleanupService : IProjectCleanupService
         ProjectCleanupTargetKind kind,
         string? path,
         ProjectCleanupItemStatus status,
-        long freedBytes = 0,
+        long deletedBytes = 0,
         string? errorMessage = null) =>
-        new(kind, path, status, freedBytes, errorMessage);
+        new(kind, path, status, deletedBytes, errorMessage);
 
     private static string? TryGetDisplayPath(
         UnrealProject project,

@@ -580,7 +580,7 @@ public sealed class ProjectContextActionsViewModelTests
                     Path.Combine(project.ProjectDirectory, "Intermediate"),
                     Exists: false,
                     CanDelete: false,
-                    SizeBytes: 0,
+                    FileSizeBytes: 0,
                     ErrorMessage: null,
                     CandidatePaths: Array.Empty<string>()),
             ]));
