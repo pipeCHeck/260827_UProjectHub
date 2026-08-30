@@ -4,7 +4,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
-    <UProjectHubVersion>0.5.1</UProjectHubVersion>
+    <UProjectHubVersion>0.5.2</UProjectHubVersion>
     <Version>$(UProjectHubVersion)</Version>
     <AssemblyVersion>$(UProjectHubVersion).0</AssemblyVersion>
     <FileVersion>$(UProjectHubVersion).0</FileVersion>

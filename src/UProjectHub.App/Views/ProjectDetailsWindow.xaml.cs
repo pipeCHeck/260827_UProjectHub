@@ -13,6 +13,10 @@ public partial class ProjectDetailsWindow : Window
 
         InitializeComponent();
         DataContext = viewModel;
+        TagInputComboBox.AddHandler(
+            Keyboard.PreviewKeyDownEvent,
+            new KeyEventHandler(OnTagInputPreviewKeyDown),
+            handledEventsToo: true);
     }
 
     private void OnTagInputPreviewKeyDown(object sender, KeyEventArgs eventArgs)
@@ -37,8 +41,10 @@ public partial class ProjectDetailsWindow : Window
 
         if (comboBox.SelectedItem is string suggestion)
         {
-            notes.SelectedTagSuggestion = suggestion;
+            notes.NewTag = suggestion;
         }
+
+        notes.IsSuggestionsOpen = false;
 
         if (notes.AddTagCommand.CanExecute(null))
         {

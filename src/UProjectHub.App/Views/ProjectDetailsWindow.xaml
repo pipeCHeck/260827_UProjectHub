@@ -220,8 +220,7 @@
                                       ItemsSource="{Binding TagSuggestions}"
                                       Text="{Binding NewTag, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                       SelectedItem="{Binding SelectedTagSuggestion, Mode=TwoWay}"
-                                      IsDropDownOpen="{Binding IsSuggestionsOpen, Mode=TwoWay}"
-                                      PreviewKeyDown="OnTagInputPreviewKeyDown" />
+                                      IsDropDownOpen="{Binding IsSuggestionsOpen, Mode=TwoWay}" />
                             <Button Grid.Column="1"
                                     Margin="{DynamicResource Thickness.DetailsActionGap}"
                                     MinWidth="88"

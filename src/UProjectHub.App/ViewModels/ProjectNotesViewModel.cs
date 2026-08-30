@@ -63,6 +63,16 @@ public sealed class ProjectNotesViewModel : ObservableObject, IDisposable
             if (SetProperty(ref _newTag, value ?? string.Empty))
             {
                 _addTagCommand.RaiseCanExecuteChanged();
+                if (IsSuggestionsOpen
+                    && SelectedTagSuggestion is { } selectedSuggestion
+                    && string.Equals(
+                        _newTag,
+                        selectedSuggestion,
+                        StringComparison.Ordinal))
+                {
+                    return;
+                }
+
                 RefreshSuggestions();
             }
         }
@@ -73,18 +83,7 @@ public sealed class ProjectNotesViewModel : ObservableObject, IDisposable
     public string? SelectedTagSuggestion
     {
         get => _selectedTagSuggestion;
-        set
-        {
-            if (!SetProperty(ref _selectedTagSuggestion, value) || value is null)
-            {
-                return;
-            }
-
-            _newTag = value;
-            OnPropertyChanged(nameof(NewTag));
-            _addTagCommand.RaiseCanExecuteChanged();
-            IsSuggestionsOpen = false;
-        }
+        set => SetProperty(ref _selectedTagSuggestion, value);
     }
 
     public bool IsSuggestionsOpen

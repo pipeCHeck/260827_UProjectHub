@@ -1,6 +1,11 @@
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
 using UProjectHub.App.Services;
 using UProjectHub.App.ViewModels;
+using UProjectHub.App.Views;
 using UProjectHub.Core.Catalog;
+using UProjectHub.Core.Diagnostics;
 using UProjectHub.Core.Filtering;
 using UProjectHub.Core.Models;
 using UProjectHub.Core.Paths;
@@ -12,6 +17,7 @@ using UProjectHub.Core.Tests.Time;
 namespace UProjectHub.Core.Tests.App;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class ProjectUserMetadataServiceTests
 {
     private static readonly DateTimeOffset Now =
@@ -180,7 +186,7 @@ public sealed class ProjectUserMetadataServiceTests
     }
 
     [TestMethod]
-    public void NotesViewModelUsesSharedKnownTagsForAutocompleteWithoutBlockingFreeEntry()
+    public void NavigatingAutocompleteSuggestionsDoesNotCommitOrCloseThePopup()
     {
         var project = CreateProject();
         var fixture = CreateFixture(project);
@@ -202,13 +208,184 @@ public sealed class ProjectUserMetadataServiceTests
 
         viewModel.SelectedTagSuggestion = "게임인재원8기";
 
-        Assert.AreEqual("게임인재원8기", viewModel.NewTag);
-        Assert.IsFalse(viewModel.IsSuggestionsOpen);
+        Assert.AreEqual("게임인재", viewModel.NewTag);
+        Assert.IsTrue(viewModel.IsSuggestionsOpen);
 
         viewModel.NewTag = "Entirely New Tag";
 
         Assert.IsEmpty(viewModel.TagSuggestions);
         Assert.IsTrue(viewModel.AddTagCommand.CanExecute(null));
+    }
+
+    [STATestMethod]
+    public void WpfSuggestionNavigationKeepsThePopupOpenAcrossMultipleCandidates()
+    {
+        var project = CreateProject();
+        var fixture = CreateFixture(project);
+        var tagIndex = new ProjectTagIndex();
+        tagIndex.Rebuild([
+            project with { Tags = ["Game Academy", "Game Art", "Game Audio"] },
+        ]);
+        using var notes = new ProjectNotesViewModel(
+            project,
+            fixture.Service,
+            tagIndex: tagIndex);
+        using var details = new ProjectDetailsViewModel(
+            new ProjectOverviewViewModel(project),
+            new ProjectDiagnosticsViewModel(new ProjectDiagnosticReport(
+                project.ProjectFilePath,
+                DateTimeOffset.UnixEpoch,
+                [])),
+            notes,
+            ProjectDetailsSection.TagsAndNotes);
+        var window = new ProjectDetailsWindow(details);
+
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var comboBox = Assert.IsInstanceOfType<ComboBox>(
+                window.FindName("TagInputComboBox"));
+            comboBox.Text = "Game";
+            window.Dispatcher.Invoke(static () => { });
+            Assert.AreEqual("Game", notes.NewTag);
+
+            comboBox.SelectedItem = "Game Art";
+            window.UpdateLayout();
+
+            Assert.AreEqual("Game Art", comboBox.SelectedItem);
+            Assert.AreEqual("Game Art", notes.NewTag);
+            Assert.IsTrue(notes.IsSuggestionsOpen);
+            Assert.HasCount(3, notes.TagSuggestions);
+
+            comboBox.SelectedItem = "Game Audio";
+            window.UpdateLayout();
+
+            Assert.AreEqual("Game Audio", comboBox.SelectedItem);
+            Assert.AreEqual("Game Audio", notes.NewTag);
+            Assert.IsTrue(notes.IsSuggestionsOpen);
+            Assert.HasCount(3, notes.TagSuggestions);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [STATestMethod]
+    public async Task EnterCommitsTheHighlightedSuggestionAndClosesThePopup()
+    {
+        var project = CreateProject();
+        var fixture = CreateFixture(project);
+        var tagIndex = new ProjectTagIndex();
+        tagIndex.Rebuild([
+            project with { Tags = ["Game Academy", "Game Art", "Game Audio"] },
+        ]);
+        using var notes = new ProjectNotesViewModel(
+            project,
+            fixture.Service,
+            tagIndex: tagIndex);
+        using var details = new ProjectDetailsViewModel(
+            new ProjectOverviewViewModel(project),
+            new ProjectDiagnosticsViewModel(new ProjectDiagnosticReport(
+                project.ProjectFilePath,
+                DateTimeOffset.UnixEpoch,
+                [])),
+            notes,
+            ProjectDetailsSection.TagsAndNotes);
+        var window = new ProjectDetailsWindow(details);
+
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var comboBox = Assert.IsInstanceOfType<ComboBox>(
+                window.FindName("TagInputComboBox"));
+            comboBox.Text = "Game";
+            window.Dispatcher.Invoke(static () => { });
+            comboBox.SelectedItem = "Game Art";
+            window.UpdateLayout();
+
+            comboBox.RaiseEvent(new KeyEventArgs(
+                Keyboard.PrimaryDevice,
+                PresentationSource.FromVisual(window),
+                Environment.TickCount,
+                Key.Enter)
+            {
+                RoutedEvent = Keyboard.PreviewKeyDownEvent,
+                Handled = true,
+            });
+
+            var addCommand = (UProjectHub.App.Infrastructure.AsyncRelayCommand)
+                notes.AddTagCommand;
+            while (addCommand.IsExecuting)
+            {
+                await window.Dispatcher.InvokeAsync(
+                    static () => { },
+                    System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            }
+
+            CollectionAssert.AreEqual(
+                new[] { "Game Art" },
+                fixture.Catalog.GetSnapshot().Projects.Single().Tags.ToArray());
+            Assert.IsFalse(notes.IsSuggestionsOpen);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [STATestMethod]
+    public void EscapeClosesAutocompleteWithoutAddingTheHighlightedSuggestion()
+    {
+        var project = CreateProject();
+        var fixture = CreateFixture(project);
+        var tagIndex = new ProjectTagIndex();
+        tagIndex.Rebuild([
+            project with { Tags = ["Game Academy", "Game Art", "Game Audio"] },
+        ]);
+        using var notes = new ProjectNotesViewModel(
+            project,
+            fixture.Service,
+            tagIndex: tagIndex);
+        using var details = new ProjectDetailsViewModel(
+            new ProjectOverviewViewModel(project),
+            new ProjectDiagnosticsViewModel(new ProjectDiagnosticReport(
+                project.ProjectFilePath,
+                DateTimeOffset.UnixEpoch,
+                [])),
+            notes,
+            ProjectDetailsSection.TagsAndNotes);
+        var window = new ProjectDetailsWindow(details);
+
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var comboBox = Assert.IsInstanceOfType<ComboBox>(
+                window.FindName("TagInputComboBox"));
+            comboBox.Text = "Game";
+            window.Dispatcher.Invoke(static () => { });
+            comboBox.SelectedItem = "Game Art";
+            window.UpdateLayout();
+
+            comboBox.RaiseEvent(new KeyEventArgs(
+                Keyboard.PrimaryDevice,
+                PresentationSource.FromVisual(window),
+                Environment.TickCount,
+                Key.Escape)
+            {
+                RoutedEvent = Keyboard.PreviewKeyDownEvent,
+            });
+
+            Assert.IsFalse(notes.IsSuggestionsOpen);
+            Assert.IsEmpty(fixture.Catalog.GetSnapshot().Projects.Single().Tags);
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 
     private static Fixture CreateFixture(
