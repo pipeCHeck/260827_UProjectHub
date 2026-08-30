@@ -6,6 +6,7 @@
     <sys:Double x:Key="Metric.FilterControlHeight">34</sys:Double>
     <sys:Double x:Key="Metric.EngineFilterWidth">132</sys:Double>
     <sys:Double x:Key="Metric.ProjectTypeFilterWidth">96</sys:Double>
+    <Visibility x:Key="Visibility.ProjectTags">Visible</Visibility>
     <Thickness x:Key="Thickness.ControlPadding">12,7</Thickness>
     <Thickness x:Key="Thickness.SearchPadding">12,0</Thickness>
     <Thickness x:Key="Thickness.SearchTextInset">4,0,0,0</Thickness>

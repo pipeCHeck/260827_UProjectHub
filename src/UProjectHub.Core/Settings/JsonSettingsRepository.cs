@@ -92,7 +92,14 @@ public sealed class JsonSettingsRepository : ISettingsRepository
         {
             ProjectSearchRoots = settings.ProjectSearchRoots ?? [],
             ManualEngineRoots = settings.ManualEngineRoots ?? [],
-            ProjectUserStates = settings.ProjectUserStates ?? [],
+            ProjectUserStates = settings.ProjectUserStates?
+                .Where(state => state is not null)
+                .Select(state => state with
+                {
+                    Tags = ProjectTagNormalizer.Normalize(state.Tags),
+                    Note = state.Note ?? string.Empty,
+                })
+                .ToArray() ?? [],
             ActiveSort = settings.ActiveSort ?? new(),
             VisibleFilters = settings.VisibleFilters ?? new(),
             ColumnLayout = settings.ColumnLayout ?? [],

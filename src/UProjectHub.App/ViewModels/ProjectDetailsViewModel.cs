@@ -10,11 +10,13 @@ public sealed class ProjectDetailsViewModel : IDisposable
 
     public ProjectDetailsViewModel(
         ProjectOverviewViewModel overview,
-        ProjectDiagnosticsViewModel diagnostics)
+        ProjectDiagnosticsViewModel diagnostics,
+        ProjectNotesViewModel? notes = null)
     {
         Overview = overview ?? throw new ArgumentNullException(nameof(overview));
         Diagnostics = diagnostics
             ?? throw new ArgumentNullException(nameof(diagnostics));
+        Notes = notes;
     }
 
     public string Name => Overview.Name;
@@ -22,6 +24,8 @@ public sealed class ProjectDetailsViewModel : IDisposable
     public ProjectOverviewViewModel Overview { get; }
 
     public ProjectDiagnosticsViewModel Diagnostics { get; }
+
+    public ProjectNotesViewModel? Notes { get; }
 
     public async Task RefreshDiagnosticsAsync(
         Func<CancellationToken, Task<ProjectDiagnosticReport?>> refreshAsync)
@@ -77,5 +81,6 @@ public sealed class ProjectDetailsViewModel : IDisposable
 
         _lifetimeCancellation.Cancel();
         _lifetimeCancellation.Dispose();
+        Notes?.Dispose();
     }
 }

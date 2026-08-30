@@ -158,6 +158,8 @@ A representative project model may contain:
     - LastModified
     - LastLaunched
     - IsFavorite
+    - Tags
+    - Note
     - ProjectState
     - EngineState
 
@@ -193,6 +195,13 @@ Typical startup:
           incremental model update
 
 Search/filter/sort occur after project data is in memory.
+
+Favorite, LastLaunched, tags, notes, appearance, roots, and view-state writers
+share one process-wide settings mutation service. Its serialization boundary
+covers repository load, mutation, and save as one operation. Successful
+project-user metadata writes then update only the corresponding fields in the
+in-memory catalog and publish the new snapshot, so current list and search
+results refresh without a rescan.
 
 ## 6. Discovery Boundaries
 
@@ -303,6 +312,7 @@ Examples:
 
 - roots;
 - favorites;
+- project tags and notes;
 - theme;
 - density;
 - sort state.

@@ -27,7 +27,11 @@ public sealed class ProjectDiscoveryServiceTests
                 new ProjectUserState(
                     new ProjectPath(validPath.Value.ToUpperInvariant()),
                     IsFavorite: true,
-                    LastLaunched: lastLaunched),
+                    LastLaunched: lastLaunched)
+                {
+                    Tags = ["Client", "VR"],
+                    Note = "Keep after discovery.",
+                },
             ],
         };
         var service = CreateService();
@@ -46,6 +50,8 @@ public sealed class ProjectDiscoveryServiceTests
         Assert.AreEqual(Baseline, valid.LastModified);
         Assert.IsTrue(valid.IsFavorite);
         Assert.AreEqual(lastLaunched, valid.LastLaunched);
+        CollectionAssert.AreEqual(new[] { "Client", "VR" }, valid.Tags.ToArray());
+        Assert.AreEqual("Keep after discovery.", valid.Note);
 
         var nested = result.Projects.Single(project => project.Name == "Nested");
         Assert.AreEqual(ProjectState.Available, nested.ProjectState);

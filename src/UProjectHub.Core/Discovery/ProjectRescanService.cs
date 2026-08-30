@@ -40,10 +40,11 @@ public sealed class ProjectRescanService
             loadResult =>
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                _catalog.Upsert(loadResult.Project);
+                var refreshedProject = _catalog.UpsertPreservingUserState(
+                    loadResult.Project);
                 var update = new ProjectRefreshUpdate(
-                    loadResult.Project.ProjectFilePath,
-                    loadResult.Project,
+                    refreshedProject.ProjectFilePath,
+                    refreshedProject,
                     loadResult.Issue);
                 updates.Add(update);
                 progress?.Report(update);

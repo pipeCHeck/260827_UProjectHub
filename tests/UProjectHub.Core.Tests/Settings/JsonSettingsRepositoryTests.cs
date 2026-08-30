@@ -44,6 +44,74 @@ public sealed class JsonSettingsRepositoryTests
     }
 
     [TestMethod]
+    public async Task LegacyUserStateWithoutTagsOrNoteLoadsWithoutLosingExistingValuesAsync()
+    {
+        using var temporaryDirectory = TemporaryDirectory.Create();
+        var projectPath = Path.Combine(temporaryDirectory.Path, "Legacy.uproject");
+        var json = $$"""
+        {
+          "projectSearchRoots": ["{{temporaryDirectory.Path.Replace("\\", "\\\\")}}"],
+          "manualEngineRoots": [],
+          "projectUserStates": [
+            {
+              "projectPath": "{{projectPath.Replace("\\", "\\\\")}}",
+              "isFavorite": true,
+              "lastLaunched": "2026-08-27T01:02:03+00:00"
+            }
+          ],
+          "themeMode": "dark",
+          "rowDensity": "compact",
+          "language": "korean"
+        }
+        """;
+        await File.WriteAllTextAsync(temporaryDirectory.SettingsFilePath, json);
+        var repository = CreateRepository(temporaryDirectory.SettingsFilePath);
+
+        var settings = await repository.LoadAsync();
+
+        CollectionAssert.AreEqual(
+            new[] { temporaryDirectory.Path },
+            settings.ProjectSearchRoots.ToArray());
+        var state = settings.ProjectUserStates.Single();
+        Assert.IsTrue(state.IsFavorite);
+        Assert.AreEqual(
+            new DateTimeOffset(2026, 8, 27, 1, 2, 3, TimeSpan.Zero),
+            state.LastLaunched);
+        Assert.IsEmpty(state.Tags);
+        Assert.AreEqual(string.Empty, state.Note);
+        Assert.AreEqual(ThemeMode.Dark, settings.ThemeMode);
+        Assert.AreEqual(RowDensity.Compact, settings.RowDensity);
+        Assert.AreEqual(AppLanguage.Korean, settings.Language);
+    }
+
+    [TestMethod]
+    public async Task TagsAreNormalizedAndNotesRoundTripAsync()
+    {
+        using var temporaryDirectory = TemporaryDirectory.Create();
+        var repository = CreateRepository(temporaryDirectory.SettingsFilePath);
+        var settings = new AppSettings
+        {
+            ProjectUserStates =
+            [
+                new ProjectUserState(new ProjectPath(Path.Combine(
+                    temporaryDirectory.Path,
+                    "Metadata.uproject")))
+                {
+                    Tags = [" Client ", "client", "VR", "  "],
+                    Note = "Keep this note exactly.\r\nSecond line.",
+                },
+            ],
+        };
+
+        await repository.SaveAsync(settings);
+        var actual = await repository.LoadAsync();
+
+        var state = actual.ProjectUserStates.Single();
+        CollectionAssert.AreEqual(new[] { "Client", "VR" }, state.Tags.ToArray());
+        Assert.AreEqual("Keep this note exactly.\r\nSecond line.", state.Note);
+    }
+
+    [TestMethod]
     public async Task CorruptPrimaryLoadsValidBackupAsync()
     {
         using var temporaryDirectory = TemporaryDirectory.Create();
@@ -167,7 +235,11 @@ public sealed class JsonSettingsRepositoryTests
                         1,
                         2,
                         3,
-                        TimeSpan.Zero)),
+                        TimeSpan.Zero))
+                {
+                    Tags = ["Client", "VR"],
+                    Note = "Review the lighting pass.",
+                },
             ],
             ThemeMode = ThemeMode.Dark,
             RowDensity = RowDensity.Compact,
@@ -195,9 +267,19 @@ public sealed class JsonSettingsRepositoryTests
         CollectionAssert.AreEqual(
             expected.ManualEngineRoots.ToArray(),
             actual.ManualEngineRoots.ToArray());
-        CollectionAssert.AreEqual(
-            expected.ProjectUserStates.ToArray(),
-            actual.ProjectUserStates.ToArray());
+        Assert.HasCount(expected.ProjectUserStates.Count, actual.ProjectUserStates);
+        for (var index = 0; index < expected.ProjectUserStates.Count; index++)
+        {
+            var expectedState = expected.ProjectUserStates[index];
+            var actualState = actual.ProjectUserStates[index];
+            Assert.AreEqual(expectedState.ProjectPath, actualState.ProjectPath);
+            Assert.AreEqual(expectedState.IsFavorite, actualState.IsFavorite);
+            Assert.AreEqual(expectedState.LastLaunched, actualState.LastLaunched);
+            CollectionAssert.AreEqual(
+                expectedState.Tags.ToArray(),
+                actualState.Tags.ToArray());
+            Assert.AreEqual(expectedState.Note, actualState.Note);
+        }
         Assert.AreEqual(expected.ThemeMode, actual.ThemeMode);
         Assert.AreEqual(expected.RowDensity, actual.RowDensity);
         Assert.AreEqual(expected.Language, actual.Language);

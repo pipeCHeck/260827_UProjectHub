@@ -23,6 +23,16 @@
     <sys:String x:Key="String.ProjectDetails">프로젝트 상세</sys:String>
     <sys:String x:Key="String.Overview">개요</sys:String>
     <sys:String x:Key="String.Diagnostics">진단</sys:String>
+    <sys:String x:Key="String.TagsAndNotes">태그 및 메모</sys:String>
+    <sys:String x:Key="String.Tags">태그</sys:String>
+    <sys:String x:Key="String.TagsDescription">프로젝트를 구분할 짧은 태그를 추가합니다. 태그는 .uproject가 아닌 UProject Hub 설정에 저장됩니다.</sys:String>
+    <sys:String x:Key="String.AddTag">태그 추가</sys:String>
+    <sys:String x:Key="String.RemoveTag">태그 삭제</sys:String>
+    <sys:String x:Key="String.Note">메모</sys:String>
+    <sys:String x:Key="String.NoteExplicitSaveDescription">메모는 메모 저장을 선택할 때만 저장됩니다.</sys:String>
+    <sys:String x:Key="String.SaveNote">메모 저장</sys:String>
+    <sys:String x:Key="String.NoteSaved">메모를 저장했습니다.</sys:String>
+    <sys:String x:Key="String.UnsavedChanges">저장하지 않은 변경 사항</sys:String>
     <sys:String x:Key="String.DiagnosticsDescription">기본 진단은 현재 프로젝트 상태, 엔진 판정, 프로젝트 최상위의 Visual Studio 솔루션 상태만 사용합니다. 재귀 검사는 수행하지 않습니다.</sys:String>
     <sys:String x:Key="String.DiagnosticsEmpty">확인이 필요한 기본 진단 항목이 없습니다.</sys:String>
     <sys:String x:Key="String.DiagnosticSeverityInfo">정보</sys:String>

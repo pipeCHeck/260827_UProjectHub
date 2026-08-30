@@ -18,11 +18,15 @@ public sealed class ProjectRefreshServiceTests
         using var fixture = TemporaryProjectDirectory.Create();
         var knownPath = fixture.CreateProject("Known", "5.10", isCpp: true);
         var newPath = fixture.CreateProject("New", "5.9", isCpp: false);
+        var lastLaunched = new DateTimeOffset(2026, 8, 26, 10, 0, 0, TimeSpan.Zero);
         var catalog = new ProjectCatalog();
-        catalog.Upsert(DiscoveryTestProjects.Create(knownPath));
+        catalog.Upsert(DiscoveryTestProjects.Create(knownPath) with
+        {
+            IsFavorite = true,
+            LastLaunched = lastLaunched,
+        });
         var cache = new RecordingProjectCacheRepository();
         var progress = new RecordingProjectProgress();
-        var lastLaunched = new DateTimeOffset(2026, 8, 26, 10, 0, 0, TimeSpan.Zero);
         var settings = new AppSettings
         {
             ProjectSearchRoots = [fixture.RootPath],
@@ -53,6 +57,41 @@ public sealed class ProjectRefreshServiceTests
         Assert.HasCount(1, cache.SavedDocuments[0].Projects);
         Assert.IsNull(typeof(ProjectCacheEntry).GetProperty("IsFavorite"));
         Assert.IsNull(typeof(ProjectCacheEntry).GetProperty("LastLaunched"));
+    }
+
+    [TestMethod]
+    public async Task RefreshDoesNotOverwriteNewerInMemoryTagsAndNoteWithStaleSettingsAsync()
+    {
+        using var fixture = TemporaryProjectDirectory.Create();
+        var knownPath = fixture.CreateProject("Known", "5.10", isCpp: true);
+        var catalog = new ProjectCatalog();
+        catalog.Upsert(DiscoveryTestProjects.Create(knownPath) with
+        {
+            Tags = ["Current"],
+            Note = "Saved while refresh was running.",
+        });
+        var staleSettings = new AppSettings
+        {
+            ProjectUserStates =
+            [
+                new ProjectUserState(knownPath)
+                {
+                    Tags = ["Stale"],
+                    Note = "Old note",
+                },
+            ],
+        };
+        var service = DiscoveryTestServices.CreateRefresh(
+            catalog,
+            new RecordingProjectCacheRepository());
+
+        await service.RefreshKnownAsync(staleSettings);
+
+        Assert.IsTrue(catalog.TryGet(knownPath, out var refreshed));
+        CollectionAssert.AreEqual(new[] { "Current" }, refreshed.Tags.ToArray());
+        Assert.AreEqual("Saved while refresh was running.", refreshed.Note);
+        Assert.AreEqual("5.10", refreshed.EngineAssociation);
+        Assert.AreEqual(ProjectType.Cpp, refreshed.ProjectType);
     }
 
     [TestMethod]

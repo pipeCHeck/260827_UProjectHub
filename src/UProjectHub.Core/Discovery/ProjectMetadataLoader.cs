@@ -73,7 +73,11 @@ public sealed class ProjectMetadataLoader
                 userState?.LastLaunched,
                 userState?.IsFavorite ?? false,
                 ProjectState.Available,
-                EngineResolutionState.Unknown);
+                EngineResolutionState.Unknown)
+            {
+                Tags = userState?.Tags ?? [],
+                Note = userState?.Note ?? string.Empty,
+            };
 
             return new ProjectMetadataLoadResult(project, null);
         }
@@ -109,7 +113,11 @@ public sealed class ProjectMetadataLoader
             userState?.LastLaunched,
             userState?.IsFavorite ?? false,
             ProjectState.Broken,
-            EngineResolutionState.Unknown);
+            EngineResolutionState.Unknown)
+        {
+            Tags = userState?.Tags ?? [],
+            Note = userState?.Note ?? string.Empty,
+        };
         var issue = new ProjectDiscoveryIssue(
             candidate.ProjectFilePath.Value,
             ProjectDiscoveryIssueKind.MetadataLoad,

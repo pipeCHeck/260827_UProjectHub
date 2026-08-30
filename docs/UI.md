@@ -277,19 +277,26 @@ Overflow button (`⋮`) and right-click use the same context actions:
 ### 14.1 Project Details
 
 `Project Details` replaces the former Project Information dialog and provides
-two keyboard-accessible, scrollable sections only:
+three keyboard-accessible, scrollable sections:
 
 - **Overview** contains the existing project path, engine, type, state,
   favorite, and timestamp fields.
 - **Diagnostics** contains low-cost basic findings ordered by severity and
   stable priority.
+- **Tags & Notes** edits user-owned project tags and the project note. Tag
+  changes are explicit add/remove actions. Notes remain visibly unsaved until
+  the user chooses Save.
 
-Do not add empty Storage, Notes, Source Control, or advanced-diagnostic tabs in
-this phase. Normal projects have no `Healthy` or `Ready` row label. The list
+Do not add empty Storage, Source Control, or advanced-diagnostic tabs in this
+phase. Normal projects have no `Healthy` or `Ready` row label. The list
 shows only its primary Error or Warning, or a lower-emphasis actionable Info
 when no problem is present. Engine problems take precedence over solution
 findings. A generatable missing `.sln` uses the informational treatment and
 points to Generate Visual Studio Project Files.
+
+Normal density may show up to three compact tag labels plus a remaining-count
+indicator in a project row. Compact density hides row tags. Full tag and note
+editing remains in Project Details.
 
 ## 15. Keyboard
 

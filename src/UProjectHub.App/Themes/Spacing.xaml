@@ -20,6 +20,9 @@
     <Thickness x:Key="Thickness.DiagnosticItemPadding">14,12</Thickness>
     <Thickness x:Key="Thickness.DiagnosticMessageGap">0,6,0,0</Thickness>
     <Thickness x:Key="Thickness.DiagnosticActionGap">0,8,0,0</Thickness>
+    <Thickness x:Key="Thickness.TagBadgeGap">6,0,0,0</Thickness>
+    <Thickness x:Key="Thickness.TagBadgePadding">6,2</Thickness>
+    <Thickness x:Key="Thickness.NotesSectionGap">0,18,0,0</Thickness>
     <Thickness x:Key="Thickness.MenuSurfacePadding">4</Thickness>
     <Thickness x:Key="Thickness.MenuItemPadding">8,6,10,6</Thickness>
     <Thickness x:Key="Thickness.MenuSeparatorMargin">8,3</Thickness>

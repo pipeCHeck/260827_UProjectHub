@@ -19,6 +19,28 @@ public sealed class ProjectCatalog
         }
     }
 
+    public UnrealProject UpsertPreservingUserState(UnrealProject project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+
+        lock (_gate)
+        {
+            if (_projects.TryGetValue(project.ProjectFilePath, out var current))
+            {
+                project = project with
+                {
+                    LastLaunched = current.LastLaunched,
+                    IsFavorite = current.IsFavorite,
+                    Tags = current.Tags,
+                    Note = current.Note,
+                };
+            }
+
+            _projects[project.ProjectFilePath] = project;
+            return project;
+        }
+    }
+
     public bool TryGet(
         ProjectPath projectPath,
         [NotNullWhen(true)] out UnrealProject? project)
@@ -46,6 +68,29 @@ public sealed class ProjectCatalog
             {
                 ProjectState = ProjectState.Missing,
             };
+            return true;
+        }
+    }
+
+    public bool TryUpdate(
+        ProjectPath projectPath,
+        Func<UnrealProject, UnrealProject> update,
+        [NotNullWhen(true)] out UnrealProject? updatedProject)
+    {
+        ArgumentNullException.ThrowIfNull(projectPath);
+        ArgumentNullException.ThrowIfNull(update);
+
+        lock (_gate)
+        {
+            if (!_projects.TryGetValue(projectPath, out var project))
+            {
+                updatedProject = null;
+                return false;
+            }
+
+            updatedProject = update(project)
+                ?? throw new InvalidOperationException("A catalog update cannot produce null.");
+            _projects[projectPath] = updatedProject;
             return true;
         }
     }

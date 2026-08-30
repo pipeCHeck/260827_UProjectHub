@@ -107,6 +107,27 @@ public sealed class ProjectSearchServiceTests
     }
 
     [TestMethod]
+    public void TagTermUsesCaseInsensitiveExactMatching()
+    {
+        var project = CreateProject() with { Tags = ["Client Work", "VR"] };
+
+        Assert.IsTrue(_service.Matches(project, _parser.Parse("tag:\"client work\"")));
+        Assert.IsFalse(_service.Matches(project, _parser.Parse("tag:client")));
+    }
+
+    [TestMethod]
+    public void NoteTermUsesCaseInsensitiveContainsMatching()
+    {
+        var project = CreateProject() with
+        {
+            Note = "Prototype for the Seoul client review.",
+        };
+
+        Assert.IsTrue(_service.Matches(project, _parser.Parse("note:CLIENT")));
+        Assert.IsFalse(_service.Matches(project, _parser.Parse("note:shipping")));
+    }
+
+    [TestMethod]
     public void MultipleStructuredTermsUseAndSemantics()
     {
         var matching = CreateProject(

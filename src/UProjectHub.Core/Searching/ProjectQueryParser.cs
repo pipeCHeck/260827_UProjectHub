@@ -60,6 +60,20 @@ public sealed class ProjectQueryParser
             return ParseFavorite(rawValue) ?? new PlainTextTerm(token);
         }
 
+        if (prefix.Equals("tag", StringComparison.OrdinalIgnoreCase))
+        {
+            return TryReadValue(rawValue, out var value)
+                ? new TagTerm(value)
+                : new PlainTextTerm(token);
+        }
+
+        if (prefix.Equals("note", StringComparison.OrdinalIgnoreCase))
+        {
+            return TryReadValue(rawValue, out var value)
+                ? new NoteTerm(value)
+                : new PlainTextTerm(token);
+        }
+
         return new PlainTextTerm(token);
     }
 

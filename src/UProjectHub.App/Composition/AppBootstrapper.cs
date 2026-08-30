@@ -65,6 +65,7 @@ public sealed class AppBootstrapper
         var settingsRepository = new JsonSettingsRepository(
             paths.SettingsFile,
             writer);
+        var settingsMutations = new SettingsMutationService(settingsRepository);
         var projectCacheRepository = new JsonProjectCacheRepository(
             paths.ProjectCacheFile,
             writer);
@@ -81,7 +82,7 @@ public sealed class AppBootstrapper
         var removalService = new ManagedProjectRemovalService(
             catalog,
             projectCacheRepository,
-            settingsRepository);
+            settingsMutations);
         var processLauncher = new ProcessLauncher();
         var unrealEditorLauncher = new UnrealEditorLauncher(processLauncher, clock);
         var solutionLocator = new VisualStudioSolutionLocator();
@@ -91,7 +92,7 @@ public sealed class AppBootstrapper
         var projectCleanupService = new ProjectCleanupService(solutionLocator);
         var projectActions = new ProjectActionService(
             catalog,
-            settingsRepository,
+            settingsMutations,
             removalService,
             unrealEditorLauncher,
             new ExplorerLauncher(processLauncher),
@@ -100,6 +101,9 @@ public sealed class AppBootstrapper
             currentEngines.Resolve,
             logger,
             projectFilesGenerator);
+        var projectUserMetadata = new ProjectUserMetadataService(
+            catalog,
+            settingsMutations);
         var diagnosticStore = new ProjectDiagnosticSnapshotStore(
             new ProjectDiagnosticsService(
                 new BasicProjectDiagnosticsService(clock),
@@ -116,7 +120,8 @@ public sealed class AppBootstrapper
                 ShowProjectCleanup,
                 projectCleanupService,
                 localizationService,
-                diagnosticStore),
+                diagnosticStore,
+                projectUserMetadata),
             localizationService,
             diagnosticStore);
         var searchService = new ProjectSearchService(clock);
@@ -182,6 +187,7 @@ public sealed class AppBootstrapper
             refreshAction: () => coordinator!.RefreshAsync(),
             newProject: newProject,
             localization: localizationService);
+        projectUserMetadata.CatalogChanged += mainViewModel.SetProjects;
 
         var backgroundRefresh = new BackgroundRefreshService(
             catalog,
@@ -229,7 +235,7 @@ public sealed class AppBootstrapper
             diagnosticStore);
 
         projectOperations = new ProjectOperations(
-            settingsRepository,
+            settingsMutations,
             manualEngineValidator,
             themeService,
             localizationService,

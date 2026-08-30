@@ -24,7 +24,7 @@ public sealed record ProjectActionResult(bool IsSuccess, string? ErrorMessage = 
 public sealed class ProjectActionService
 {
     private readonly ProjectCatalog _catalog;
-    private readonly ISettingsRepository _settingsRepository;
+    private readonly SettingsMutationService _settings;
     private readonly ManagedProjectRemovalService _removalService;
     private readonly IUnrealEditorLauncher _unrealEditorLauncher;
     private readonly IExplorerLauncher _explorerLauncher;
@@ -45,10 +45,34 @@ public sealed class ProjectActionService
         Func<UnrealProject, EngineResolution> resolutionAccessor,
         IAppLogger? logger = null,
         IProjectFilesGenerator? projectFilesGenerator = null)
+        : this(
+            catalog,
+            new SettingsMutationService(settingsRepository),
+            removalService,
+            unrealEditorLauncher,
+            explorerLauncher,
+            visualStudioLauncher,
+            clipboardService,
+            resolutionAccessor,
+            logger,
+            projectFilesGenerator)
+    {
+    }
+
+    public ProjectActionService(
+        ProjectCatalog catalog,
+        SettingsMutationService settings,
+        ManagedProjectRemovalService removalService,
+        IUnrealEditorLauncher unrealEditorLauncher,
+        IExplorerLauncher explorerLauncher,
+        IVisualStudioLauncher visualStudioLauncher,
+        IClipboardService clipboardService,
+        Func<UnrealProject, EngineResolution> resolutionAccessor,
+        IAppLogger? logger = null,
+        IProjectFilesGenerator? projectFilesGenerator = null)
     {
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
-        _settingsRepository = settingsRepository
-            ?? throw new ArgumentNullException(nameof(settingsRepository));
+        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _removalService = removalService
             ?? throw new ArgumentNullException(nameof(removalService));
         _unrealEditorLauncher = unrealEditorLauncher
@@ -173,20 +197,22 @@ public sealed class ProjectActionService
 
         try
         {
-            var settings = await _settingsRepository.LoadAsync(cancellationToken);
-            var currentState = FindUserState(settings, project);
-            var updatedState = new ProjectUserState(
-                project.ProjectFilePath,
-                IsFavorite: !(currentState?.IsFavorite ?? false),
-                LastLaunched: currentState?.LastLaunched);
-            var updatedSettings = ReplaceUserState(settings, updatedState);
-
-            await _settingsRepository.SaveAsync(updatedSettings, cancellationToken);
-
-            _catalog.Upsert(currentProject with
+            ProjectUserState? updatedState = null;
+            await _settings.UpdateAsync(settings =>
             {
-                IsFavorite = updatedState.IsFavorite,
-            });
+                var currentState = FindUserState(settings, project)
+                    ?? CreateUserState(currentProject);
+                updatedState = currentState with
+                {
+                    IsFavorite = !currentState.IsFavorite,
+                };
+                return ReplaceUserState(settings, updatedState);
+            }, cancellationToken);
+
+            _catalog.TryUpdate(project.ProjectFilePath, current => current with
+            {
+                IsFavorite = updatedState!.IsFavorite,
+            }, out _);
             PublishCatalogChanged();
             return ProjectActionResult.Succeeded();
         }
@@ -235,21 +261,20 @@ public sealed class ProjectActionService
 
         try
         {
-            var settings = await _settingsRepository.LoadAsync(cancellationToken);
-            var currentState = FindUserState(settings, currentProject);
-            var updatedState = new ProjectUserState(
-                currentProject.ProjectFilePath,
-                IsFavorite: currentState?.IsFavorite ?? false,
-                LastLaunched: launchedAtUtc);
-            var updatedSettings = ReplaceUserState(settings, updatedState);
-
-            await _settingsRepository.SaveAsync(updatedSettings, cancellationToken);
-
-            _catalog.Upsert(currentProject with
+            ProjectUserState? updatedState = null;
+            await _settings.UpdateAsync(settings =>
             {
-                IsFavorite = updatedState.IsFavorite,
+                var currentState = FindUserState(settings, currentProject)
+                    ?? CreateUserState(currentProject);
+                updatedState = currentState with { LastLaunched = launchedAtUtc };
+                return ReplaceUserState(settings, updatedState);
+            }, cancellationToken);
+
+            _catalog.TryUpdate(currentProject.ProjectFilePath, current => current with
+            {
+                IsFavorite = updatedState!.IsFavorite,
                 LastLaunched = launchedAtUtc,
-            });
+            }, out _);
             PublishCatalogChanged();
             return ProjectActionResult.Succeeded();
         }
@@ -340,6 +365,13 @@ public sealed class ProjectActionService
         UnrealProject project) =>
         settings.ProjectUserStates.FirstOrDefault(state =>
             state.ProjectPath.Equals(project.ProjectFilePath));
+
+    private static ProjectUserState CreateUserState(UnrealProject project) =>
+        new(project.ProjectFilePath, project.IsFavorite, project.LastLaunched)
+        {
+            Tags = project.Tags,
+            Note = project.Note,
+        };
 
     private static AppSettings ReplaceUserState(
         AppSettings settings,

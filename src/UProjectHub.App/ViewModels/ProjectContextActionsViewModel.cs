@@ -18,6 +18,7 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
     private readonly IProjectCleanupService _cleanupService;
     private readonly LocalizationService? _localization;
     private readonly ProjectDiagnosticSnapshotStore? _diagnostics;
+    private readonly ProjectUserMetadataService? _metadata;
     private readonly RelayCommand _openInVisualStudioCommand;
     private readonly RelayCommand _generateProjectFilesCommand;
     private ProjectActionResult? _lastResult;
@@ -30,7 +31,8 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
         Action<ProjectCleanupViewModel> showProjectCleanup,
         IProjectCleanupService cleanupService,
         LocalizationService? localization = null,
-        ProjectDiagnosticSnapshotStore? diagnostics = null)
+        ProjectDiagnosticSnapshotStore? diagnostics = null,
+        ProjectUserMetadataService? metadata = null)
     {
         _project = project ?? throw new ArgumentNullException(nameof(project));
         _actions = actions ?? throw new ArgumentNullException(nameof(actions));
@@ -44,6 +46,7 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
             ?? throw new ArgumentNullException(nameof(cleanupService));
         _localization = localization;
         _diagnostics = diagnostics;
+        _metadata = metadata;
 
         OpenProjectCommand = new AsyncRelayCommand(
             OpenProjectAsync,
@@ -180,7 +183,10 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
             new ProjectOverviewViewModel(
                 _project,
                 localization: _localization),
-            new ProjectDiagnosticsViewModel(report, _localization));
+            new ProjectDiagnosticsViewModel(report, _localization),
+            _metadata is null
+                ? null
+                : new ProjectNotesViewModel(_project, _metadata, _localization));
         var refreshTask = _diagnostics is null
             ? Task.CompletedTask
             : details.RefreshDiagnosticsAsync(

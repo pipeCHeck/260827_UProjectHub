@@ -23,6 +23,16 @@
     <sys:String x:Key="String.ProjectDetails">Project Details</sys:String>
     <sys:String x:Key="String.Overview">Overview</sys:String>
     <sys:String x:Key="String.Diagnostics">Diagnostics</sys:String>
+    <sys:String x:Key="String.TagsAndNotes">Tags &amp; Notes</sys:String>
+    <sys:String x:Key="String.Tags">Tags</sys:String>
+    <sys:String x:Key="String.TagsDescription">Add short project labels. Tags are saved in UProject Hub settings, not in the .uproject file.</sys:String>
+    <sys:String x:Key="String.AddTag">Add tag</sys:String>
+    <sys:String x:Key="String.RemoveTag">Remove tag</sys:String>
+    <sys:String x:Key="String.Note">Note</sys:String>
+    <sys:String x:Key="String.NoteExplicitSaveDescription">Notes are saved only when you choose Save note.</sys:String>
+    <sys:String x:Key="String.SaveNote">Save note</sys:String>
+    <sys:String x:Key="String.NoteSaved">Note saved.</sys:String>
+    <sys:String x:Key="String.UnsavedChanges">Unsaved changes</sys:String>
     <sys:String x:Key="String.DiagnosticsDescription">Basic diagnostics use the current project, engine resolution, and top-level Visual Studio solution state. No recursive scan is performed.</sys:String>
     <sys:String x:Key="String.DiagnosticsEmpty">No basic diagnostics need attention.</sys:String>
     <sys:String x:Key="String.DiagnosticSeverityInfo">Info</sys:String>

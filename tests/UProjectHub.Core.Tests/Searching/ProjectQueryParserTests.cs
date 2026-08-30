@@ -71,6 +71,16 @@ public sealed class ProjectQueryParserTests
     }
 
     [TestMethod]
+    public void TagAndNoteTokensProduceMetadataTerms()
+    {
+        var query = _parser.Parse("tag:\"Client Work\" note:prototype");
+
+        Assert.HasCount(2, query.Terms);
+        Assert.AreEqual(new TagTerm("Client Work"), query.Terms[0]);
+        Assert.AreEqual(new NoteTerm("prototype"), query.Terms[1]);
+    }
+
+    [TestMethod]
     public void QuotedPathWithSpacesProducesOnePathTerm()
     {
         var query = _parser.Parse("path:\"D:\\Game Academy\"");

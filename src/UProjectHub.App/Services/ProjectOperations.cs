@@ -10,14 +10,13 @@ namespace UProjectHub.App.Services;
 
 public sealed class ProjectOperations : IProjectOperations
 {
-    private readonly ISettingsRepository _settingsRepository;
+    private readonly SettingsMutationService _settings;
     private readonly ManualEngineValidator _manualEngineValidator;
     private readonly ThemeService _themeService;
     private readonly LocalizationService _localizationService;
     private readonly ProjectCatalog _catalog;
     private readonly Func<IReadOnlyList<string>, AppSettings, CancellationToken, Task<ProjectRefreshResult>> _rescan;
     private readonly Func<CancellationToken, Task<ProjectRescanOperationResult>>? _coordinatedRescan;
-    private readonly SemaphoreSlim _settingsGate = new(1, 1);
 
     public ProjectOperations(
         ISettingsRepository settingsRepository,
@@ -27,8 +26,27 @@ public sealed class ProjectOperations : IProjectOperations
         ProjectCatalog catalog,
         Func<IReadOnlyList<string>, AppSettings, CancellationToken, Task<ProjectRefreshResult>> rescan,
         Func<CancellationToken, Task<ProjectRescanOperationResult>>? coordinatedRescan = null)
+        : this(
+            new SettingsMutationService(settingsRepository),
+            manualEngineValidator,
+            themeService,
+            localizationService,
+            catalog,
+            rescan,
+            coordinatedRescan)
     {
-        _settingsRepository = settingsRepository ?? throw new ArgumentNullException(nameof(settingsRepository));
+    }
+
+    public ProjectOperations(
+        SettingsMutationService settings,
+        ManualEngineValidator manualEngineValidator,
+        ThemeService themeService,
+        LocalizationService localizationService,
+        ProjectCatalog catalog,
+        Func<IReadOnlyList<string>, AppSettings, CancellationToken, Task<ProjectRefreshResult>> rescan,
+        Func<CancellationToken, Task<ProjectRescanOperationResult>>? coordinatedRescan = null)
+    {
+        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _manualEngineValidator = manualEngineValidator ?? throw new ArgumentNullException(nameof(manualEngineValidator));
         _themeService = themeService ?? throw new ArgumentNullException(nameof(themeService));
         _localizationService = localizationService
@@ -39,7 +57,7 @@ public sealed class ProjectOperations : IProjectOperations
     }
 
     public Task<AppSettings> LoadSettingsAsync(CancellationToken cancellationToken = default) =>
-        _settingsRepository.LoadAsync(cancellationToken);
+        _settings.LoadAsync(cancellationToken);
 
     public async Task<ProjectOperationResult> AddProjectSearchRootAsync(
         string root,
@@ -93,29 +111,37 @@ public sealed class ProjectOperations : IProjectOperations
             return Failure(error);
         }
 
-        await _settingsGate.WaitAsync(cancellationToken);
         try
         {
-            var settings = await _settingsRepository.LoadAsync(cancellationToken);
-            if (ContainsPath(settings.ManualEngineRoots, normalized))
+            var changed = false;
+            string? validationError = null;
+            var updated = await _settings.UpdateAsync(async (settings, token) =>
             {
-                return Success(settings, changed: false);
-            }
+                if (ContainsPath(settings.ManualEngineRoots, normalized))
+                {
+                    return settings;
+                }
 
-            var validation = await _manualEngineValidator.ValidateAsync(normalized, cancellationToken);
-            var usable = validation.Engines.FirstOrDefault(engine => engine.IsUsable);
-            if (usable is null)
-            {
-                return Failure(validation.Issues.FirstOrDefault()?.Message
-                    ?? "The selected folder is not a usable Unreal Engine root.");
-            }
+                var validation = await _manualEngineValidator.ValidateAsync(
+                    normalized,
+                    token);
+                var usable = validation.Engines.FirstOrDefault(engine => engine.IsUsable);
+                if (usable is null)
+                {
+                    validationError = validation.Issues.FirstOrDefault()?.Message
+                        ?? "The selected folder is not a usable Unreal Engine root.";
+                    return settings;
+                }
 
-            var updated = settings with
-            {
-                ManualEngineRoots = [.. settings.ManualEngineRoots, usable.RootPath],
-            };
-            await _settingsRepository.SaveAsync(updated, cancellationToken);
-            return Success(updated, changed: true);
+                changed = true;
+                return settings with
+                {
+                    ManualEngineRoots = [.. settings.ManualEngineRoots, usable.RootPath],
+                };
+            }, cancellationToken);
+            return validationError is null
+                ? Success(updated, changed)
+                : Failure(validationError);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -124,10 +150,6 @@ public sealed class ProjectOperations : IProjectOperations
         catch (Exception exception) when (IsExpectedPersistenceFailure(exception))
         {
             return Failure($"Settings could not be saved. {exception.Message}");
-        }
-        finally
-        {
-            _settingsGate.Release();
         }
     }
 
@@ -210,7 +232,7 @@ public sealed class ProjectOperations : IProjectOperations
 
         try
         {
-            var settings = await _settingsRepository.LoadAsync(cancellationToken);
+            var settings = await _settings.LoadAsync(cancellationToken);
             var result = await _rescan(
                 settings.ProjectSearchRoots.ToArray(),
                 settings,
@@ -235,18 +257,16 @@ public sealed class ProjectOperations : IProjectOperations
         Func<AppSettings, Mutation> mutate,
         CancellationToken cancellationToken)
     {
-        await _settingsGate.WaitAsync(cancellationToken);
         try
         {
-            var settings = await _settingsRepository.LoadAsync(cancellationToken);
-            var mutation = mutate(settings);
-            if (!mutation.HasChanges)
+            var changed = false;
+            var updated = await _settings.UpdateAsync(settings =>
             {
-                return Success(settings, changed: false);
-            }
-
-            await _settingsRepository.SaveAsync(mutation.Settings, cancellationToken);
-            return Success(mutation.Settings, changed: true);
+                var mutation = mutate(settings);
+                changed = mutation.HasChanges;
+                return mutation.Settings;
+            }, cancellationToken);
+            return Success(updated, changed);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -255,10 +275,6 @@ public sealed class ProjectOperations : IProjectOperations
         catch (Exception exception) when (IsExpectedPersistenceFailure(exception))
         {
             return Failure($"Settings could not be saved. {exception.Message}");
-        }
-        finally
-        {
-            _settingsGate.Release();
         }
     }
 

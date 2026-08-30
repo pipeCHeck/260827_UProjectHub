@@ -364,7 +364,11 @@ public sealed class ApplicationCoordinator
                 userState?.LastLaunched,
                 userState?.IsFavorite ?? false,
                 entry.ProjectState,
-                entry.EngineState);
+                entry.EngineState)
+            {
+                Tags = userState?.Tags ?? [],
+                Note = userState?.Note ?? string.Empty,
+            };
             var resolution = _engines.Resolve(project);
             _catalog.Upsert(project with
             {

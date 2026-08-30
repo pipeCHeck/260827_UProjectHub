@@ -16,20 +16,28 @@ public sealed class ManagedProjectRemovalService
 {
     private readonly ProjectCatalog _catalog;
     private readonly IProjectCacheRepository _cacheRepository;
-    private readonly ISettingsRepository _settingsRepository;
+    private readonly SettingsMutationService _settings;
 
     public ManagedProjectRemovalService(
         ProjectCatalog catalog,
         IProjectCacheRepository cacheRepository,
         ISettingsRepository settingsRepository)
+        : this(catalog, cacheRepository, new SettingsMutationService(settingsRepository))
+    {
+    }
+
+    public ManagedProjectRemovalService(
+        ProjectCatalog catalog,
+        IProjectCacheRepository cacheRepository,
+        SettingsMutationService settings)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(cacheRepository);
-        ArgumentNullException.ThrowIfNull(settingsRepository);
+        ArgumentNullException.ThrowIfNull(settings);
 
         _catalog = catalog;
         _cacheRepository = cacheRepository;
-        _settingsRepository = settingsRepository;
+        _settings = settings;
     }
 
     public async Task<ManagedProjectRemovalResult> RemoveMissingAsync(
@@ -49,7 +57,6 @@ public sealed class ManagedProjectRemovalService
         }
 
         var cache = await _cacheRepository.LoadAsync(cancellationToken);
-        var settings = await _settingsRepository.LoadAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
 
         var updatedCache = cache with
@@ -58,20 +65,18 @@ public sealed class ManagedProjectRemovalService
                 .Where(entry => !entry.ProjectFilePath.Equals(projectPath))
                 .ToArray(),
         };
-        var updatedSettings = settings with
-        {
-            ProjectUserStates = settings.ProjectUserStates
-                .Where(state => !state.ProjectPath.Equals(projectPath))
-                .ToArray(),
-        };
-
         if (!_catalog.Remove(projectPath))
         {
             return ManagedProjectRemovalResult.NotFound;
         }
 
         await _cacheRepository.SaveAsync(updatedCache, cancellationToken);
-        await _settingsRepository.SaveAsync(updatedSettings, cancellationToken);
+        await _settings.UpdateAsync(settings => settings with
+        {
+            ProjectUserStates = settings.ProjectUserStates
+                .Where(state => !state.ProjectPath.Equals(projectPath))
+                .ToArray(),
+        }, cancellationToken);
         return ManagedProjectRemovalResult.Removed;
     }
 }

@@ -136,6 +136,12 @@ The MVP shall support these structured filters in the search box:
 - `path:<text>`
 - `modified:<Nd>`
 - `favorite:true`
+- `tag:<value>`
+- `note:<value>`
+
+`tag:<value>` uses a case-insensitive exact match against individual project
+tags. `note:<value>` uses a case-insensitive contains match against the saved
+project note.
 
 `modified:7d` means `LastModified` is at or after the instant exactly `7 * 24` hours before the current time.
 
@@ -334,6 +340,7 @@ User settings include at least:
 - project search roots;
 - manually registered engine roots;
 - favorites;
+- per-project tags and notes;
 - theme mode: System / Light / Dark;
 - row density: Normal / Compact;
 - active sort;
@@ -357,6 +364,14 @@ Expected files:
     logs\app.log
 
 Settings are user-owned state.
+
+Project tags and notes are stored only in settings and never in `.uproject`
+descriptors. Tags are trimmed, reject empty values, and prevent
+case-insensitive duplicates. Notes use an explicit Save action.
+
+All in-process settings changes must serialize the complete load-modify-save
+operation through one shared mutation boundary so independent writers cannot
+lose each other's updates.
 
 Project and engine caches are disposable derived state.
 

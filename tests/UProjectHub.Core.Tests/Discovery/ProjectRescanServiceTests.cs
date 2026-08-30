@@ -18,7 +18,9 @@ public sealed class ProjectRescanServiceTests
         var knownPath = fixture.CreateProject("Known", "5.10", isCpp: true);
         var newPath = fixture.CreateProject("New", "5.9", isCpp: false);
         var catalog = new ProjectCatalog();
-        catalog.Upsert(DiscoveryTestProjects.Create(knownPath, ProjectState.Missing));
+        catalog.Upsert(DiscoveryTestProjects.Create(
+            knownPath,
+            ProjectState.Missing) with { IsFavorite = true });
         var cache = new RecordingProjectCacheRepository();
         var progress = new RecordingProjectProgress();
         var settings = new AppSettings

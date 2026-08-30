@@ -15,3 +15,7 @@ public sealed record PathTerm(string Value) : ProjectQueryTerm;
 public sealed record ModifiedWithinTerm(int Days) : ProjectQueryTerm;
 
 public sealed record FavoriteTerm(bool IsFavorite) : ProjectQueryTerm;
+
+public sealed record TagTerm(string Value) : ProjectQueryTerm;
+
+public sealed record NoteTerm(string Value) : ProjectQueryTerm;

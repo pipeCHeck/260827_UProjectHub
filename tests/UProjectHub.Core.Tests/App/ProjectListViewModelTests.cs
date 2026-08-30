@@ -64,6 +64,25 @@ public sealed class ProjectListViewModelTests
     }
 
     [TestMethod]
+    public void RowExposesOnlyThreeTagsPlusOverflowCount()
+    {
+        var project = CreateProject(
+            "Tagged",
+            @"C:\Projects\Tagged\Tagged.uproject") with
+        {
+            Tags = ["Client", "VR", "Prototype", "Paused", "Archive"],
+        };
+        var viewModel = new ProjectListViewModel();
+
+        viewModel.SetSnapshot(CreateSnapshot(project));
+
+        CollectionAssert.AreEqual(
+            new[] { "Client", "VR", "Prototype" },
+            viewModel.Rows.Single().VisibleTags.ToArray());
+        Assert.AreEqual(2, viewModel.Rows.Single().AdditionalTagCount);
+    }
+
+    [TestMethod]
     public void EngineDisplay_UsesAssociationThenQuietUnknownWhenDisplayVersionIsMissing()
     {
         var associationOnly = CreateProject(

@@ -260,7 +260,11 @@ public sealed class ProjectOperationsTests
             new ProjectUserState(
                 new ProjectPath(@"C:\Game\Game.uproject"),
                 true,
-                new DateTimeOffset(2026, 8, 28, 1, 2, 3, TimeSpan.Zero)),
+                new DateTimeOffset(2026, 8, 28, 1, 2, 3, TimeSpan.Zero))
+            {
+                Tags = ["Client", "Prototype"],
+                Note = "Preserve across unrelated settings writes.",
+            },
         ],
         ThemeMode = AppThemeMode.System,
         RowDensity = RowDensity.Normal,

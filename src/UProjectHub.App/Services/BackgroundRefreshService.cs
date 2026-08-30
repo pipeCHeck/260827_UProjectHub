@@ -131,10 +131,11 @@ public sealed class BackgroundRefreshService
                 cancellationToken,
                 loadResult =>
                 {
-                    _catalog.Upsert(loadResult.Project);
+                    var discoveredProject = _catalog.UpsertPreservingUserState(
+                        loadResult.Project);
                     progress.Report(new ProjectRefreshUpdate(
-                        loadResult.Project.ProjectFilePath,
-                        loadResult.Project,
+                        discoveredProject.ProjectFilePath,
+                        discoveredProject,
                         loadResult.Issue));
                 }).ConfigureAwait(false);
             projectIssues.AddRange(discoveryResult.Issues);

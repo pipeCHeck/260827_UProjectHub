@@ -243,7 +243,7 @@ public sealed class PresentationResourceTests
     }
 
     [STATestMethod]
-    public void ProjectDetailsShellContainsOnlyScrollableOverviewAndDiagnostics()
+    public void ProjectDetailsShellContainsScrollableOverviewDiagnosticsAndTagsNotes()
     {
         var project = new UnrealProject(
             "Game",
@@ -279,14 +279,19 @@ public sealed class PresentationResourceTests
             window.FindName("OverviewScrollViewer"));
         var diagnostics = Assert.IsInstanceOfType<ScrollViewer>(
             window.FindName("DiagnosticsScrollViewer"));
+        var tagsAndNotes = Assert.IsInstanceOfType<ScrollViewer>(
+            window.FindName("TagsNotesScrollViewer"));
 
-        Assert.HasCount(2, tabs.Items);
+        Assert.HasCount(3, tabs.Items);
         Assert.AreEqual(
             ScrollBarVisibility.Auto,
             overview.VerticalScrollBarVisibility);
         Assert.AreEqual(
             ScrollBarVisibility.Auto,
             diagnostics.VerticalScrollBarVisibility);
+        Assert.AreEqual(
+            ScrollBarVisibility.Auto,
+            tagsAndNotes.VerticalScrollBarVisibility);
 
         var detailsTextStyle = Assert.IsInstanceOfType<Style>(
             window.Resources[typeof(TextBlock)]);
@@ -307,6 +312,16 @@ public sealed class PresentationResourceTests
         {
             window.Close();
         }
+    }
+
+    [STATestMethod]
+    public void ProjectTagsAreVisibleOnlyInNormalDensity()
+    {
+        var normal = LoadDictionary("Themes/NormalDensity.xaml");
+        var compact = LoadDictionary("Themes/CompactDensity.xaml");
+
+        Assert.AreEqual(Visibility.Visible, normal["Visibility.ProjectTags"]);
+        Assert.AreEqual(Visibility.Collapsed, compact["Visibility.ProjectTags"]);
     }
 
     [STATestMethod]

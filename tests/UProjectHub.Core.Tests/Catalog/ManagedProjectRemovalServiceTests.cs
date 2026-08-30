@@ -132,7 +132,11 @@ public sealed class ManagedProjectRemovalServiceTests
             projectUserStates.Add(new ProjectUserState(
                 retainedPath,
                 IsFavorite: false,
-                LastLaunched: null));
+                LastLaunched: null)
+            {
+                Tags = ["Retained"],
+                Note = "Keep this metadata.",
+            });
         }
 
         return new AppSettings

@@ -60,10 +60,11 @@ public sealed class ProjectRefreshService
                     new ProjectCandidate(knownProject.ProjectFilePath),
                     settings,
                     cancellationToken).ConfigureAwait(false);
-                _catalog.Upsert(loadResult.Project);
+                var refreshedProject = _catalog.UpsertPreservingUserState(
+                    loadResult.Project);
                 update = new ProjectRefreshUpdate(
-                    loadResult.Project.ProjectFilePath,
-                    loadResult.Project,
+                    refreshedProject.ProjectFilePath,
+                    refreshedProject,
                     loadResult.Issue);
             }
 

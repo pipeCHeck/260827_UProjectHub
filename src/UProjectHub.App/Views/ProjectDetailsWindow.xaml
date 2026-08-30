@@ -162,6 +162,98 @@
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
+
+            <TabItem Header="{DynamicResource String.TagsAndNotes}">
+                <ScrollViewer x:Name="TagsNotesScrollViewer"
+                              Padding="{DynamicResource Thickness.DetailsTabContent}"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel DataContext="{Binding Notes}">
+                        <TextBlock FontWeight="SemiBold"
+                                   Text="{DynamicResource String.Tags}" />
+                        <TextBlock Margin="{DynamicResource Thickness.DialogRowGap}"
+                                   Foreground="{DynamicResource Brush.TextSecondary}"
+                                   Text="{DynamicResource String.TagsDescription}"
+                                   TextWrapping="Wrap" />
+                        <ItemsControl Margin="{DynamicResource Thickness.DialogRowGap}"
+                                      ItemsSource="{Binding Tags}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Margin="0,0,8,8"
+                                            Padding="{DynamicResource Thickness.TagBadgePadding}"
+                                            Background="{DynamicResource Brush.AccentSubtle}"
+                                            CornerRadius="{DynamicResource CornerRadius.Small}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource Brush.Accent}"
+                                                       Text="{Binding}" />
+                                            <Button Margin="8,0,0,0"
+                                                    MinWidth="24"
+                                                    Padding="3,0"
+                                                    Command="{Binding DataContext.Notes.RemoveTagCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}"
+                                                    Content="×"
+                                                    ToolTip="{DynamicResource String.RemoveTag}" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <DockPanel Margin="{DynamicResource Thickness.DialogRowGap}">
+                            <Button DockPanel.Dock="Right"
+                                    Margin="8,0,0,0"
+                                    MinWidth="80"
+                                    Command="{Binding AddTagCommand}"
+                                    Content="{DynamicResource String.AddTag}" />
+                            <TextBox MinWidth="180"
+                                     Text="{Binding NewTag, UpdateSourceTrigger=PropertyChanged}" />
+                        </DockPanel>
+
+                        <TextBlock Margin="{DynamicResource Thickness.NotesSectionGap}"
+                                   FontWeight="SemiBold"
+                                   Text="{DynamicResource String.Note}" />
+                        <TextBlock Margin="{DynamicResource Thickness.DialogRowGap}"
+                                   Foreground="{DynamicResource Brush.TextSecondary}"
+                                   Text="{DynamicResource String.NoteExplicitSaveDescription}"
+                                   TextWrapping="Wrap" />
+                        <TextBox Margin="{DynamicResource Thickness.DialogRowGap}"
+                                 MinHeight="160"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto"
+                                 Text="{Binding NoteText, UpdateSourceTrigger=PropertyChanged}" />
+                        <DockPanel Margin="{DynamicResource Thickness.DialogRowGap}">
+                            <Button DockPanel.Dock="Right"
+                                    MinWidth="88"
+                                    Command="{Binding SaveNoteCommand}"
+                                    Content="{DynamicResource String.SaveNote}" />
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Foreground="{DynamicResource Brush.WarningText}"
+                                           Text="{DynamicResource String.UnsavedChanges}"
+                                           Visibility="{Binding IsNoteDirty, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                <TextBlock Margin="8,0,0,0"
+                                           Text="{Binding StatusMessage}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{DynamicResource Brush.TextSecondary}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasError}" Value="True">
+                                                    <Setter Property="Foreground" Value="{DynamicResource Brush.ErrorText}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </DockPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
         </TabControl>
 
         <Button Grid.Row="2"

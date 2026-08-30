@@ -14,6 +14,10 @@ public sealed record UnrealProject(
     ProjectState ProjectState,
     EngineResolutionState EngineState)
 {
+    public IReadOnlyList<string> Tags { get; init; } = [];
+
+    public string Note { get; init; } = string.Empty;
+
     public string ProjectDirectory =>
         Path.GetDirectoryName(ProjectFilePath.Value) ?? string.Empty;
 }

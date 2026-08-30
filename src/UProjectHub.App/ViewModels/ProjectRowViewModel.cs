@@ -57,6 +57,12 @@ public sealed class ProjectRowViewModel : ObservableObject
 
     public DateTimeOffset? LastLaunched => Project.LastLaunched;
 
+    public IReadOnlyList<string> VisibleTags => Project.Tags.Take(3).ToArray();
+
+    public int AdditionalTagCount => Math.Max(0, Project.Tags.Count - 3);
+
+    public bool HasAdditionalTags => AdditionalTagCount > 0;
+
     public ProjectState ProjectState => Project.ProjectState;
 
     public EngineResolutionState EngineState => Project.EngineState;

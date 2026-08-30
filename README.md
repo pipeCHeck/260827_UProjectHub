@@ -47,7 +47,8 @@ dotnet run --project src/UProjectHub.App
 - Plain and structured in-memory search
 - Engine, project type, and favorites filters
 - Semantic sorting, including correct Unreal version ordering such as 5.9 before 5.10
-- Persistent favorites, LastLaunched, appearance, view state, search roots, and manual engine roots
+- Persistent favorites, LastLaunched, tags, notes, appearance, view state, search roots, and manual engine roots
+- Case-insensitive `tag:` exact and `note:` contains search over in-memory project metadata
 - Launcher, registered source-build, and manual engine discovery
 - Safe Resolved/Missing/Ambiguous/Unknown engine resolution
 - Explicit UnrealEditor launch with argument-list handling

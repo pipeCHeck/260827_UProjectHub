@@ -110,12 +110,47 @@
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock VerticalAlignment="Center"
                                                Foreground="{DynamicResource Brush.TextSecondary}"
                                                Text="{Binding ProjectDirectory}"
                                                TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Grid.Column="1"
+                                    <StackPanel Grid.Column="1"
+                                                Orientation="Horizontal"
+                                                Visibility="{DynamicResource Visibility.ProjectTags}">
+                                        <ItemsControl ItemsSource="{Binding VisibleTags}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Margin="{DynamicResource Thickness.TagBadgeGap}"
+                                                            Padding="{DynamicResource Thickness.TagBadgePadding}"
+                                                            Background="{DynamicResource Brush.AccentSubtle}"
+                                                            CornerRadius="{DynamicResource CornerRadius.Small}">
+                                                        <TextBlock Foreground="{DynamicResource Brush.Accent}"
+                                                                   FontSize="11"
+                                                                   MaxWidth="90"
+                                                                   Text="{Binding}"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <Border Margin="{DynamicResource Thickness.TagBadgeGap}"
+                                                Padding="{DynamicResource Thickness.TagBadgePadding}"
+                                                Background="{DynamicResource Brush.AccentSubtle}"
+                                                CornerRadius="{DynamicResource CornerRadius.Small}"
+                                                Visibility="{Binding HasAdditionalTags, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <TextBlock Foreground="{DynamicResource Brush.Accent}"
+                                                       FontSize="11"
+                                                       Text="{Binding AdditionalTagCount, StringFormat=+{0}}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="2"
                                                Margin="{DynamicResource Thickness.WarningGap}"
                                                MaxWidth="320"
                                                VerticalAlignment="Center"

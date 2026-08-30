@@ -70,6 +70,30 @@ public sealed class ProjectActionServiceTests
     }
 
     [TestMethod]
+    public async Task FavoriteAndLaunchHistoryWritesPreserveTagsAndNoteAsync()
+    {
+        var project = CreateProject() with
+        {
+            Tags = ["Client", "VR"],
+            Note = "Do not overwrite this note.",
+        };
+        var fixture = CreateFixture(project);
+
+        var favoriteResult = await fixture.Service.ToggleFavoriteAsync(project);
+        var launchResult = await fixture.Service.OpenProjectAsync(
+            GetCatalogProject(fixture.Catalog));
+
+        Assert.IsTrue(favoriteResult.IsSuccess);
+        Assert.IsTrue(launchResult.IsSuccess);
+        var state = fixture.Settings.Current.ProjectUserStates.Single();
+        CollectionAssert.AreEqual(new[] { "Client", "VR" }, state.Tags.ToArray());
+        Assert.AreEqual("Do not overwrite this note.", state.Note);
+        var current = GetCatalogProject(fixture.Catalog);
+        CollectionAssert.AreEqual(new[] { "Client", "VR" }, current.Tags.ToArray());
+        Assert.AreEqual("Do not overwrite this note.", current.Note);
+    }
+
+    [TestMethod]
     public async Task FavoriteSaveFailureDoesNotMutateCatalogOrPublishCatalogChangeAsync()
     {
         var project = CreateProject(isFavorite: false);
@@ -423,11 +447,12 @@ public sealed class ProjectActionServiceTests
         catalog.Upsert(project);
         var settingsRepository = new FakeSettingsRepository(
             settings ?? CreateSettings(project, project.IsFavorite, project.LastLaunched));
+        var settingsMutations = new SettingsMutationService(settingsRepository);
         var cacheRepository = new FakeProjectCacheRepository();
         var removal = new ManagedProjectRemovalService(
             catalog,
             cacheRepository,
-            settingsRepository);
+            settingsMutations);
         var unrealLauncher = new FakeUnrealEditorLauncher(
             unrealLaunchResult ?? LaunchResult.Succeeded(Now));
         var explorer = new FakeExplorerLauncher();
@@ -437,7 +462,7 @@ public sealed class ProjectActionServiceTests
         var resolved = resolution ?? CreateResolvedEngine();
         var service = new ProjectActionService(
             catalog,
-            settingsRepository,
+            settingsMutations,
             removal,
             unrealLauncher,
             explorer,
@@ -483,7 +508,11 @@ public sealed class ProjectActionServiceTests
             ManualEngineRoots = [@"D:\UE"],
             ProjectUserStates =
             [
-                new ProjectUserState(project.ProjectFilePath, isFavorite, lastLaunched),
+                new ProjectUserState(project.ProjectFilePath, isFavorite, lastLaunched)
+                {
+                    Tags = project.Tags,
+                    Note = project.Note,
+                },
             ],
             ThemeMode = ThemeMode.Dark,
             RowDensity = RowDensity.Compact,

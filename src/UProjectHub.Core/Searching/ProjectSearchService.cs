@@ -31,6 +31,11 @@ public sealed class ProjectSearchService
             PathTerm path => Contains(project.ProjectFilePath.Value, path.Value),
             ModifiedWithinTerm modified => MatchesModified(project, modified.Days),
             FavoriteTerm favorite => project.IsFavorite == favorite.IsFavorite,
+            TagTerm tag => project.Tags.Any(value => string.Equals(
+                value,
+                tag.Value,
+                StringComparison.OrdinalIgnoreCase)),
+            NoteTerm note => Contains(project.Note, note.Value),
             _ => false,
         };
     }

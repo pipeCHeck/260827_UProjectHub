@@ -117,7 +117,14 @@ public sealed class ApplicationCoordinatorTests
             VisibleFilters = new VisibleFilterState(null, null, true),
             ActiveSort = new ProjectSortDefinition(ProjectSortColumn.Name, SortDirection.Ascending),
             ColumnLayout = [new ColumnLayoutState("ProjectType", false, 111)],
-            ProjectUserStates = [new ProjectUserState(path, true, launched)],
+            ProjectUserStates =
+            [
+                new ProjectUserState(path, true, launched)
+                {
+                    Tags = ["Pinned", "Client"],
+                    Note = "Cached metadata",
+                },
+            ],
         };
         var fixture = CreateFixture(
             settings,
@@ -131,6 +138,8 @@ public sealed class ApplicationCoordinatorTests
         var cached = fixture.Catalog.GetSnapshot().Projects.Single();
         Assert.IsTrue(cached.IsFavorite);
         Assert.AreEqual(launched, cached.LastLaunched);
+        CollectionAssert.AreEqual(new[] { "Pinned", "Client" }, cached.Tags.ToArray());
+        Assert.AreEqual("Cached metadata", cached.Note);
         Assert.AreEqual(EngineResolutionState.Resolved, cached.EngineState);
         Assert.AreEqual(AppThemeMode.Dark, fixture.Theme.EffectiveTheme);
         Assert.AreEqual(RowDensity.Compact, fixture.Theme.ActiveDensity);
