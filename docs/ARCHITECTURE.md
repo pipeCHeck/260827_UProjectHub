@@ -62,6 +62,7 @@ Expected areas:
     Sorting/
     Settings/
     Cache/
+    Diagnostics/
 
 Examples of responsibilities:
 
@@ -73,6 +74,8 @@ Examples of responsibilities:
 - semantic engine-version comparison;
 - meaningful modification calculation policy;
 - cache/settings serialization models.
+- low-cost diagnostic findings and priority policy based on existing project
+  and engine states.
 
 Core must not reference WPF.
 
@@ -127,8 +130,19 @@ Responsibilities:
 - display formatting;
 - theme resources;
 - row selection and input behavior.
+- Project Details composition through separate Overview and Diagnostics view
+  models.
 
 Business rules should be delegated to Core/Windows services.
+
+Basic diagnostics preserve dependency direction. Core owns severity,
+priority, and the projection of existing `ProjectState` and
+`EngineResolutionState`; it does not reference the Windows solution locator or
+duplicate `VisualStudioSolutionState`. An App-layer composition service maps
+the `UProjectHub.Windows` top-level solution result into a supplemental Core
+finding, isolates that external lookup's failure, and stores the resulting
+snapshot for list and details presentation. Search, filter, and sort read that
+snapshot and never repeat solution lookup.
 
 ## 4. Model Direction
 

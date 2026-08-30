@@ -14,6 +14,12 @@
     <Thickness x:Key="Thickness.DialogContent">24</Thickness>
     <Thickness x:Key="Thickness.DialogSectionGap">0,20,0,20</Thickness>
     <Thickness x:Key="Thickness.DialogRowGap">0,12,0,0</Thickness>
+    <Thickness x:Key="Thickness.DetailsTabContent">18</Thickness>
+    <Thickness x:Key="Thickness.DetailsDescriptionGap">0,0,0,14</Thickness>
+    <Thickness x:Key="Thickness.DiagnosticItemGap">0,0,0,10</Thickness>
+    <Thickness x:Key="Thickness.DiagnosticItemPadding">14,12</Thickness>
+    <Thickness x:Key="Thickness.DiagnosticMessageGap">0,6,0,0</Thickness>
+    <Thickness x:Key="Thickness.DiagnosticActionGap">0,8,0,0</Thickness>
     <Thickness x:Key="Thickness.MenuSurfacePadding">4</Thickness>
     <Thickness x:Key="Thickness.MenuItemPadding">8,6,10,6</Thickness>
     <Thickness x:Key="Thickness.MenuSeparatorMargin">8,3</Thickness>

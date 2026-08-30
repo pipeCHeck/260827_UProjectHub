@@ -1,6 +1,7 @@
 using System.Windows.Input;
 using UProjectHub.App.Infrastructure;
 using UProjectHub.App.Services;
+using UProjectHub.Core.Diagnostics;
 using UProjectHub.Core.Models;
 using UProjectHub.Windows.Launching;
 
@@ -10,9 +11,10 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
 {
     private readonly UnrealProject _project;
     private readonly ProjectActionService _actions;
-    private readonly Action<ProjectInformationViewModel> _showInformation;
+    private readonly Action<ProjectDetailsViewModel> _showDetails;
     private readonly Action<GenerateProjectFilesViewModel> _showGenerateProjectFiles;
     private readonly LocalizationService? _localization;
+    private readonly ProjectDiagnosticSnapshotStore? _diagnostics;
     private readonly RelayCommand _openInVisualStudioCommand;
     private readonly RelayCommand _generateProjectFilesCommand;
     private ProjectActionResult? _lastResult;
@@ -20,17 +22,19 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
     public ProjectContextActionsViewModel(
         UnrealProject project,
         ProjectActionService actions,
-        Action<ProjectInformationViewModel> showInformation,
+        Action<ProjectDetailsViewModel> showDetails,
         Action<GenerateProjectFilesViewModel> showGenerateProjectFiles,
-        LocalizationService? localization = null)
+        LocalizationService? localization = null,
+        ProjectDiagnosticSnapshotStore? diagnostics = null)
     {
         _project = project ?? throw new ArgumentNullException(nameof(project));
         _actions = actions ?? throw new ArgumentNullException(nameof(actions));
-        _showInformation = showInformation
-            ?? throw new ArgumentNullException(nameof(showInformation));
+        _showDetails = showDetails
+            ?? throw new ArgumentNullException(nameof(showDetails));
         _showGenerateProjectFiles = showGenerateProjectFiles
             ?? throw new ArgumentNullException(nameof(showGenerateProjectFiles));
         _localization = localization;
+        _diagnostics = diagnostics;
 
         OpenProjectCommand = new AsyncRelayCommand(
             OpenProjectAsync,
@@ -46,10 +50,7 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
         CopyPathCommand = new RelayCommand(
             () => LastResult = _actions.CopyProjectPath(_project));
         ToggleFavoriteCommand = new AsyncRelayCommand(ToggleFavoriteAsync);
-        ProjectInformationCommand = new RelayCommand(
-            () => _showInformation(new ProjectInformationViewModel(
-                _project,
-                localization: _localization)));
+        ProjectDetailsCommand = new RelayCommand(ShowProjectDetails);
         RemoveFromListCommand = new AsyncRelayCommand(
             RemoveFromListAsync,
             () => CanRemoveFromList);
@@ -92,7 +93,7 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
 
     public ICommand ToggleFavoriteCommand { get; }
 
-    public ICommand ProjectInformationCommand { get; }
+    public ICommand ProjectDetailsCommand { get; }
 
     public ICommand RemoveFromListCommand { get; }
 
@@ -128,8 +129,23 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
             _localization));
     }
 
+    private void ShowProjectDetails()
+    {
+        var report = _diagnostics?.Get(_project)
+            ?? new ProjectDiagnosticReport(
+                _project.ProjectFilePath,
+                DateTimeOffset.UtcNow,
+                Array.Empty<ProjectDiagnosticFinding>());
+        _showDetails(new ProjectDetailsViewModel(
+            new ProjectOverviewViewModel(
+                _project,
+                localization: _localization),
+            new ProjectDiagnosticsViewModel(report, _localization)));
+    }
+
     private void RefreshSolutionActions()
     {
+        _diagnostics?.Refresh(_project);
         _openInVisualStudioCommand.RaiseCanExecuteChanged();
         _generateProjectFilesCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(CanOpenInVisualStudio));

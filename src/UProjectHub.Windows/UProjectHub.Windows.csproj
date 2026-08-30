@@ -8,4 +8,8 @@
     <ProjectReference Include="..\UProjectHub.Core\UProjectHub.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="UProjectHub.Core.Tests" />
+  </ItemGroup>
+
 </Project>

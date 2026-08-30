@@ -234,7 +234,7 @@ Project context menu:
 - Open Project Folder;
 - Copy Path;
 - Toggle Favorite;
-- Project Information;
+- Project Details;
 - Remove from List, for missing projects.
 
 `Open Existing .sln` is enabled only for a C++ project when one solution can be selected safely. It remains visible but disabled for Blueprint projects and when the solution is missing, ambiguous, or inaccessible. A disabled action must explain the reason in a tooltip.
@@ -246,6 +246,27 @@ A missing `.sln` is not by itself a project-health warning. When generation is a
 `Remove from List` removes only the missing entry from UProject Hub's managed project list and cache. It must never delete or modify project files.
 
 Destructive project actions are excluded from the MVP.
+
+#### Basic project diagnostics and details
+
+Basic diagnostics are a low-cost projection of the existing `ProjectState`,
+`EngineResolutionState`, and the top-level Visual Studio solution lookup for a
+C++ project. They do not recursively scan project content, plugins, logs, or
+storage.
+
+The project list stays quiet for an available project with a resolved engine
+and no actionable finding. Otherwise it shows only the highest-priority Error
+or Warning; an actionable Info may be shown with lower emphasis when no more
+important finding exists. Project and engine findings take priority over
+solution findings. A missing `.sln` is an actionable Info only when Generate
+Visual Studio Project Files is currently available, and is never by itself a
+project-health Warning.
+
+`Project Details` contains only an Overview section and a Diagnostics section
+in this phase. Overview preserves the metadata previously shown by Project
+Information. Diagnostics presents all basic findings independently so a
+failure to inspect one fact does not prevent the remaining findings or another
+project from being shown.
 
 ### 3.12 Keyboard Interaction
 

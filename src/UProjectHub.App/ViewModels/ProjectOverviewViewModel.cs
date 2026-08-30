@@ -4,12 +4,12 @@ using UProjectHub.Core.Models;
 
 namespace UProjectHub.App.ViewModels;
 
-public sealed class ProjectInformationViewModel
+public sealed class ProjectOverviewViewModel
 {
     private const string Unknown = "—";
     private const string ExactTimestampFormat = "yyyy-MM-dd HH:mm:ss zzz";
 
-    public ProjectInformationViewModel(
+    public ProjectOverviewViewModel(
         UnrealProject project,
         TimeZoneInfo? timeZone = null,
         LocalizationService? localization = null)
@@ -22,7 +22,8 @@ public sealed class ProjectInformationViewModel
         ProjectDirectory = project.ProjectDirectory;
         EngineAssociation = EmptyAsUnknown(project.EngineAssociation);
         EngineDisplayVersion = EmptyAsUnknown(project.EngineDisplayVersion);
-        ProjectType = project.ProjectState == UProjectHub.Core.Models.ProjectState.Broken
+        ProjectType = project.ProjectState
+            == UProjectHub.Core.Models.ProjectState.Broken
             ? Unknown
             : project.ProjectType switch
             {
@@ -32,17 +33,24 @@ public sealed class ProjectInformationViewModel
             };
         ProjectState = project.ProjectState switch
         {
-            UProjectHub.Core.Models.ProjectState.Available => Localize(localization, "String.StateAvailable", "Available"),
-            UProjectHub.Core.Models.ProjectState.Missing => Localize(localization, "String.StateMissing", "Missing"),
-            UProjectHub.Core.Models.ProjectState.Broken => Localize(localization, "String.StateBroken", "Broken"),
+            UProjectHub.Core.Models.ProjectState.Available =>
+                Localize(localization, "String.StateAvailable", "Available"),
+            UProjectHub.Core.Models.ProjectState.Missing =>
+                Localize(localization, "String.StateMissing", "Missing"),
+            UProjectHub.Core.Models.ProjectState.Broken =>
+                Localize(localization, "String.StateBroken", "Broken"),
             _ => Unknown,
         };
         EngineState = project.EngineState switch
         {
-            UProjectHub.Core.Models.EngineResolutionState.Resolved => Localize(localization, "String.EngineResolved", "Resolved"),
-            UProjectHub.Core.Models.EngineResolutionState.Missing => Localize(localization, "String.EngineMissing", "Missing"),
-            UProjectHub.Core.Models.EngineResolutionState.Ambiguous => Localize(localization, "String.EngineAmbiguous", "Ambiguous"),
-            UProjectHub.Core.Models.EngineResolutionState.Unknown => Localize(localization, "String.EngineUnknown", "Unknown"),
+            EngineResolutionState.Resolved =>
+                Localize(localization, "String.EngineResolved", "Resolved"),
+            EngineResolutionState.Missing =>
+                Localize(localization, "String.EngineMissing", "Missing"),
+            EngineResolutionState.Ambiguous =>
+                Localize(localization, "String.EngineAmbiguous", "Ambiguous"),
+            EngineResolutionState.Unknown =>
+                Localize(localization, "String.EngineUnknown", "Unknown"),
             _ => Unknown,
         };
         IsFavorite = project.IsFavorite;
@@ -50,10 +58,14 @@ public sealed class ProjectInformationViewModel
             localization,
             project.IsFavorite ? "String.Yes" : "String.No",
             project.IsFavorite ? "Yes" : "No");
-        LastModified = FormatTimestamp(project.LastModified, displayTimeZone, Unknown);
+        LastModified = FormatTimestamp(
+            project.LastModified,
+            displayTimeZone,
+            Unknown);
+        var never = Localize(localization, "String.Never", "Never");
         LastLaunched = project.LastLaunched is { } lastLaunched
-            ? FormatTimestamp(lastLaunched, displayTimeZone, Localize(localization, "String.Never", "Never"))
-            : Localize(localization, "String.Never", "Never");
+            ? FormatTimestamp(lastLaunched, displayTimeZone, never)
+            : never;
     }
 
     public UnrealProject Project { get; }
@@ -88,16 +100,11 @@ public sealed class ProjectInformationViewModel
     private static string FormatTimestamp(
         DateTimeOffset timestamp,
         TimeZoneInfo timeZone,
-        string unknownText)
-    {
-        if (timestamp == DateTimeOffset.MinValue)
-        {
-            return unknownText;
-        }
-
-        return TimeZoneInfo.ConvertTime(timestamp, timeZone)
-            .ToString(ExactTimestampFormat, CultureInfo.InvariantCulture);
-    }
+        string unknownText) =>
+        timestamp == DateTimeOffset.MinValue
+            ? unknownText
+            : TimeZoneInfo.ConvertTime(timestamp, timeZone)
+                .ToString(ExactTimestampFormat, CultureInfo.InvariantCulture);
 
     private static string Localize(
         LocalizationService? localization,

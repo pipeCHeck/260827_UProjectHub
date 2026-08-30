@@ -8,6 +8,8 @@ namespace UProjectHub.Windows.Launching;
 public sealed class ExternalProcessRunner : IExternalProcessRunner
 {
     private const int DefaultOutputLimit = 16 * 1024;
+    private static readonly TimeSpan CancellationCleanupTimeout =
+        TimeSpan.FromSeconds(5);
 
     private readonly int _outputLimit;
 
@@ -75,8 +77,20 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             TryTerminate(process);
-            await WaitForExitAfterCancellationAsync(process).ConfigureAwait(false);
-            await AwaitCaptureAfterExitAsync(outputTask, errorTask).ConfigureAwait(false);
+            var cleanupTask = CompleteCancellationCleanupAsync(
+                process,
+                outputTask,
+                errorTask);
+            var cleanupCompleted = await WaitForCancellationCleanupAsync(
+                    cleanupTask,
+                    CancellationCleanupTimeout)
+                .ConfigureAwait(false);
+            if (!cleanupCompleted)
+            {
+                ObserveFailure(cleanupTask);
+                return Cancelled(string.Empty, string.Empty);
+            }
+
             return Cancelled(standardOutput.Value, standardError.Value);
         }
 
@@ -127,8 +141,44 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
             or NotSupportedException
             or Win32Exception)
         {
-            // Cancellation still wins even if the process exits between checks.
+            // Cancellation still wins if the process exits between checks or
+            // termination cannot be requested.
         }
+    }
+
+    private static Task CompleteCancellationCleanupAsync(
+        Process process,
+        Task outputTask,
+        Task errorTask) =>
+        Task.WhenAll(
+            WaitForExitAfterCancellationAsync(process),
+            AwaitCaptureAfterExitAsync(outputTask, errorTask));
+
+    internal static async Task<bool> WaitForCancellationCleanupAsync(
+        Task cleanupTask,
+        TimeSpan timeout)
+    {
+        ArgumentNullException.ThrowIfNull(cleanupTask);
+
+        try
+        {
+            await cleanupTask.WaitAsync(timeout).ConfigureAwait(false);
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
+    }
+
+    private static void ObserveFailure(Task task)
+    {
+        _ = task.ContinueWith(
+            static completedTask => _ = completedTask.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously
+                | TaskContinuationOptions.OnlyOnFaulted,
+            TaskScheduler.Default);
     }
 
     private static async Task WaitForExitAfterCancellationAsync(Process process)

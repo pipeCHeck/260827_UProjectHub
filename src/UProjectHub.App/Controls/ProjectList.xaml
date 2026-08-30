@@ -30,8 +30,8 @@
             <MenuItem Header="{Binding ToggleFavoriteLabel}"
                       Command="{Binding ToggleFavoriteCommand}" />
             <Separator />
-            <MenuItem Header="{DynamicResource String.ProjectInformation}"
-                      Command="{Binding ProjectInformationCommand}" />
+            <MenuItem Header="{DynamicResource String.ProjectDetails}"
+                      Command="{Binding ProjectDetailsCommand}" />
             <MenuItem Header="{DynamicResource String.RemoveFromList}"
                       Command="{Binding RemoveFromListCommand}"
                       Visibility="{Binding CanRemoveFromList, Converter={StaticResource BooleanToVisibilityConverter}}" />
@@ -114,9 +114,25 @@
                                                TextTrimming="CharacterEllipsis" />
                                     <TextBlock Grid.Column="1"
                                                Margin="{DynamicResource Thickness.WarningGap}"
+                                               MaxWidth="320"
                                                VerticalAlignment="Center"
-                                               Foreground="{DynamicResource Brush.WarningText}"
-                                               Text="{Binding ProjectState, Converter={StaticResource ProjectStateMessageConverter}}" />
+                                               Text="{Binding DiagnosticMessage}"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip="{Binding DiagnosticMessage}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="{DynamicResource Brush.WarningText}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding DiagnosticSeverity}" Value="Info">
+                                                        <Setter Property="Foreground" Value="{DynamicResource Brush.InfoText}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding DiagnosticSeverity}" Value="Error">
+                                                        <Setter Property="Foreground" Value="{DynamicResource Brush.ErrorText}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                 </Grid>
                             </Grid>
                         </DataTemplate>

@@ -1,9 +1,13 @@
 using System.Globalization;
 using UProjectHub.App.Converters;
+using UProjectHub.App.Services;
 using UProjectHub.App.ViewModels;
 using UProjectHub.Core.Catalog;
+using UProjectHub.Core.Diagnostics;
 using UProjectHub.Core.Models;
 using UProjectHub.Core.Paths;
+using UProjectHub.Core.Tests.Time;
+using UProjectHub.Windows.Launching;
 
 namespace UProjectHub.Core.Tests.App;
 
@@ -113,6 +117,73 @@ public sealed class ProjectListViewModelTests
     }
 
     [TestMethod]
+    public void RowsShowOnlyTheHighestPriorityProblemOrActionableInfo()
+    {
+        var healthy = CreateProject(
+            "Healthy",
+            @"C:\Projects\Healthy\Healthy.uproject",
+            projectType: ProjectType.Blueprint,
+            engineState: EngineResolutionState.Resolved);
+        var engineMissing = CreateProject(
+            "EngineMissing",
+            @"C:\Projects\EngineMissing\EngineMissing.uproject",
+            projectType: ProjectType.Cpp,
+            engineState: EngineResolutionState.Missing);
+        var solutionMissing = CreateProject(
+            "SolutionMissing",
+            @"C:\Projects\SolutionMissing\SolutionMissing.uproject",
+            projectType: ProjectType.Cpp,
+            engineState: EngineResolutionState.Resolved);
+        var store = CreateDiagnosticStore();
+        var viewModel = new ProjectListViewModel(diagnostics: store);
+
+        viewModel.SetSnapshot(CreateSnapshot(
+            healthy,
+            engineMissing,
+            solutionMissing));
+
+        Assert.AreEqual(string.Empty, viewModel.Rows[0].DiagnosticMessage);
+        Assert.IsNull(viewModel.Rows[0].DiagnosticSeverity);
+        Assert.AreEqual(
+            "The matching Unreal Engine installation was not found.",
+            viewModel.Rows[1].DiagnosticMessage);
+        Assert.AreEqual(
+            ProjectDiagnosticSeverity.Error,
+            viewModel.Rows[1].DiagnosticSeverity);
+        Assert.AreEqual(
+            "No existing .sln file was found. Generate Visual Studio project files to create one.",
+            viewModel.Rows[2].DiagnosticMessage);
+        Assert.AreEqual(
+            ProjectDiagnosticSeverity.Info,
+            viewModel.Rows[2].DiagnosticSeverity);
+    }
+
+    [TestMethod]
+    public void RefreshedSolutionDiagnosticUpdatesExistingRowImmediately()
+    {
+        var project = CreateProject(
+            "Game",
+            @"C:\Projects\Game\Game.uproject",
+            projectType: ProjectType.Cpp,
+            engineState: EngineResolutionState.Resolved);
+        var locator = new MutableSolutionLocator();
+        var store = CreateDiagnosticStore(locator);
+        var viewModel = new ProjectListViewModel(diagnostics: store);
+        viewModel.SetSnapshot(CreateSnapshot(project));
+        Assert.AreEqual(
+            ProjectDiagnosticSeverity.Info,
+            viewModel.Rows[0].DiagnosticSeverity);
+
+        locator.Selection = VisualStudioSolutionSelection.Available(
+            @"C:\Projects\Game\Game.sln",
+            [@"C:\Projects\Game\Game.sln"]);
+        store.Refresh(project);
+
+        Assert.AreEqual(string.Empty, viewModel.Rows[0].DiagnosticMessage);
+        Assert.IsNull(viewModel.Rows[0].DiagnosticSeverity);
+    }
+
+    [TestMethod]
     public void SetVisibleProjects_ChangesOnlyVisibleRowsAndPreservesSnapshotTotal()
     {
         var projects = Enumerable.Range(1, 28)
@@ -195,6 +266,28 @@ public sealed class ProjectListViewModelTests
         return converter.Convert(state, typeof(string), null, CultureInfo.InvariantCulture);
     }
 
+    private static ProjectDiagnosticSnapshotStore CreateDiagnosticStore()
+        => CreateDiagnosticStore(new MissingSolutionLocator());
+
+    private static ProjectDiagnosticSnapshotStore CreateDiagnosticStore(
+        IVisualStudioSolutionLocator locator)
+    {
+        var basic = new BasicProjectDiagnosticsService(
+            new FakeClock(new DateTimeOffset(
+                2026,
+                8,
+                30,
+                12,
+                0,
+                0,
+                TimeSpan.Zero)));
+        return new ProjectDiagnosticSnapshotStore(
+            new ProjectDiagnosticsService(
+                basic,
+                locator,
+                _ => true));
+    }
+
     private static ProjectCatalogSnapshot CreateSnapshot(params UnrealProject[] projects)
     {
         var catalog = new ProjectCatalog();
@@ -229,5 +322,20 @@ public sealed class ProjectListViewModelTests
             isFavorite,
             projectState,
             engineState);
+    }
+
+    private sealed class MissingSolutionLocator : IVisualStudioSolutionLocator
+    {
+        public VisualStudioSolutionSelection Locate(UnrealProject project) =>
+            VisualStudioSolutionSelection.Missing();
+    }
+
+    private sealed class MutableSolutionLocator : IVisualStudioSolutionLocator
+    {
+        public VisualStudioSolutionSelection Selection { get; set; } =
+            VisualStudioSolutionSelection.Missing();
+
+        public VisualStudioSolutionSelection Locate(UnrealProject project) =>
+            Selection;
     }
 }

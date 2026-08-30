@@ -3,9 +3,9 @@ using UProjectHub.App.ViewModels;
 
 namespace UProjectHub.App.Views;
 
-public partial class ProjectInformationWindow : Window
+public partial class ProjectDetailsWindow : Window
 {
-    public ProjectInformationWindow(ProjectInformationViewModel viewModel)
+    public ProjectDetailsWindow(ProjectDetailsViewModel viewModel)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
 

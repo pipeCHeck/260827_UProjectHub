@@ -29,7 +29,7 @@ public sealed class ProjectContextActionsViewModelTests
         Assert.IsNotNull(fixture.ViewModel.OpenProjectFolderCommand);
         Assert.IsNotNull(fixture.ViewModel.CopyPathCommand);
         Assert.IsNotNull(fixture.ViewModel.ToggleFavoriteCommand);
-        Assert.IsNotNull(fixture.ViewModel.ProjectInformationCommand);
+        Assert.IsNotNull(fixture.ViewModel.ProjectDetailsCommand);
         Assert.AreEqual("Add to Favorites", fixture.ViewModel.ToggleFavoriteLabel);
         Assert.IsNull(fixture.ViewModel.OpenInVisualStudioUnavailableReason);
         Assert.IsNull(fixture.ViewModel.GenerateProjectFilesUnavailableReason);
@@ -135,15 +135,17 @@ public sealed class ProjectContextActionsViewModelTests
         fixture.ViewModel.OpenProjectFolderCommand.Execute(null);
         fixture.ViewModel.CopyPathCommand.Execute(null);
         fixture.ViewModel.OpenInVisualStudioCommand.Execute(null);
-        fixture.ViewModel.ProjectInformationCommand.Execute(null);
+        fixture.ViewModel.ProjectDetailsCommand.Execute(null);
 
         Assert.AreEqual(1, fixture.UnrealLauncher.LaunchCount);
         Assert.AreEqual(1, fixture.Explorer.FolderCount);
         Assert.AreEqual(fixture.Project.ProjectFilePath.Value, fixture.Clipboard.Text);
         Assert.AreEqual(1, fixture.VisualStudio.OpenCount);
-        Assert.HasCount(1, fixture.InformationRequests);
-        Assert.AreEqual(fixture.Project.Name, fixture.InformationRequests[0].Name);
-        Assert.AreEqual(fixture.Project.ProjectFilePath.Value, fixture.InformationRequests[0].ProjectPath);
+        Assert.HasCount(1, fixture.DetailsRequests);
+        Assert.AreEqual(fixture.Project.Name, fixture.DetailsRequests[0].Name);
+        Assert.AreEqual(
+            fixture.Project.ProjectFilePath.Value,
+            fixture.DetailsRequests[0].Overview.ProjectPath);
     }
 
     [TestMethod]
@@ -160,7 +162,7 @@ public sealed class ProjectContextActionsViewModelTests
     }
 
     [TestMethod]
-    public void ProjectInformationUsesQuietUnknownsAndExactInjectedLocalTime()
+    public void ProjectOverviewUsesQuietUnknownsAndExactInjectedLocalTime()
     {
         var project = CreateProject(
             ProjectType.Blueprint,
@@ -169,14 +171,14 @@ public sealed class ProjectContextActionsViewModelTests
             engineAssociation: null,
             engineDisplayVersion: null);
 
-        var information = new ProjectInformationViewModel(project, TimeZoneInfo.Utc);
+        var overview = new ProjectOverviewViewModel(project, TimeZoneInfo.Utc);
 
-        Assert.AreEqual("—", information.EngineAssociation);
-        Assert.AreEqual("—", information.EngineDisplayVersion);
-        Assert.AreEqual("—", information.ProjectType);
-        Assert.AreEqual("2026-08-28 11:00:00 +00:00", information.LastModified);
-        Assert.AreEqual("Never", information.LastLaunched);
-        Assert.AreEqual("Broken", information.ProjectState);
+        Assert.AreEqual("—", overview.EngineAssociation);
+        Assert.AreEqual("—", overview.EngineDisplayVersion);
+        Assert.AreEqual("—", overview.ProjectType);
+        Assert.AreEqual("2026-08-28 11:00:00 +00:00", overview.LastModified);
+        Assert.AreEqual("Never", overview.LastLaunched);
+        Assert.AreEqual("Broken", overview.ProjectState);
     }
 
     private static async Task ExecuteAsync(ICommand command)
@@ -232,12 +234,12 @@ public sealed class ProjectContextActionsViewModelTests
             clipboard,
             _ => resolution,
             projectFilesGenerator: projectFilesGenerator);
-        var informationRequests = new List<ProjectInformationViewModel>();
+        var detailsRequests = new List<ProjectDetailsViewModel>();
         var generationRequests = new List<GenerateProjectFilesViewModel>();
         var viewModel = new ProjectContextActionsViewModel(
             project,
             actions,
-            informationRequests.Add,
+            detailsRequests.Add,
             generationRequests.Add);
         return new Fixture(
             project,
@@ -247,7 +249,7 @@ public sealed class ProjectContextActionsViewModelTests
             explorer,
             visualStudio,
             clipboard,
-            informationRequests,
+            detailsRequests,
             projectFilesGenerator,
             generationRequests);
     }
@@ -278,7 +280,7 @@ public sealed class ProjectContextActionsViewModelTests
         FakeExplorerLauncher Explorer,
         FakeVisualStudioLauncher VisualStudio,
         FakeClipboardService Clipboard,
-        List<ProjectInformationViewModel> InformationRequests,
+        List<ProjectDetailsViewModel> DetailsRequests,
         FakeProjectFilesGenerator ProjectFilesGenerator,
         List<GenerateProjectFilesViewModel> GenerationRequests);
 

@@ -6,6 +6,7 @@ using System.Windows.Media;
 using UProjectHub.App.Controls;
 using UProjectHub.App.ViewModels;
 using UProjectHub.App.Views;
+using UProjectHub.Core.Diagnostics;
 using UProjectHub.Core.Models;
 using UProjectHub.Core.Paths;
 using UProjectHub.Core.Settings;
@@ -239,6 +240,73 @@ public sealed class PresentationResourceTests
 
         Assert.IsNotNull(binding);
         Assert.AreEqual(BindingMode.OneWay, binding.Mode);
+    }
+
+    [STATestMethod]
+    public void ProjectDetailsShellContainsOnlyScrollableOverviewAndDiagnostics()
+    {
+        var project = new UnrealProject(
+            "Game",
+            new ProjectPath(@"D:\Projects\Game\Game.uproject"),
+            "5.8",
+            "5.8",
+            ProjectType.Cpp,
+            DateTimeOffset.UnixEpoch,
+            LastLaunched: null,
+            IsFavorite: false,
+            ProjectState.Available,
+            EngineResolutionState.Resolved);
+        var report = new ProjectDiagnosticReport(
+            project.ProjectFilePath,
+            DateTimeOffset.UnixEpoch,
+            new[]
+            {
+                new ProjectDiagnosticFinding(
+                    ProjectDiagnosticCodes.SolutionMissing,
+                    ProjectDiagnosticSeverity.Info,
+                    IsBlocking: false,
+                    ProjectDiagnosticSuggestedAction.GenerateProjectFiles),
+            });
+        var window = new ProjectDetailsWindow(new ProjectDetailsViewModel(
+            new ProjectOverviewViewModel(project),
+            new ProjectDiagnosticsViewModel(report)));
+        var primaryText = new SolidColorBrush(Colors.WhiteSmoke);
+        window.Resources["Brush.TextPrimary"] = primaryText;
+
+        var tabs = Assert.IsInstanceOfType<TabControl>(
+            window.FindName("DetailsTabControl"));
+        var overview = Assert.IsInstanceOfType<ScrollViewer>(
+            window.FindName("OverviewScrollViewer"));
+        var diagnostics = Assert.IsInstanceOfType<ScrollViewer>(
+            window.FindName("DiagnosticsScrollViewer"));
+
+        Assert.HasCount(2, tabs.Items);
+        Assert.AreEqual(
+            ScrollBarVisibility.Auto,
+            overview.VerticalScrollBarVisibility);
+        Assert.AreEqual(
+            ScrollBarVisibility.Auto,
+            diagnostics.VerticalScrollBarVisibility);
+
+        var detailsTextStyle = Assert.IsInstanceOfType<Style>(
+            window.Resources[typeof(TextBlock)]);
+        Assert.IsTrue(detailsTextStyle.Setters.OfType<Setter>().Any(setter =>
+            setter.Property == TextBlock.ForegroundProperty));
+
+        window.Show();
+        try
+        {
+            tabs.SelectedIndex = 1;
+            window.UpdateLayout();
+
+            var message = Descendants<TextBlock>(tabs).Single(text =>
+                text.Text.StartsWith("No existing .sln", StringComparison.Ordinal));
+            Assert.AreSame(primaryText, message.Foreground);
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 
     [STATestMethod]

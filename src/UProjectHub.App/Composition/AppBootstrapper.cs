@@ -98,14 +98,23 @@ public sealed class AppBootstrapper
             currentEngines.Resolve,
             logger,
             projectFilesGenerator);
+        var diagnosticStore = new ProjectDiagnosticSnapshotStore(
+            new ProjectDiagnosticsService(
+                new BasicProjectDiagnosticsService(clock),
+                solutionLocator,
+                project => projectActions
+                    .PrepareProjectFileGeneration(project)
+                    .CanGenerate));
         var projectList = new ProjectListViewModel(project =>
             new ProjectContextActionsViewModel(
                 project,
                 projectActions,
-                ShowProjectInformation,
+                ShowProjectDetails,
                 ShowGenerateProjectFiles,
-                localizationService),
-            localizationService);
+                localizationService,
+                diagnosticStore),
+            localizationService,
+            diagnosticStore);
         var searchService = new ProjectSearchService(clock);
         var searchFilter = new SearchFilterViewModel(
             projectList,
@@ -277,10 +286,10 @@ public sealed class AppBootstrapper
             : AppThemeMode.Light;
     }
 
-    private static void ShowProjectInformation(
-        ProjectInformationViewModel viewModel)
+    private static void ShowProjectDetails(
+        ProjectDetailsViewModel viewModel)
     {
-        var window = new ProjectInformationWindow(viewModel)
+        var window = new ProjectDetailsWindow(viewModel)
         {
             Owner = Application.Current?.MainWindow,
         };

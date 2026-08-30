@@ -30,6 +30,18 @@ public sealed class LocalizationServiceTests
         "String.Settings",
         "String.Refresh",
         "String.ProjectInformation",
+        "String.ProjectDetails",
+        "String.Overview",
+        "String.Diagnostics",
+        "String.DiagnosticsDescription",
+        "String.DiagnosticsEmpty",
+        "String.DiagnosticSeverityInfo",
+        "String.DiagnosticSeverityWarning",
+        "String.DiagnosticSeverityError",
+        "String.DiagnosticEngineMissing",
+        "String.DiagnosticEngineAmbiguous",
+        "String.DiagnosticEngineUnknown",
+        "String.DiagnosticPartialFailure",
         "String.StateMissing",
         "String.StateBroken",
         "String.Apply",
@@ -127,8 +139,8 @@ public sealed class LocalizationServiceTests
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!
             .InformationalVersion;
 
-        Assert.AreEqual("0.3.1 r", informationalVersion);
-        Assert.AreEqual("v0.3.1 r", AppVersion.Display);
+        Assert.AreEqual("0.4.0 r", informationalVersion);
+        Assert.AreEqual("v0.4.0 r", AppVersion.Display);
     }
 
     private static int CountLocalizationDictionaries(ResourceDictionary resources) =>

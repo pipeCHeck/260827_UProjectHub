@@ -102,4 +102,19 @@ public sealed class ExternalProcessRunnerTests
         Assert.AreEqual(ExternalProcessStatus.Cancelled, result.Status);
         Assert.IsFalse(result.IsSuccess);
     }
+
+    [TestMethod]
+    public async Task CancellationCleanupWaitIsBoundedWhenCleanupDoesNotFinish()
+    {
+        var neverCompletes = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var completed = await ExternalProcessRunner
+            .WaitForCancellationCleanupAsync(
+                neverCompletes.Task,
+                TimeSpan.FromMilliseconds(50))
+            .WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.IsFalse(completed);
+    }
 }

@@ -262,7 +262,7 @@ Overflow button (`⋮`) and right-click use the same context actions:
     Copy Path
     Toggle Favorite
     -------------------
-    Project Information
+    Project Details
     Remove from List
 
 `Open Existing .sln` is enabled only for a C++ project when one solution can be selected safely. For Blueprint, missing, multiple, or inaccessible solution states, keep the action visible but disabled and show a concise reason in a tooltip. A missing `.sln` is an actionable informational state when generation is available, not a project-health warning.
@@ -270,6 +270,23 @@ Overflow button (`⋮`) and right-click use the same context actions:
 `Generate Visual Studio Project Files` remains visible but is enabled only for an available C++ project with one resolved usable engine whose installation exposes a supported generation entry point. Before starting, a confirmation window shows the engine, engine root, exact `.uproject` path, expected `.sln` path, and that generated files may be created or replaced. While running, the window stays responsive, offers cancellation, and prevents a duplicate run for that project. Completion shows success, cancellation, or failure details; success immediately refreshes `Open Existing .sln` availability.
 
 `Remove from List` is shown only for a missing project. It removes the entry from UProject Hub's managed list/cache and never deletes the project directory or files.
+
+### 14.1 Project Details
+
+`Project Details` replaces the former Project Information dialog and provides
+two keyboard-accessible, scrollable sections only:
+
+- **Overview** contains the existing project path, engine, type, state,
+  favorite, and timestamp fields.
+- **Diagnostics** contains low-cost basic findings ordered by severity and
+  stable priority.
+
+Do not add empty Storage, Notes, Source Control, or advanced-diagnostic tabs in
+this phase. Normal projects have no `Healthy` or `Ready` row label. The list
+shows only its primary Error or Warning, or a lower-emphasis actionable Info
+when no problem is present. Engine problems take precedence over solution
+findings. A generatable missing `.sln` uses the informational treatment and
+points to Generate Visual Studio Project Files.
 
 ## 15. Keyboard
 

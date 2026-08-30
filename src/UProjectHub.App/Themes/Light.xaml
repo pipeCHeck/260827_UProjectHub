@@ -12,6 +12,10 @@
     <SolidColorBrush x:Key="Brush.AccentSubtle" Color="#FFE8EDF7" />
     <SolidColorBrush x:Key="Brush.WarningText" Color="#FF8A5A18" />
     <SolidColorBrush x:Key="Brush.WarningSurface" Color="#FFFFF3DC" />
+    <SolidColorBrush x:Key="Brush.InfoText" Color="#FF44668F" />
+    <SolidColorBrush x:Key="Brush.InfoSurface" Color="#FFEAF1F8" />
+    <SolidColorBrush x:Key="Brush.ErrorText" Color="#FFA33A3A" />
+    <SolidColorBrush x:Key="Brush.ErrorSurface" Color="#FFFBEAEA" />
     <SolidColorBrush x:Key="Brush.Focus" Color="#FF4A70AD" />
     <SolidColorBrush x:Key="Brush.FavoriteActive" Color="#FF9A6B16" />
     <SolidColorBrush x:Key="Brush.ControlDisabled" Color="#FFF0F1F3" />

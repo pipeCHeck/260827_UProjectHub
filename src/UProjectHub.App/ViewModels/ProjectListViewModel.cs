@@ -13,6 +13,7 @@ public sealed class ProjectListViewModel : ObservableObject
     private readonly Func<UnrealProject, ProjectContextActionsViewModel>?
         _contextActionsFactory;
     private readonly LocalizationService? _localization;
+    private readonly ProjectDiagnosticSnapshotStore? _diagnostics;
     private int _totalCount;
     private int _visibleCount;
     private IReadOnlyList<ColumnLayoutState> _columnLayout = [];
@@ -20,14 +21,19 @@ public sealed class ProjectListViewModel : ObservableObject
     public ProjectListViewModel(
         Func<UnrealProject, ProjectContextActionsViewModel>?
             contextActionsFactory = null,
-        LocalizationService? localization = null)
+        LocalizationService? localization = null,
+        ProjectDiagnosticSnapshotStore? diagnostics = null)
     {
         _contextActionsFactory = contextActionsFactory;
         _localization = localization;
+        _diagnostics = diagnostics;
+        if (_diagnostics is not null)
+        {
+            _diagnostics.SnapshotChanged += OnDiagnosticSnapshotChanged;
+        }
         if (_localization is not null)
         {
-            _localization.LanguageChanged += (_, _) =>
-                OnPropertyChanged(nameof(ShowingCountText));
+            _localization.LanguageChanged += OnLanguageChanged;
         }
         Rows = new ReadOnlyObservableCollection<ProjectRowViewModel>(_rows);
     }
@@ -64,6 +70,8 @@ public sealed class ProjectListViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(snapshot);
 
+        _diagnostics?.Refresh(snapshot.Projects);
+
         SetRows(snapshot.Projects, snapshot.Projects.Count);
     }
 
@@ -79,7 +87,9 @@ public sealed class ProjectListViewModel : ObservableObject
         var rows = projects
             .Select(project => new ProjectRowViewModel(
                 project,
-                _contextActionsFactory?.Invoke(project)))
+                _contextActionsFactory?.Invoke(project),
+                _diagnostics?.Get(project),
+                _localization))
             .ToArray();
 
         _rows.Clear();
@@ -104,4 +114,24 @@ public sealed class ProjectListViewModel : ObservableObject
         _localization?.GetString(key) is { } value && value != key
             ? value
             : fallback;
+
+    private void OnDiagnosticSnapshotChanged(
+        object? sender,
+        ProjectDiagnosticSnapshotChangedEventArgs eventArgs)
+    {
+        foreach (var row in _rows.Where(row =>
+                     row.Project.ProjectFilePath.Equals(eventArgs.ProjectPath)))
+        {
+            row.UpdateDiagnosticReport(eventArgs.Report);
+        }
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs eventArgs)
+    {
+        OnPropertyChanged(nameof(ShowingCountText));
+        foreach (var row in _rows)
+        {
+            row.RefreshDiagnosticPresentation();
+        }
+    }
 }
