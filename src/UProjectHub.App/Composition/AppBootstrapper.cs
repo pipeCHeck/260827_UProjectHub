@@ -25,6 +25,7 @@ using UProjectHub.Windows.Logging;
 using UProjectHub.Windows.Projects;
 using UProjectHub.Windows.Registry;
 using UProjectHub.Windows.Storage;
+using UProjectHub.Windows.Cleanup;
 using AppThemeMode = UProjectHub.Core.Settings.ThemeMode;
 
 namespace UProjectHub.App.Composition;
@@ -87,6 +88,7 @@ public sealed class AppBootstrapper
         var projectFilesGenerator = new UnrealProjectFilesGenerator(
             new ExternalProcessRunner(),
             solutionLocator);
+        var projectCleanupService = new ProjectCleanupService(solutionLocator);
         var projectActions = new ProjectActionService(
             catalog,
             settingsRepository,
@@ -111,6 +113,8 @@ public sealed class AppBootstrapper
                 projectActions,
                 ShowProjectDetails,
                 ShowGenerateProjectFiles,
+                ShowProjectCleanup,
+                projectCleanupService,
                 localizationService,
                 diagnosticStore),
             localizationService,
@@ -308,6 +312,22 @@ public sealed class AppBootstrapper
         GenerateProjectFilesViewModel viewModel)
     {
         var window = new GenerateProjectFilesWindow(viewModel)
+        {
+            Owner = Application.Current?.MainWindow,
+        };
+        try
+        {
+            _ = window.ShowDialog();
+        }
+        finally
+        {
+            viewModel.Dispose();
+        }
+    }
+
+    private static void ShowProjectCleanup(ProjectCleanupViewModel viewModel)
+    {
+        var window = new ProjectCleanupWindow(viewModel)
         {
             Owner = Application.Current?.MainWindow,
         };

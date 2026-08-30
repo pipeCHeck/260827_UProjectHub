@@ -414,7 +414,6 @@ Search, filtering, sorting, and project-list reordering must update immediately.
 The MVP shall not include:
 
 - project deletion;
-- cache-folder deletion;
 - Unreal version conversion;
 - `EngineAssociation` editing;
 - project-file generation without an explicit user confirmation;
@@ -438,7 +437,7 @@ Read-only queries and project-changing operations are separate capabilities.
 - Read-only queries inspect project, engine, source-control, diagnostic, or size information without changing project files.
 - Generate Project Files is a generated-file mutation because it may create or replace `.sln` and generated project-file output. It requires an explicit user action and must show the selected engine, target `.uproject`, and operation before execution.
 - Switch Unreal Engine Version is a descriptor mutation because it changes `EngineAssociation`. It is a separate later feature and must never select a target engine or run without explicit user selection and confirmation.
-- Project cache cleanup is a destructive operation. It is a separate later feature and must require exact-path validation, per-folder selection, and final confirmation before deleting any generated folder.
+- Project Cleanup is a destructive operation available only through explicit per-item selection and a final confirmation. It is limited to the project-root `Intermediate`, `DerivedDataCache`, `.vs`, and `Binaries` folders plus one uniquely identified top-level `.sln`. Every target is recomputed and validated immediately before deletion; recursive size and deletion traversal must reject reparse points and must never follow links outside the project.
 
 Expensive read-only work such as recursive size analysis, Git inspection, plugin dependency checks, or log/crash analysis runs only for a selected project after an explicit user request. It must not run automatically during startup or full-list loading.
 

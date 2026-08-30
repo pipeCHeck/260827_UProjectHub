@@ -263,6 +263,7 @@ Overflow button (`⋮`) and right-click use the same context actions:
     Toggle Favorite
     -------------------
     Project Details
+    Project Cleanup
     Remove from List
 
 `Open Existing .sln` is enabled only for a C++ project when one solution can be selected safely. For Blueprint, missing, multiple, or inaccessible solution states, keep the action visible but disabled and show a concise reason in a tooltip. A missing `.sln` is an actionable informational state when generation is available, not a project-health warning.
@@ -270,6 +271,8 @@ Overflow button (`⋮`) and right-click use the same context actions:
 `Generate Visual Studio Project Files` remains visible but is enabled only for an available C++ project with one resolved usable engine whose installation exposes a supported generation entry point. Before starting, a confirmation window shows the engine, engine root, exact `.uproject` path, expected `.sln` path, and that generated files may be created or replaced. While running, the window stays responsive, offers cancellation, and prevents a duplicate run for that project. Completion shows success, cancellation, or failure details; success immediately refreshes `Open Existing .sln` availability.
 
 `Remove from List` is shown only for a missing project. It removes the entry from UProject Hub's managed list/cache and never deletes the project directory or files.
+
+`Project Cleanup` is enabled only for an available project. Its separate window lists only `Intermediate`, `DerivedDataCache`, `.vs`, the project-root `Binaries`, and a uniquely identified top-level `.sln`, with exact paths, current existence, and on-demand sizes. The first three existing safe generated folders are selected by default; `Binaries` and `.sln` are not. Selecting `Binaries` warns that a rebuild may be required, and selecting `.sln` explains that Generate Visual Studio Project Files can recreate it. Deletion requires a second confirmation view showing the selected exact paths. Results remain per item so one failure does not hide or stop other item outcomes.
 
 ### 14.1 Project Details
 

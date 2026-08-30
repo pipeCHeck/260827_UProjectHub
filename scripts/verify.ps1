@@ -64,7 +64,8 @@ function Invoke-SafetyChecks {
     $deleteMatches = @(Get-SourceMatches '\b(?:File|Directory)\.Delete\s*\(')
     $allowedDeleteFiles = @(
         (Join-Path $repositoryRoot 'src\UProjectHub.Core\Storage\AtomicJsonFileWriter.cs'),
-        (Join-Path $repositoryRoot 'src\UProjectHub.Windows\Logging\RollingFileLogger.cs')
+        (Join-Path $repositoryRoot 'src\UProjectHub.Windows\Logging\RollingFileLogger.cs'),
+        (Join-Path $repositoryRoot 'src\UProjectHub.Windows\Cleanup\ProjectCleanupService.cs')
     )
     $unexpectedDeletes = @($deleteMatches | Where-Object {
         $allowedDeleteFiles -notcontains $_.Path
@@ -75,7 +76,7 @@ function Invoke-SafetyChecks {
         }
         throw "Unexpected production delete API usage:`n$($details -join [Environment]::NewLine)"
     }
-    Write-Host 'PASS: delete APIs are limited to atomic temp-file cleanup and bounded log retention.'
+    Write-Host 'PASS: delete APIs are limited to atomic writes, bounded logs, and validated Project Cleanup targets.'
 
     $registryRoot = Join-Path $repositoryRoot 'src\UProjectHub.Windows\Registry'
     $registryWriteMatches = @(Get-ChildItem $registryRoot -Recurse -File -Include '*.cs' |

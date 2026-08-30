@@ -54,6 +54,7 @@ dotnet run --project src/UProjectHub.App
 - Unreal, project folder, copy path, existing Visual Studio solution, Project Details, and Missing-only removal actions
 - Explicitly confirmed Visual Studio project-file generation through the resolved engine's supported UnrealBuildTool entry point
 - Low-cost basic diagnostics with quiet list priority and Overview/Diagnostics details
+- Explicitly confirmed cleanup of selected generated project-root folders and a uniquely identified project solution
 - Light/dark semantic themes, normal/compact density, responsive columns, and system-aware subtle motion
 - Runtime English/Korean UI switching with persisted language selection
 - Bounded rolling UTF-8 logs
@@ -88,7 +89,7 @@ The application does not use the user's real LocalAppData, Registry, Unreal inst
 
 ## Project mutation policy
 
-UProject Hub does not modify `.uproject` descriptors, change `EngineAssociation`, convert engine versions, or delete project directories/files. Generate Visual Studio Project Files is the one supported generated-file mutation: it runs only after explicit confirmation and may create or replace `.sln` and related generated project-file output. “Remove from List” removes only UProject Hub's managed catalog/cache/settings entry for a Missing project.
+UProject Hub does not modify `.uproject` descriptors, change `EngineAssociation`, convert engine versions, or delete user-authored project content. Generate Visual Studio Project Files is an explicitly confirmed generated-file mutation. Project Cleanup is an explicitly selected and finally confirmed destructive operation limited to the project-root `Intermediate`, `DerivedDataCache`, `.vs`, and `Binaries` folders plus one uniquely identified top-level `.sln`; it rejects reparse points and never targets `Content`, `Config`, `Source`, `Plugins`, `Saved`, or `.uproject`. “Remove from List” removes only UProject Hub's managed catalog/cache/settings entry for a Missing project.
 
 ## MVP non-goals
 

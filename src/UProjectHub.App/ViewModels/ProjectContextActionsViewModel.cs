@@ -4,6 +4,7 @@ using UProjectHub.App.Services;
 using UProjectHub.Core.Diagnostics;
 using UProjectHub.Core.Models;
 using UProjectHub.Windows.Launching;
+using UProjectHub.Windows.Cleanup;
 
 namespace UProjectHub.App.ViewModels;
 
@@ -13,6 +14,8 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
     private readonly ProjectActionService _actions;
     private readonly Action<ProjectDetailsViewModel> _showDetails;
     private readonly Action<GenerateProjectFilesViewModel> _showGenerateProjectFiles;
+    private readonly Action<ProjectCleanupViewModel> _showProjectCleanup;
+    private readonly IProjectCleanupService _cleanupService;
     private readonly LocalizationService? _localization;
     private readonly ProjectDiagnosticSnapshotStore? _diagnostics;
     private readonly RelayCommand _openInVisualStudioCommand;
@@ -24,6 +27,8 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
         ProjectActionService actions,
         Action<ProjectDetailsViewModel> showDetails,
         Action<GenerateProjectFilesViewModel> showGenerateProjectFiles,
+        Action<ProjectCleanupViewModel> showProjectCleanup,
+        IProjectCleanupService cleanupService,
         LocalizationService? localization = null,
         ProjectDiagnosticSnapshotStore? diagnostics = null)
     {
@@ -33,6 +38,10 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
             ?? throw new ArgumentNullException(nameof(showDetails));
         _showGenerateProjectFiles = showGenerateProjectFiles
             ?? throw new ArgumentNullException(nameof(showGenerateProjectFiles));
+        _showProjectCleanup = showProjectCleanup
+            ?? throw new ArgumentNullException(nameof(showProjectCleanup));
+        _cleanupService = cleanupService
+            ?? throw new ArgumentNullException(nameof(cleanupService));
         _localization = localization;
         _diagnostics = diagnostics;
 
@@ -45,6 +54,9 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
         _generateProjectFilesCommand = new RelayCommand(
             ShowGenerateProjectFiles,
             () => CanGenerateProjectFiles);
+        ProjectCleanupCommand = new RelayCommand(
+            ShowProjectCleanup,
+            () => CanProjectCleanup);
         OpenProjectFolderCommand = new RelayCommand(
             () => LastResult = _actions.OpenProjectFolder(_project));
         CopyPathCommand = new RelayCommand(
@@ -71,6 +83,16 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
 
     public bool CanRemoveFromList => _actions.CanRemoveFromList(_project);
 
+    public bool CanProjectCleanup =>
+        _project.ProjectState == ProjectState.Available;
+
+    public string? ProjectCleanupUnavailableReason =>
+        CanProjectCleanup
+            ? null
+            : Localize(
+                "String.ProjectCleanupUnavailable",
+                "Cleanup is available only while the project is accessible.");
+
     public string ToggleFavoriteLabel => _project.IsFavorite
         ? Localize("String.RemoveFavorite", "Remove from Favorites")
         : Localize("String.AddFavorite", "Add to Favorites");
@@ -94,6 +116,8 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
     public ICommand ToggleFavoriteCommand { get; }
 
     public ICommand ProjectDetailsCommand { get; }
+
+    public ICommand ProjectCleanupCommand { get; }
 
     public ICommand RemoveFromListCommand { get; }
 
@@ -127,6 +151,20 @@ public sealed class ProjectContextActionsViewModel : ObservableObject
                 request,
                 cancellationToken,
                 outputProgress),
+            RefreshSolutionActionsAsync,
+            _localization));
+    }
+
+    private void ShowProjectCleanup()
+    {
+        if (!CanProjectCleanup)
+        {
+            return;
+        }
+
+        _showProjectCleanup(new ProjectCleanupViewModel(
+            _project,
+            _cleanupService,
             RefreshSolutionActionsAsync,
             _localization));
     }

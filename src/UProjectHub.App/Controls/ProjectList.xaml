@@ -32,6 +32,9 @@
             <Separator />
             <MenuItem Header="{DynamicResource String.ProjectDetails}"
                       Command="{Binding ProjectDetailsCommand}" />
+            <MenuItem Header="{DynamicResource String.ProjectCleanup}"
+                      Command="{Binding ProjectCleanupCommand}"
+                      ToolTip="{Binding ProjectCleanupUnavailableReason}" />
             <MenuItem Header="{DynamicResource String.RemoveFromList}"
                       Command="{Binding RemoveFromListCommand}"
                       Visibility="{Binding CanRemoveFromList, Converter={StaticResource BooleanToVisibilityConverter}}" />

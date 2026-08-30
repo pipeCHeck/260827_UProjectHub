@@ -11,6 +11,7 @@ using UProjectHub.Core.Paths;
 using UProjectHub.Core.Settings;
 using UProjectHub.Core.Tests.Time;
 using UProjectHub.Windows.Launching;
+using UProjectHub.Windows.Cleanup;
 
 namespace UProjectHub.Core.Tests.App;
 
@@ -33,9 +34,28 @@ public sealed class ProjectContextActionsViewModelTests
         Assert.IsNotNull(fixture.ViewModel.CopyPathCommand);
         Assert.IsNotNull(fixture.ViewModel.ToggleFavoriteCommand);
         Assert.IsNotNull(fixture.ViewModel.ProjectDetailsCommand);
+        Assert.IsTrue(fixture.ViewModel.ProjectCleanupCommand.CanExecute(null));
         Assert.AreEqual("Add to Favorites", fixture.ViewModel.ToggleFavoriteLabel);
         Assert.IsNull(fixture.ViewModel.OpenInVisualStudioUnavailableReason);
         Assert.IsNull(fixture.ViewModel.GenerateProjectFilesUnavailableReason);
+    }
+
+    [TestMethod]
+    public void CleanupIsExplicitlyOpenedForAvailableBlueprintButNotMissingProject()
+    {
+        var available = CreateFixture(CreateProject(
+            ProjectType.Blueprint,
+            ProjectState.Available));
+        var missing = CreateFixture(CreateProject(
+            ProjectType.Cpp,
+            ProjectState.Missing));
+
+        Assert.IsTrue(available.ViewModel.ProjectCleanupCommand.CanExecute(null));
+        Assert.IsFalse(missing.ViewModel.ProjectCleanupCommand.CanExecute(null));
+        available.ViewModel.ProjectCleanupCommand.Execute(null);
+
+        Assert.HasCount(1, available.CleanupRequests);
+        Assert.AreEqual(0, available.CleanupService.CleanupCount);
     }
 
     [TestMethod]
@@ -334,11 +354,15 @@ public sealed class ProjectContextActionsViewModelTests
         diagnosticStore.Prune([project]);
         var detailsRequests = new List<ProjectDetailsViewModel>();
         var generationRequests = new List<GenerateProjectFilesViewModel>();
+        var cleanupRequests = new List<ProjectCleanupViewModel>();
+        var cleanupService = new FakeCleanupService(project);
         var viewModel = new ProjectContextActionsViewModel(
             project,
             actions,
             detailsRequests.Add,
             generationRequests.Add,
+            cleanupRequests.Add,
+            cleanupService,
             diagnostics: diagnosticStore);
         return new Fixture(
             project,
@@ -351,7 +375,9 @@ public sealed class ProjectContextActionsViewModelTests
             detailsRequests,
             diagnosticStore,
             projectFilesGenerator,
-            generationRequests);
+            generationRequests,
+            cleanupService,
+            cleanupRequests);
     }
 
     private static UnrealProject CreateProject(
@@ -383,7 +409,9 @@ public sealed class ProjectContextActionsViewModelTests
         List<ProjectDetailsViewModel> DetailsRequests,
         ProjectDiagnosticSnapshotStore DiagnosticStore,
         FakeProjectFilesGenerator ProjectFilesGenerator,
-        List<GenerateProjectFilesViewModel> GenerationRequests);
+        List<GenerateProjectFilesViewModel> GenerationRequests,
+        FakeCleanupService CleanupService,
+        List<ProjectCleanupViewModel> CleanupRequests);
 
     private sealed class FakeSettingsRepository(AppSettings settings) : ISettingsRepository
     {
@@ -535,6 +563,35 @@ public sealed class ProjectContextActionsViewModelTests
                 VisualStudioSolutionSelection.Available(
                     request.ExpectedSolutionPath,
                     [request.ExpectedSolutionPath])));
+        }
+    }
+
+    private sealed class FakeCleanupService(UnrealProject project) : IProjectCleanupService
+    {
+        public int CleanupCount { get; private set; }
+
+        public Task<ProjectCleanupInspection> InspectAsync(
+            UnrealProject requestedProject,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ProjectCleanupInspection(project,
+            [
+                new ProjectCleanupItemInspection(
+                    ProjectCleanupTargetKind.Intermediate,
+                    Path.Combine(project.ProjectDirectory, "Intermediate"),
+                    Exists: false,
+                    CanDelete: false,
+                    SizeBytes: 0,
+                    ErrorMessage: null,
+                    CandidatePaths: Array.Empty<string>()),
+            ]));
+
+        public Task<ProjectCleanupResult> CleanupAsync(
+            ProjectCleanupRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            CleanupCount++;
+            return Task.FromResult(new ProjectCleanupResult(
+                Array.Empty<ProjectCleanupItemResult>()));
         }
     }
 }
