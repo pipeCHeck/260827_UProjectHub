@@ -26,15 +26,21 @@ function Invoke-NativeStep {
     Write-Host "PASS: $Name"
 }
 
+function Get-SourceFiles {
+    $sourceRoot = Join-Path $repositoryRoot 'src'
+    return @(Get-ChildItem $sourceRoot -Recurse -File | Where-Object {
+        $_.Extension -in '.cs', '.xaml', '.csproj' -and
+        $_.FullName -notmatch '[\\/](?:bin|obj)[\\/]'
+    })
+}
+
 function Get-SourceMatches {
     param(
         [Parameter(Mandatory)]
         [string] $Pattern
     )
 
-    $sourceRoot = Join-Path $repositoryRoot 'src'
-    return @(Get-ChildItem $sourceRoot -Recurse -File -Include '*.cs', '*.xaml', '*.csproj' |
-        Select-String -Pattern $Pattern)
+    return @(Get-SourceFiles | Select-String -Pattern $Pattern)
 }
 
 function Assert-NoSourceMatches {
@@ -52,6 +58,55 @@ function Assert-NoSourceMatches {
             "$($_.Path):$($_.LineNumber):$($_.Line.Trim())"
         }
         throw "$Label failed:`n$($details -join [Environment]::NewLine)"
+    }
+
+    Write-Host "PASS: $Label"
+}
+
+function Assert-SourceMatchesOnlyInFiles {
+    param(
+        [Parameter(Mandatory)]
+        [string] $Label,
+
+        [Parameter(Mandatory)]
+        [string] $Pattern,
+
+        [Parameter(Mandatory)]
+        [string[]] $AllowedFiles
+    )
+
+    $allowedPaths = @($AllowedFiles | ForEach-Object {
+        [System.IO.Path]::GetFullPath($_)
+    })
+    $matches = @(Get-SourceMatches $Pattern)
+    $unexpected = @($matches | Where-Object {
+        $allowedPaths -notcontains [System.IO.Path]::GetFullPath($_.Path)
+    })
+    if ($unexpected.Count -gt 0) {
+        $details = $unexpected | ForEach-Object {
+            "$($_.Path):$($_.LineNumber):$($_.Line.Trim())"
+        }
+        throw "$Label failed:`n$($details -join [Environment]::NewLine)"
+    }
+
+    Write-Host "PASS: $Label"
+}
+
+function Assert-TextContainsPatterns {
+    param(
+        [Parameter(Mandatory)]
+        [string] $Label,
+
+        [Parameter(Mandatory)]
+        [string] $Text,
+
+        [Parameter(Mandatory)]
+        [string[]] $Patterns
+    )
+
+    $missing = @($Patterns | Where-Object { $Text -notmatch $_ })
+    if ($missing.Count -gt 0) {
+        throw "$Label failed; required safety marker(s) missing: $($missing -join ', ')"
     }
 
     Write-Host "PASS: $Label"
@@ -78,30 +133,124 @@ function Invoke-SafetyChecks {
     }
     Write-Host 'PASS: delete APIs are limited to atomic writes, bounded logs, and validated Project Cleanup targets.'
 
-    $registryRoot = Join-Path $repositoryRoot 'src\UProjectHub.Windows\Registry'
-    $registryWriteMatches = @(Get-ChildItem $registryRoot -Recurse -File -Include '*.cs' |
-        Select-String -Pattern '\b(?:SetValue|DeleteValue|DeleteSubKey|DeleteSubKeyTree|CreateSubKey)\s*\(')
-    if ($registryWriteMatches.Count -gt 0) {
-        throw 'Registry integration contains a write/delete API.'
+    $cleanupPath = Join-Path $repositoryRoot 'src\UProjectHub.Windows\Cleanup\ProjectCleanupService.cs'
+    $cleanup = Get-Content -Raw $cleanupPath
+    $cleanupDeleteMatches = @(Select-String -Path $cleanupPath -Pattern '\b(?:File|Directory)\.Delete\s*\(')
+    $allowedCleanupDeleteLines = @(
+        'File.Delete(path);',
+        'File.Delete(entry.FullName);',
+        'Directory.Delete(directoryPath, recursive: false);'
+    )
+    $unexpectedCleanupDeletes = @($cleanupDeleteMatches | Where-Object {
+        $_.Line.Trim() -notin $allowedCleanupDeleteLines
+    })
+    if ($unexpectedCleanupDeletes.Count -gt 0) {
+        $details = $unexpectedCleanupDeletes | ForEach-Object {
+            "$($_.Path):$($_.LineNumber):$($_.Line.Trim())"
+        }
+        throw "Project Cleanup contains an unapproved delete call:`n$($details -join [Environment]::NewLine)"
     }
-    Write-Host 'PASS: Registry write/delete APIs'
+    foreach ($expectedDelete in $allowedCleanupDeleteLines) {
+        if ($cleanupDeleteMatches.Line.Trim() -notcontains $expectedDelete) {
+            throw "Project Cleanup delete boundary changed; expected call missing: $expectedDelete"
+        }
+    }
+
+    $targetMethod = [regex]::Match(
+        $cleanup,
+        '(?s)private static string GetDirectoryTarget\(.*?(?=\r?\n    private static void ValidateDirectoryTarget)')
+    if (-not $targetMethod.Success) {
+        throw 'Could not locate ProjectCleanupService.GetDirectoryTarget.'
+    }
+    $actualCleanupDirectoryNames = @([regex]::Matches(
+        $targetMethod.Value,
+        '=>\s*"([^"]+)"') | ForEach-Object { $_.Groups[1].Value } | Sort-Object)
+    $expectedCleanupDirectoryNames = @(
+        '.vs',
+        'Binaries',
+        'DerivedDataCache',
+        'Intermediate'
+    ) | Sort-Object
+    $targetDifferences = @(Compare-Object `
+        $expectedCleanupDirectoryNames `
+        $actualCleanupDirectoryNames)
+    if ($targetDifferences.Count -gt 0) {
+        throw "Project Cleanup directory targets changed outside the approved set:`n$($targetDifferences | Out-String)"
+    }
+    Assert-TextContainsPatterns `
+        'Project Cleanup containment, reparse-point, and top-level solution guards' `
+        $cleanup `
+        @(
+            'ValidateContainedPath\(root, directoryPath\)',
+            'RejectReparsePoint\(directoryPath\)',
+            '(?s)Path\.GetExtension\(fullPath\).*?"\.sln"',
+            '(?s)Path\.GetDirectoryName\(fullPath\).*?root',
+            'Directory\.Delete\(directoryPath, recursive: false\)'
+        )
+
+    $registrySourceFiles = @(Get-SourceFiles | Where-Object {
+        $_.Extension -eq '.cs' -and
+        (Get-Content -Raw $_.FullName) -match `
+            'Microsoft\.Win32|\bRegistryKey\b|\bRegistry\s*\.'
+    })
+    $registryWriteMatches = @($registrySourceFiles | Select-String -Pattern `
+        '\b(?:SetValue|DeleteValue|DeleteSubKey|DeleteSubKeyTree|CreateSubKey)\s*\(|writable\s*:\s*true')
+    if ($registryWriteMatches.Count -gt 0) {
+        $details = $registryWriteMatches | ForEach-Object {
+            "$($_.Path):$($_.LineNumber):$($_.Line.Trim())"
+        }
+        throw "Production source contains a Registry write/delete API:`n$($details -join [Environment]::NewLine)"
+    }
+    Write-Host 'PASS: no Registry write/delete APIs in production source.'
+
+    $generatorPath = Join-Path $repositoryRoot 'src\UProjectHub.Windows\Launching\UnrealProjectFilesGenerator.cs'
+    Assert-SourceMatchesOnlyInFiles `
+        'UnrealBuildTool executable selection is isolated to UnrealProjectFilesGenerator' `
+        '["'']UnrealBuildTool\.exe["'']' `
+        @($generatorPath)
+    $generator = Get-Content -Raw $generatorPath
+    Assert-TextContainsPatterns `
+        'Generate Project Files uses the external process boundary' `
+        $generator `
+        @(
+            'new ExternalProcessRequest\(',
+            '_processRunner\.RunAsync\(',
+            'UnrealBuildTool\.exe'
+        )
     Assert-NoSourceMatches `
-        'Generate Project Files / UnrealBuildTool' `
-        'GenerateProjectFiles|Generate Project Files|UnrealBuildTool'
+        'Unsupported shell/batch fallback' `
+        '(?i)\b(?:cmd(?:\.exe)?|powershell(?:\.exe)?|pwsh(?:\.exe)?)\b|\.(?:bat|cmd)["'']'
+
+    $externalRunnerPath = Join-Path $repositoryRoot 'src\UProjectHub.Windows\Launching\ExternalProcessRunner.cs'
+    Assert-SourceMatchesOnlyInFiles `
+        'Process-tree termination is isolated to ExternalProcessRunner' `
+        '\.Kill\s*\(' `
+        @($externalRunnerPath)
     Assert-NoSourceMatches `
-        'Process termination APIs' `
-        'Process\s*\.\s*Kill\s*\(|\.Kill\s*\(|Thread\s*\.\s*Abort\s*\(|\.Abort\s*\('
+        'Thread abort APIs' `
+        '\bThread\s*\.\s*Abort\s*\(|\.Abort\s*\('
+    $externalRunner = Get-Content -Raw $externalRunnerPath
+    Assert-TextContainsPatterns `
+        'Generate cancellation uses bounded process cleanup' `
+        $externalRunner `
+        @(
+            'CancellationCleanupTimeout\s*=\s*TimeSpan\.FromSeconds\([1-9][0-9]*\)',
+            'process\.Kill\(entireProcessTree: true\)',
+            'WaitForCancellationCleanupAsync\(',
+            'cleanupTask\.WaitAsync\(timeout\)'
+        )
+
     Assert-NoSourceMatches `
         'FileSystemWatcher' `
         '\bFileSystemWatcher\b'
     Assert-NoSourceMatches `
         'Project EngineAssociation mutation' `
         'project\s*\.\s*EngineAssociation\s*=|with\s*\{[^}]*EngineAssociation\s*='
-    $descriptorWriteFiles = @(Get-ChildItem (Join-Path $repositoryRoot 'src') -Recurse -File -Include '*.cs' |
+    $descriptorWriteFiles = @(Get-SourceFiles | Where-Object { $_.Extension -eq '.cs' } |
         Where-Object {
             $content = Get-Content -Raw $_.FullName
             $content -match '\.uproject' -and
-            $content -match 'File\.WriteAll(?:Text|Bytes)|FileMode\.(?:Create|CreateNew|Truncate|Append)'
+            $content -match 'File\.(?:WriteAllText|WriteAllBytes|WriteAllLines|AppendAllText|AppendAllLines|Create|CreateText|OpenWrite|Move|Replace|Copy)|new\s+FileStream|FileMode\.(?:Create|CreateNew|Truncate|Append)'
         })
     if ($descriptorWriteFiles.Count -gt 0) {
         throw ".uproject write APIs found in: $($descriptorWriteFiles.FullName -join ', ')"
@@ -111,15 +260,13 @@ function Invoke-SafetyChecks {
         'External telemetry / remote logging' `
         '\b(?:TelemetryClient|ApplicationInsights|OpenTelemetry|Sentry|HttpClient)\b'
 
-    $processStartMatches = @(Get-SourceMatches '\bProcess\.Start\s*\(')
-    $allowedProcessStart = Join-Path $repositoryRoot 'src\UProjectHub.Windows\Launching\ProcessLauncher.cs'
-    $unexpectedProcessStarts = @($processStartMatches | Where-Object {
-        $_.Path -ne $allowedProcessStart
-    })
-    if ($unexpectedProcessStarts.Count -gt 0) {
-        throw 'Process.Start exists outside ProcessLauncher.cs.'
-    }
-    Write-Host 'PASS: Process.Start is isolated to ProcessLauncher.cs.'
+    Assert-SourceMatchesOnlyInFiles `
+        'Process start is isolated to launch/process-runner boundaries' `
+        '\bProcess\.Start\s*\(' `
+        @(
+            (Join-Path $repositoryRoot 'src\UProjectHub.Windows\Launching\ProcessLauncher.cs'),
+            $externalRunnerPath
+        )
 
     $coordinatorPath = Join-Path $repositoryRoot 'src\UProjectHub.App\Services\ApplicationCoordinator.cs'
     $coordinator = Get-Content -Raw $coordinatorPath

@@ -1,121 +1,117 @@
-# UProject Hub MVP Verification
+# UProject Hub Verification
 
-This document separates repeatable automated evidence from manual Windows UI checks. A manual item is marked `PASS` only when it was directly exercised during the recorded Task 28 run. Automated coverage does not silently turn an unperformed visual check into a manual pass.
+This document records repeatable automated evidence separately from manual
+Windows UI checks. It reflects the product and test suite verified on
+2026-08-31.
 
 Status meanings:
 
-- `PASS` — directly verified by the stated automated command or manual observation.
-- `NOT MANUALLY VERIFIED` — covered statically or by tests where noted, but not exercised through the live UI in this verification run.
+- `PASS` — verified by the stated automated command in the recorded run.
+- `NOT MANUALLY VERIFIED` — not exercised through the live WPF UI or a real
+  external installation during this run.
 - `N/A` — not applicable to the current environment or fixture.
-- `PENDING` — an automated command has not yet completed.
 
 ## Automated verification
 
-| Check | Status | Evidence |
-|---|---|---|
-| Task 28 fixture workflow | PASS | 1 passed, 0 failed: `dotnet test UProjectHub.sln --filter "FullyQualifiedName~MvpWorkflowTests"` |
-| Full solution tests | PASS | 324 passed, 0 failed, 0 skipped: `dotnet test UProjectHub.sln` |
-| Release build | PASS | 0 warnings, 0 errors: `dotnet build UProjectHub.sln -c Release` |
-| One-command verification | PASS | Restore, 324 tests, Release build, diff, and all safety checks passed: `pwsh -File scripts/verify.ps1` |
-| Whitespace validation | PASS | `git diff --check` returned exit code 0; only Git's LF-to-CRLF working-copy notices were emitted. |
-| Production forbidden-pattern checks | PASS | `scripts/verify.ps1` scopes deletes, Registry writes, project generation, process termination, `.uproject` writes, association mutation, startup Rescan, watchers, and telemetry. |
+The canonical command is:
 
-The integration fixture uses temp-local settings/caches, copied project descriptors, fake installed engines, and a fake process boundary. It verifies cache-first publish, Available/Missing/Broken isolation, bounded startup discovery, explicit recursive Rescan, in-memory query/filter/sort, favorite and LastLaunched persistence, engine resolution, safe launch, Missing-only removal, and byte-for-byte project fixture preservation.
-
-The safety script reports two intentional production delete sites rather than treating them as project-destructive false positives:
-
-- `AtomicJsonFileWriter` deletes only its own temporary atomic-write file.
-- `RollingFileLogger` deletes only bounded log backups/active log artifacts that it owns.
-
-## Manual UI matrix
-
-### Appearance and layout
-
-| Item | Status | Notes |
-|---|---|---|
-| Light theme | NOT MANUALLY VERIFIED | Theme resources and switching have automated tests. |
-| Dark theme | NOT MANUALLY VERIFIED | Theme resources and switching have automated tests. |
-| Normal density | NOT MANUALLY VERIFIED | Density resource switching has automated tests. |
-| Compact density | NOT MANUALLY VERIFIED | Density resource switching has automated tests. |
-| Wide columns | NOT MANUALLY VERIFIED | Responsive behavior is statically/test verified. |
-| Medium columns | NOT MANUALLY VERIFIED | Last Launched should hide first. |
-| Narrow/minimum supported width | NOT MANUALLY VERIFIED | Project, Engine, and Last Modified must remain readable. |
-| Windows animations enabled | NOT MANUALLY VERIFIED | Effective 90/140/180 ms tokens have automated tests. |
-| Windows animations disabled | NOT MANUALLY VERIFIED | Effective durations become zero; activity rotation is gated. |
-
-### Project list states
-
-| Item | Status | Notes |
-|---|---|---|
-| Available project row | NOT MANUALLY VERIFIED | Integration test validates catalog/presentation state. |
-| Missing project row and quiet warning | NOT MANUALLY VERIFIED | Integration test validates state and retention. |
-| Broken project isolation | NOT MANUALLY VERIFIED | Malformed fixture is isolated by integration test. |
-| C++ classification | NOT MANUALLY VERIFIED | Fixture has a non-empty Modules array. |
-| Blueprint classification | NOT MANUALLY VERIFIED | Fixture omits Modules. |
-| Resolved engine state | NOT MANUALLY VERIFIED | Fake engine workflow is automated. |
-| Missing engine state | NOT MANUALLY VERIFIED | Fake engine workflow is automated. |
-| Ambiguous engine state | NOT MANUALLY VERIFIED | Two usable 5.10 candidates are automated. |
-
-### Keyboard and context interactions
-
-| Item | Status | Notes |
-|---|---|---|
-| Ctrl+F focuses search | NOT MANUALLY VERIFIED | View-only routing exists. |
-| Esc clears search only | NOT MANUALLY VERIFIED | ViewModel/routing tests exist. |
-| Up/Down selection | NOT MANUALLY VERIFIED | WPF DataGrid default navigation. |
-| Enter opens selected resolved project | NOT MANUALLY VERIFIED | Action routing and fake process are tested. |
-| Delete is a no-op | NOT MANUALLY VERIFIED | Explicit Missing-only Remove remains separate. |
-| F5 performs Refresh only | NOT MANUALLY VERIFIED | Coordinator regression verifies no discovery/Rescan. |
-| Favorite button | NOT MANUALLY VERIFIED | Persistence/catalog update is automated. |
-| Right-click context menu | NOT MANUALLY VERIFIED | Shares the context-actions ViewModel. |
-| Overflow menu | NOT MANUALLY VERIFIED | Shares the same context-actions ViewModel. |
-| Copy Path | NOT MANUALLY VERIFIED | Clipboard boundary has unit coverage. |
-| Open Folder | NOT MANUALLY VERIFIED | Explorer request has unit coverage. |
-| Reveal `.uproject` | NOT MANUALLY VERIFIED | Explicit `explorer.exe /select,` request is tested. |
-| Conditional Visual Studio action | NOT MANUALLY VERIFIED | Existing top-level `.sln` rules are tested. |
-| Project Information | NOT MANUALLY VERIFIED | Read-only ViewModel/window wiring exists. |
-| Missing-only Remove from List | NOT MANUALLY VERIFIED | Integration test confirms project files remain unchanged. |
-
-### Settings
-
-| Item | Status | Notes |
-|---|---|---|
-| Add/remove search root | NOT MANUALLY VERIFIED | Repository operation tests exist. |
-| Add empty root | NOT MANUALLY VERIFIED | Empty folders remain valid persistent roots. |
-| Folder drag/drop | NOT MANUALLY VERIFIED | Files are ignored; folders use the same add path. |
-| Duplicate root suppression | NOT MANUALLY VERIFIED | Canonical case-insensitive identity is tested. |
-| Valid manual engine | NOT MANUALLY VERIFIED | Standard `Build.version` and editor validation is tested. |
-| Invalid manual engine diagnostic | NOT MANUALLY VERIFIED | Invalid roots do not persist. |
-| System/Light/Dark setting | NOT MANUALLY VERIFIED | Save-then-apply behavior is tested. |
-| Normal/Compact setting | NOT MANUALLY VERIFIED | Save-then-apply behavior is tested. |
-| Explicit Rescan | NOT MANUALLY VERIFIED | Integration test verifies deeper discovery only after Rescan. |
-
-### Startup, logs, motion, and performance
-
-| Item | Status | Notes |
-|---|---|---|
-| Cache-first rows visible | NOT MANUALLY VERIFIED | Integration test blocks Refresh and observes cached rows first. |
-| No blocking startup overlay | NOT MANUALLY VERIFIED | Coordinator design is asynchronous; live UI not observed yet. |
-| Background Refresh status lifecycle | NOT MANUALLY VERIFIED | Coordinator/status tests exist. |
-| No startup full Rescan | NOT MANUALLY VERIFIED | Integration and static checks verify call count/path. |
-| `app.log` creation | NOT MANUALLY VERIFIED | Rolling logger tests use temp storage. |
-| Log rotation/retention | NOT MANUALLY VERIFIED | Automated bounded rotation tests exist. |
-| Refresh/Rescan/launch failure diagnostics | NOT MANUALLY VERIFIED | Logger call-site tests exist. |
-| Button press micro-feedback | NOT MANUALLY VERIFIED | Centralized Fast duration is consumed. |
-| Filter chip micro-feedback | NOT MANUALLY VERIFIED | Centralized motion resource is consumed. |
-| Favorite micro-feedback | NOT MANUALLY VERIFIED | Visual feedback does not delay mutation. |
-| Operation indicator only while active | NOT MANUALLY VERIFIED | State and animation-preference gating are tested. |
-| Disabled animations preserve functionality | NOT MANUALLY VERIFIED | Effective zero-duration behavior is tested. |
-| No search/filter/sort/reorder entrance animation | NOT MANUALLY VERIFIED | Static XAML review and immediate ViewModel tests cover this. |
-| 1,000-row virtualization/scrolling | NOT MANUALLY VERIFIED | DataGrid recycling/virtualization is static; live scrolling was not exercised. |
-
-## Live application smoke
+```powershell
+pwsh -File scripts/verify.ps1
+```
 
 | Check | Status | Evidence |
 |---|---|---|
-| Process starts without startup exception | PASS | `dotnet run --project src/UProjectHub.App --no-build` remained running for 10 seconds without startup output/exception, then was intentionally stopped with Ctrl+C. |
-| Full interactive UI matrix | NOT MANUALLY VERIFIED | Requires deliberate Windows UI session with representative real or test data. |
+| Restore | PASS | `dotnet restore UProjectHub.sln` completed successfully. |
+| Full solution tests | PASS | 539 passed, 0 failed, 0 skipped. |
+| Release build | PASS | 0 warnings, 0 errors. |
+| Whitespace validation | PASS | `git diff --check` returned exit code 0; Git emitted only LF-to-CRLF working-copy notices. |
+| Safety-contract checks | PASS | All boundary checks listed below completed successfully. |
+| One-command verification | PASS | The canonical command completed from restore through the final safety check. |
 
-## Read-only evidence
+The full test suite includes automated coverage for the current product
+features, including Generate Visual Studio Project Files, streaming and
+bounded process output, bounded cancellation cleanup, Project Cleanup,
+Tags/Notes and settings mutation serialization, and background Git Status.
+These are supported features and are not treated as forbidden non-goals.
 
-The Task 28 workflow snapshots every copied fixture file before user-state actions and compares the file set and bytes afterward. Successful launch history, favorite changes, and Missing removal affect only temp-local settings/cache/catalog state. The copied `.uproject` descriptors, `Content` markers, and Missing-project marker remain unchanged. No real LocalAppData, Registry, Unreal Editor, Explorer, Visual Studio, or user project is used by the automated workflow.
+### Enforced production safety boundaries
+
+`scripts/verify.ps1` searches production source under `src/`; generated `bin/`
+and `obj/` files are excluded.
+
+The script currently enforces all of the following:
+
+- Production delete APIs are limited to:
+  - `AtomicJsonFileWriter`, for its owned temporary settings/cache file;
+  - `RollingFileLogger`, for its owned bounded log artifacts;
+  - `ProjectCleanupService`, for validated cleanup targets.
+- `ProjectCleanupService` may map directory cleanup only to project-root
+  `Intermediate`, `DerivedDataCache`, `.vs`, and `Binaries`.
+- Cleanup delete calls remain non-recursive at the final directory boundary,
+  retain containment/reparse-point guards, and accept only a top-level `.sln`
+  selected through the solution locator.
+- `.uproject` write APIs and `EngineAssociation` mutation patterns are absent.
+- Registry-related production source contains no write/delete API and does not
+  open a key with `writable: true`.
+- `UnrealBuildTool.exe` selection is isolated to
+  `UnrealProjectFilesGenerator`, which executes through the external-process
+  boundary.
+- Production source contains no `cmd.exe`, PowerShell, `.bat`, or `.cmd`
+  fallback.
+- Process-tree termination is isolated to `ExternalProcessRunner`; its
+  cancellation path retains a finite cleanup timeout and bounded wait.
+- Process start calls are isolated to `ProcessLauncher` and
+  `ExternalProcessRunner`.
+- External telemetry and remote logging client patterns are absent.
+- `ApplicationCoordinator.StartAsync` does not invoke full `RescanAsync`.
+- `FileSystemWatcher` and thread-abort APIs remain absent.
+
+These static checks complement behavioral tests. They intentionally permit
+risky operations only at the named implementation boundaries rather than
+allowing the same APIs across the production tree.
+
+## Automated feature evidence
+
+| Area | Automated evidence | Manual status this run |
+|---|---|---|
+| Generate Visual Studio Project Files | Engine-type command selection, argument safety, result classification, solution re-query, streaming output, cancellation, retry and ViewModel lifetime tests | NOT MANUALLY VERIFIED |
+| Bounded process termination | Long-running process cancellation, heavy-output responsiveness, and bounded cleanup-wait tests | NOT MANUALLY VERIFIED |
+| Project Cleanup | Disposable-project tests for fixed targets, unique `.sln`, content preservation, partial failure and reparse/junction rejection | NOT MANUALLY VERIFIED |
+| Tags and Notes | Settings compatibility, shared mutation serialization, rollback/dirty state, immediate in-memory search/filter updates and interaction tests | NOT MANUALLY VERIFIED |
+| Git Status | Clean/Changed/Not Repository/failure states, parent repository discovery, background concurrency, refresh races, remote sanitization and safe URL tests | NOT MANUALLY VERIFIED |
+| Startup Refresh versus Rescan | Coordinator and integration tests plus the static startup call-path check | NOT MANUALLY VERIFIED |
+
+All filesystem-destructive cleanup tests use disposable temporary projects.
+They verify that non-target project content and external junction targets
+survive. The verification run does not delete or modify a real user project.
+
+## Manual Windows UI matrix
+
+No live WPF UI interaction was performed during this verification-infrastructure
+run. Automated coverage does not convert these rows into manual passes.
+
+| Item | Status | Notes |
+|---|---|---|
+| Light and Dark themes | NOT MANUALLY VERIFIED | Theme resources are covered automatically; live appearance was not inspected. |
+| Normal and Compact density | NOT MANUALLY VERIFIED | Density behavior is covered automatically; live rows were not inspected. |
+| Narrow-window layout and scrolling | NOT MANUALLY VERIFIED | No live resize or scrolling session was performed. |
+| Keyboard selection, Enter, Esc and F5 | NOT MANUALLY VERIFIED | Command routing has automated coverage; no live keyboard session was performed. |
+| Right-click and overflow menus | NOT MANUALLY VERIFIED | Shared action routing is tested; menus were not opened manually. |
+| Project Details tabs | NOT MANUALLY VERIFIED | Overview, Diagnostics, Tags & Notes, and Source Control were not inspected live. |
+| Generate with a real Unreal Engine | NOT MANUALLY VERIFIED | No real UBT process was launched in this run. |
+| Generate cancellation UI and live log | NOT MANUALLY VERIFIED | Process and ViewModel paths are automated; the window was not exercised. |
+| Project Cleanup confirmation and results UI | NOT MANUALLY VERIFIED | No live cleanup window or real project was used. |
+| Tag filter and autocomplete | NOT MANUALLY VERIFIED | Keyboard/mouse behavior has automated coverage; no live interaction was performed. |
+| Note save and unsaved-close confirmation | NOT MANUALLY VERIFIED | ViewModel/window-close behavior is automated; no live dialog was used. |
+| Git status against a real repository | NOT MANUALLY VERIFIED | Controlled and temporary fixtures were used by tests. |
+| Remote repository browser open | NOT MANUALLY VERIFIED | URL policy is tested; no browser was opened. |
+| Cache-first startup responsiveness | NOT MANUALLY VERIFIED | Coordinator behavior is automated; no timed live startup was observed. |
+
+## Current verification limitations
+
+- Static source checks guard known dangerous APIs and architectural entry
+  points; behavioral tests remain the evidence for runtime path validation.
+- The automated run does not require a real Unreal Engine, Visual Studio,
+  network remote, or persistent user project.
+- Visual polish, real external-tool behavior, and perceived responsiveness
+  require a separate deliberate manual Windows UI session.
