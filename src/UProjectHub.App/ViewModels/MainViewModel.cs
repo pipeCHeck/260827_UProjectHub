@@ -39,7 +39,7 @@ public sealed class MainViewModel : ObservableObject
             () => settingsAction!(),
             () => settingsAction is not null);
         RefreshCommand = new AsyncRelayCommand(
-            () => refreshAction!(),
+            () => ExecuteRefreshAsync(refreshAction!),
             () => refreshAction is not null);
     }
 
@@ -106,6 +106,18 @@ public sealed class MainViewModel : ObservableObject
         _localization?.GetString(key) is { } value && value != key
             ? value
             : fallback;
+
+    private static async Task ExecuteRefreshAsync(Func<Task> refreshAction)
+    {
+        try
+        {
+            await refreshAction();
+        }
+        catch (OperationCanceledException)
+        {
+            // Application shutdown cancels an active Refresh/F5 operation.
+        }
+    }
 
     private void OnLanguageChanged(object? sender, EventArgs eventArgs)
     {

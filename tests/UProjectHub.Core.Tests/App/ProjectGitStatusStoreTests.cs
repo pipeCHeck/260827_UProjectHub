@@ -140,6 +140,34 @@ public sealed class ProjectGitStatusStoreTests
     }
 
     [TestMethod]
+    public async Task UnavailableProjectClearsStatusAndQueuesFreshQueryWhenAvailableAgainAsync()
+    {
+        var service = new ControlledGitStatusService();
+        await using var store = new ProjectGitStatusStore(
+            service,
+            new ImmediateDispatcher(),
+            maxConcurrency: 1);
+        var project = CreateProject(1);
+        var initial = store.UpdateCatalog([project]);
+        await service.WaitForStartedCountAsync(1);
+        service.CompleteCall(0, GitProjectState.Clean);
+        await initial.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreEqual(GitProjectState.Clean, store.TryGet(project)!.State);
+
+        var missing = project with { ProjectState = ProjectState.Missing };
+        await store.UpdateCatalog([missing]);
+
+        Assert.IsNull(store.TryGet(missing));
+
+        var availableAgain = store.UpdateCatalog([project]);
+        await service.WaitForStartedCountAsync(2);
+        service.CompleteCall(1, GitProjectState.Changed);
+        await availableAgain.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.AreEqual(GitProjectState.Changed, store.TryGet(project)!.State);
+    }
+
+    [TestMethod]
     public async Task RevalidateCatalogRefreshesExistingStatusOnceInBackgroundAsync()
     {
         var service = new ControlledGitStatusService();
@@ -229,6 +257,52 @@ public sealed class ProjectGitStatusStoreTests
 
         Assert.AreEqual(GitProjectState.Changed, store.TryGet(project)!.State);
         Assert.HasCount(3, service.StartedCalls);
+    }
+
+    [TestMethod]
+    public async Task ExplicitCancellationCannotConsumeAnAlreadyQueuedCatalogRevalidationAsync()
+    {
+        var service = new ControlledGitStatusService();
+        await using var store = new ProjectGitStatusStore(
+            service,
+            new ImmediateDispatcher(),
+            maxConcurrency: 1);
+        var project = CreateProject(1);
+        var blocker = CreateProject(2);
+        var initial = store.UpdateCatalog([project]);
+        await service.WaitForStartedCountAsync(1);
+        service.CompleteCall(0, GitProjectState.Clean);
+        await initial.WaitAsync(TimeSpan.FromSeconds(1));
+
+        var blockingRefresh = store.UpdateCatalog([project, blocker]);
+        await service.WaitForStartedCountAsync(2);
+        var revalidation = store.RevalidateCatalog([project]);
+        using var cancellation = new CancellationTokenSource();
+        var explicitRefresh = store.RefreshAsync(
+            project,
+            includeRemotes: true,
+            cancellation.Token);
+
+        service.CompleteCall(1, GitProjectState.Clean);
+        await blockingRefresh.WaitAsync(TimeSpan.FromSeconds(1));
+        await service.WaitForStartedCountAsync(3);
+        Assert.IsTrue(service.StartedCalls[2].IncludeRemotes);
+        cancellation.Cancel();
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => explicitRefresh);
+
+        var fallbackStarted = service.WaitForStartedCountAsync(4);
+        var firstCompletion = await Task.WhenAny(revalidation, fallbackStarted)
+            .WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreSame(
+            fallbackStarted,
+            firstCompletion,
+            "The queued F5 revalidation completed without a fresh background query.");
+
+        service.CompleteCall(3, GitProjectState.Changed);
+        await revalidation.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreEqual(GitProjectState.Changed, store.TryGet(project)!.State);
+        Assert.IsFalse(service.StartedCalls[3].IncludeRemotes);
     }
 
     private static UnrealProject CreateProject(int number) => new(

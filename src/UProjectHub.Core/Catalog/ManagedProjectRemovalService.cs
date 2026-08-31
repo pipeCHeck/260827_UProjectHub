@@ -65,18 +65,24 @@ public sealed class ManagedProjectRemovalService
                 .Where(entry => !entry.ProjectFilePath.Equals(projectPath))
                 .ToArray(),
         };
-        if (!_catalog.Remove(projectPath))
+        await _cacheRepository.SaveAsync(updatedCache, cancellationToken);
+        try
         {
-            return ManagedProjectRemovalResult.NotFound;
+            await _settings.UpdateAsync(settings => settings with
+            {
+                ProjectUserStates = settings.ProjectUserStates
+                    .Where(state => !state.ProjectPath.Equals(projectPath))
+                    .ToArray(),
+            }, cancellationToken);
+        }
+        catch
+        {
+            await _cacheRepository.SaveAsync(cache, CancellationToken.None);
+            throw;
         }
 
-        await _cacheRepository.SaveAsync(updatedCache, cancellationToken);
-        await _settings.UpdateAsync(settings => settings with
-        {
-            ProjectUserStates = settings.ProjectUserStates
-                .Where(state => !state.ProjectPath.Equals(projectPath))
-                .ToArray(),
-        }, cancellationToken);
-        return ManagedProjectRemovalResult.Removed;
+        return _catalog.Remove(projectPath)
+            ? ManagedProjectRemovalResult.Removed
+            : ManagedProjectRemovalResult.NotFound;
     }
 }

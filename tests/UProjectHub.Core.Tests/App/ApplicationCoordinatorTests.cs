@@ -43,6 +43,20 @@ public sealed class ApplicationCoordinatorTests
     }
 
     [TestMethod]
+    public async Task MainViewModelRefreshCommand_DoesNotLeakNormalCancellationAsync()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var main = new MainViewModel(
+            new StatusBarViewModel(),
+            refreshAction: () => Task.FromCanceled(cancellation.Token));
+
+        await main.RefreshCommand.ExecuteAsync();
+
+        Assert.IsFalse(main.RefreshCommand.IsExecuting);
+    }
+
+    [TestMethod]
     public async Task Start_LoadsSettingsThenCachesPublishesRowsBeforeBackgroundRefreshAndDoesNotRescan()
     {
         var order = new List<string>();

@@ -68,11 +68,34 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
                 _statuses.Remove(removedPath);
                 _latestRevisions[removedPath] = ++_revision;
                 _backgroundPending.Remove(removedPath);
+                _explicitPending.Remove(removedPath);
                 if (_revalidationsWaitingForExplicit.Remove(
                         removedPath,
                         out var revalidation))
                 {
                     revalidation.TrySetResult(null);
+                }
+            }
+
+            foreach (var unavailablePath in snapshot
+                         .Where(project =>
+                             project.ProjectState != ProjectState.Available)
+                         .Select(project => project.ProjectFilePath.Value))
+            {
+                var hadPendingState = _statuses.Remove(unavailablePath)
+                    | _backgroundPending.Remove(unavailablePath)
+                    | _explicitPending.Remove(unavailablePath);
+                if (_revalidationsWaitingForExplicit.Remove(
+                        unavailablePath,
+                        out var revalidation))
+                {
+                    revalidation.TrySetResult(null);
+                    hadPendingState = true;
+                }
+
+                if (hadPendingState)
+                {
+                    _latestRevisions[unavailablePath] = ++_revision;
                 }
             }
 
@@ -159,19 +182,22 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
                              project.ProjectFilePath.Value)))
             {
                 var path = project.ProjectFilePath.Value;
+                if (_revalidationsWaitingForExplicit.TryGetValue(
+                        path,
+                        out var existingRevalidation))
+                {
+                    pending.Add(existingRevalidation.Task);
+                    continue;
+                }
+
+                var revalidation =
+                    new TaskCompletionSource<GitProjectStatus?>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                _revalidationsWaitingForExplicit[path] = revalidation;
+                pending.Add(revalidation.Task);
+
                 if (_explicitPending.ContainsKey(path))
                 {
-                    if (!_revalidationsWaitingForExplicit.TryGetValue(
-                            path,
-                            out var revalidation))
-                    {
-                        revalidation =
-                            new TaskCompletionSource<GitProjectStatus?>(
-                                TaskCreationOptions.RunContinuationsAsynchronously);
-                        _revalidationsWaitingForExplicit[path] = revalidation;
-                    }
-
-                    pending.Add(revalidation.Task);
                     continue;
                 }
 
@@ -181,7 +207,6 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
                     isExplicit: false);
                 _backgroundQueue.Enqueue(request);
                 _backgroundPending[path] = request.Completion.Task;
-                pending.Add(request.Completion.Task);
                 signalCount++;
             }
         }

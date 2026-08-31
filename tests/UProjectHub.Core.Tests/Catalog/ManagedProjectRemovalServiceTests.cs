@@ -89,6 +89,60 @@ public sealed class ManagedProjectRemovalServiceTests
         Assert.IsTrue(File.Exists(targetPath.Value));
     }
 
+    [TestMethod]
+    public async Task CacheSaveFailureDoesNotRemoveTheProjectFromTheCatalogAsync()
+    {
+        var targetPath = new ProjectPath(@"D:\Projects\Missing\Missing.uproject");
+        var target = CreateProject(targetPath, "Missing", ProjectState.Missing);
+        var catalog = CreateCatalog(target);
+        var settings = new RecordingSettingsRepository(CreateSettings(
+            targetPath,
+            retainedPath: null,
+            root: @"D:\Projects"));
+        var cache = new FailingProjectCacheRepository(CreateCache(target));
+        var service = new ManagedProjectRemovalService(
+            catalog,
+            cache,
+            new SettingsMutationService(settings));
+
+        await Assert.ThrowsExactlyAsync<IOException>(
+            () => service.RemoveMissingAsync(targetPath));
+
+        Assert.AreEqual(target, catalog.GetSnapshot().Projects.Single());
+        Assert.AreEqual(0, settings.SaveCount);
+        Assert.HasCount(1, settings.Current.ProjectUserStates);
+    }
+
+    [TestMethod]
+    public async Task SettingsSaveFailureRestoresTheCacheAndKeepsTheCatalogAsync()
+    {
+        var targetPath = new ProjectPath(@"D:\Projects\Missing\Missing.uproject");
+        var target = CreateProject(targetPath, "Missing", ProjectState.Missing);
+        var catalog = CreateCatalog(target);
+        var initialSettings = CreateSettings(
+            targetPath,
+            retainedPath: null,
+            root: @"D:\Projects");
+        var settings = new RecordingSettingsRepository(initialSettings)
+        {
+            SaveException = new IOException("settings unavailable"),
+        };
+        var cache = new RecordingProjectCacheRepository(CreateCache(target));
+        var service = new ManagedProjectRemovalService(
+            catalog,
+            cache,
+            new SettingsMutationService(settings));
+
+        await Assert.ThrowsExactlyAsync<IOException>(
+            () => service.RemoveMissingAsync(targetPath));
+
+        Assert.AreEqual(target, catalog.GetSnapshot().Projects.Single());
+        Assert.AreEqual(
+            targetPath,
+            cache.Current.Projects.Single().ProjectFilePath);
+        Assert.AreEqual(initialSettings, settings.Current);
+    }
+
     private static ProjectCatalog CreateCatalog(params UnrealProject[] projects)
     {
         var catalog = new ProjectCatalog();
@@ -213,6 +267,65 @@ public sealed class ManagedProjectRemovalServiceTests
     private sealed record Repositories(
         IProjectCacheRepository Cache,
         ISettingsRepository Settings);
+
+    private sealed class FailingProjectCacheRepository(
+        ProjectCacheDocument current) : IProjectCacheRepository
+    {
+        public Task<ProjectCacheDocument> LoadAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(current);
+
+        public Task SaveAsync(
+            ProjectCacheDocument document,
+            CancellationToken cancellationToken = default) =>
+            Task.FromException(new IOException("cache unavailable"));
+    }
+
+    private sealed class RecordingProjectCacheRepository(
+        ProjectCacheDocument current) : IProjectCacheRepository
+    {
+        public ProjectCacheDocument Current { get; private set; } = current;
+
+        public Task<ProjectCacheDocument> LoadAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(Current);
+
+        public Task SaveAsync(
+            ProjectCacheDocument document,
+            CancellationToken cancellationToken = default)
+        {
+            Current = document;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingSettingsRepository(AppSettings current)
+        : ISettingsRepository
+    {
+        public AppSettings Current { get; private set; } = current;
+
+        public int SaveCount { get; private set; }
+
+        public Exception? SaveException { get; init; }
+
+        public Task<AppSettings> LoadAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(Current);
+
+        public Task SaveAsync(
+            AppSettings settings,
+            CancellationToken cancellationToken = default)
+        {
+            SaveCount++;
+            if (SaveException is not null)
+            {
+                return Task.FromException(SaveException);
+            }
+
+            Current = settings;
+            return Task.CompletedTask;
+        }
+    }
 
     private sealed class TemporaryWorkspace : IDisposable
     {

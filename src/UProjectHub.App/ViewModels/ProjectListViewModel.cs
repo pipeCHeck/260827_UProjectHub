@@ -78,12 +78,12 @@ public sealed class ProjectListViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(snapshot);
 
         _diagnostics?.Prune(snapshot.Projects);
-
-        SetRows(snapshot.Projects, snapshot.Projects.Count);
         if (_gitStatuses is not null)
         {
             _ = _gitStatuses.UpdateCatalog(snapshot.Projects);
         }
+
+        SetRows(snapshot.Projects, snapshot.Projects.Count);
     }
 
     public void SetVisibleProjects(IEnumerable<UnrealProject> projects)

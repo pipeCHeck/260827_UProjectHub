@@ -46,6 +46,33 @@ public sealed class ProjectListGitStatusTests
     }
 
     [TestMethod]
+    public async Task MissingSnapshotDoesNotRetainPreviouslyDisplayedGitStatusAsync()
+    {
+        var git = new DeferredGitStatusService();
+        await using var store = new ProjectGitStatusStore(
+            git,
+            new ImmediateDispatcher(),
+            maxConcurrency: 1);
+        var list = new ProjectListViewModel(gitStatuses: store);
+        var project = CreateProject("Game", 1);
+        var catalog = new ProjectCatalog();
+        catalog.Upsert(project);
+        list.SetSnapshot(catalog.GetSnapshot());
+        await git.WaitForCallsAsync(1);
+        var statusChanged = WaitForPropertyAsync(
+            list.Rows.Single(),
+            nameof(ProjectRowViewModel.GitStatus));
+        git.Complete(project.ProjectDirectory, GitProjectState.Clean);
+        await statusChanged.WaitAsync(TimeSpan.FromSeconds(1));
+
+        catalog.Upsert(project with { ProjectState = ProjectState.Missing });
+        list.SetSnapshot(catalog.GetSnapshot());
+
+        Assert.IsNull(list.Rows.Single().GitStatus);
+        Assert.AreEqual(string.Empty, list.Rows.Single().GitStatusDisplay);
+    }
+
+    [TestMethod]
     [DataRow(GitProjectState.NotRepository, "Not Repository", false)]
     [DataRow(GitProjectState.Clean, "Clean", false)]
     [DataRow(GitProjectState.Changed, "Changed", true)]
