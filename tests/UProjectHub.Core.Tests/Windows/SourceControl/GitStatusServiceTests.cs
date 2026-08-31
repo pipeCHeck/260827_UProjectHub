@@ -161,6 +161,31 @@ public sealed class GitStatusServiceTests
     }
 
     [TestMethod]
+    public async Task CredentialedAbsoluteNonWebRemoteIsRedactedBeforeLeavingServiceAsync()
+    {
+        var runner = new QueueProcessRunner(
+            Succeeded("git version 2.50.0\n"),
+            Succeeded("D:/Work/Game\n"),
+            Succeeded(string.Empty),
+            Succeeded(
+                "origin\tssh://build-user:secret-token@example.com/team/game.git (fetch)\n"));
+        var service = new GitStatusService(runner);
+
+        var result = await service.GetStatusAsync(
+            @"D:\Work\Game",
+            includeRemotes: true);
+
+        Assert.HasCount(1, result.Remotes);
+        var remote = result.Remotes[0];
+        Assert.AreEqual(
+            "ssh://example.com/team/game.git",
+            remote.Url);
+        Assert.IsNull(remote.WebUrl);
+        Assert.IsFalse(remote.Url.Contains("build-user", StringComparison.Ordinal));
+        Assert.IsFalse(remote.Url.Contains("secret-token", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     public async Task CallerCancellationCancelsGitQueryAsync()
     {
         var runner = new BlockingProcessRunner();

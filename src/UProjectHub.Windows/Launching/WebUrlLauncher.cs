@@ -39,8 +39,6 @@ public sealed class WebUrlLauncher(IProcessLauncher processLauncher)
     internal static string RedactCredentialsForDisplay(string value)
     {
         if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)
-            || (uri.Scheme != Uri.UriSchemeHttps
-                && uri.Scheme != Uri.UriSchemeHttp)
             || string.IsNullOrEmpty(uri.UserInfo))
         {
             return value;

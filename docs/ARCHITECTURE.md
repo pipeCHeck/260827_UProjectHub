@@ -218,7 +218,9 @@ priority queue, and per-project revisions prevent older background results or
 removed projects from overwriting current state. Cancellation of an initial
 explicit refresh restores background acquisition when no status has been
 published. A completed user Refresh/F5 queues one revalidation from its final
-catalog snapshot rather than from incremental snapshot publications.
+catalog snapshot rather than from incremental snapshot publications. A
+pending explicit Source Control refresh satisfies background work for the same
+project, so background revalidation never supersedes its revision.
 
 ## 6. Discovery Boundaries
 

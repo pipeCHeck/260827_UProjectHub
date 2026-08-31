@@ -298,8 +298,8 @@ does not repeatedly revalidate an existing Git status.
 
 The Source Control section refreshes the selected project immediately, shows
 configured remotes, and may open only validated HTTP or HTTPS remote URLs.
-HTTP or HTTPS remote credentials are removed before a URL reaches display
-state; the raw credential-bearing URL is never presented to the user.
+Credentials in an absolute remote URI are removed before the URI reaches
+display state; the raw credential-bearing URI is never presented to the user.
 Git commands are read-only, cancellable, and time-bounded. Commit, Pull, Push,
 Fetch, Checkout, and branch mutation are not included.
 

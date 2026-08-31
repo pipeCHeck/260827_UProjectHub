@@ -163,6 +163,38 @@ public sealed class ProjectGitStatusStoreTests
         Assert.HasCount(2, service.StartedCalls);
     }
 
+    [TestMethod]
+    public async Task CatalogRevalidationCannotSupersedePendingExplicitRefreshAsync()
+    {
+        var service = new ControlledGitStatusService();
+        await using var store = new ProjectGitStatusStore(
+            service,
+            new ImmediateDispatcher(),
+            maxConcurrency: 2);
+        var project = CreateProject(1);
+        var initial = store.UpdateCatalog([project]);
+        await service.WaitForStartedCountAsync(1);
+        service.CompleteCall(0, GitProjectState.Clean);
+        await initial.WaitAsync(TimeSpan.FromSeconds(1));
+
+        var explicitRefresh = store.RefreshAsync(
+            project,
+            includeRemotes: true);
+        await service.WaitForStartedCountAsync(2);
+
+        var revalidation = store.RevalidateCatalog([project]);
+        service.CompleteCall(1, GitProjectState.Changed);
+
+        var explicitResult = await explicitRefresh.WaitAsync(
+            TimeSpan.FromSeconds(1));
+        await revalidation.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.AreEqual(GitProjectState.Changed, explicitResult!.State);
+        Assert.AreEqual(GitProjectState.Changed, store.TryGet(project)!.State);
+        Assert.HasCount(2, service.StartedCalls);
+        Assert.IsTrue(service.StartedCalls[1].IncludeRemotes);
+    }
+
     private static UnrealProject CreateProject(int number) => new(
         $"Game{number}",
         new ProjectPath($@"D:\Projects\Game{number}\Game{number}.uproject"),

@@ -20,6 +20,8 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Task<GitProjectStatus?>>
         _backgroundPending = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Task<GitProjectStatus?>>
+        _explicitPending = new(StringComparer.OrdinalIgnoreCase);
     private HashSet<string> _catalogPaths =
         new(StringComparer.OrdinalIgnoreCase);
     private long _revision;
@@ -75,6 +77,12 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
                     continue;
                 }
 
+                if (_explicitPending.TryGetValue(path, out var explicitRefresh))
+                {
+                    pending.Add(explicitRefresh);
+                    continue;
+                }
+
                 if (_backgroundPending.TryGetValue(path, out var existing))
                 {
                     pending.Add(existing);
@@ -116,6 +124,8 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
                 isExplicit: true,
                 cancellationToken);
             _priorityQueue.Enqueue(request);
+            _explicitPending[project.ProjectFilePath.Value] =
+                request.Completion.Task;
         }
 
         _queueSignal.Release();
@@ -138,13 +148,19 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
                          && _catalogPaths.Contains(
                              project.ProjectFilePath.Value)))
             {
+                var path = project.ProjectFilePath.Value;
+                if (_explicitPending.TryGetValue(path, out var explicitRefresh))
+                {
+                    pending.Add(explicitRefresh);
+                    continue;
+                }
+
                 var request = CreateRequest(
                     project,
                     includeRemotes: false,
                     isExplicit: false);
                 _backgroundQueue.Enqueue(request);
-                _backgroundPending[project.ProjectFilePath.Value] =
-                    request.Completion.Task;
+                _backgroundPending[path] = request.Completion.Task;
                 pending.Add(request.Completion.Task);
             }
         }
@@ -197,6 +213,7 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
             CancelPending(_priorityQueue);
             CancelPending(_backgroundQueue);
             _backgroundPending.Clear();
+            _explicitPending.Clear();
         }
 
         _lifetimeCancellation.Dispose();
@@ -283,7 +300,7 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
                 request.CancellationToken.IsCancellationRequested
                     ? request.CancellationToken
                     : lifetimeToken);
-            RemoveBackgroundPending(request);
+            RemovePending(request);
             QueueBackgroundFallbackAfterCancelledExplicit(request);
         }
         catch (Exception exception)
@@ -300,7 +317,7 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
             catch (OperationCanceledException) when (lifetimeToken.IsCancellationRequested)
             {
                 request.Completion.TrySetCanceled(lifetimeToken);
-                RemoveBackgroundPending(request);
+                RemovePending(request);
             }
         }
     }
@@ -334,6 +351,7 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
 
             current = _statuses.TryGetValue(path, out var stored) ? stored : null;
             RemoveBackgroundPendingUnsafe(request);
+            RemoveExplicitPendingUnsafe(request);
         }
 
         request.Completion.TrySetResult(current);
@@ -355,6 +373,7 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
             var path = request.Project.ProjectFilePath.Value;
             current = _statuses.TryGetValue(path, out var stored) ? stored : null;
             RemoveBackgroundPendingUnsafe(request);
+            RemoveExplicitPendingUnsafe(request);
         }
 
         request.Completion.TrySetResult(current);
@@ -392,11 +411,12 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
         }
     }
 
-    private void RemoveBackgroundPending(RefreshRequest request)
+    private void RemovePending(RefreshRequest request)
     {
         lock (_gate)
         {
             RemoveBackgroundPendingUnsafe(request);
+            RemoveExplicitPendingUnsafe(request);
         }
     }
 
@@ -407,6 +427,16 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
             && ReferenceEquals(pending, request.Completion.Task))
         {
             _backgroundPending.Remove(path);
+        }
+    }
+
+    private void RemoveExplicitPendingUnsafe(RefreshRequest request)
+    {
+        var path = request.Project.ProjectFilePath.Value;
+        if (_explicitPending.TryGetValue(path, out var pending)
+            && ReferenceEquals(pending, request.Completion.Task))
+        {
+            _explicitPending.Remove(path);
         }
     }
 
