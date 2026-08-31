@@ -17,27 +17,36 @@ public sealed class ManagedProjectRemovalService
     private readonly ProjectCatalog _catalog;
     private readonly IProjectCacheRepository _cacheRepository;
     private readonly SettingsMutationService _settings;
+    private readonly ProjectCatalogOperationGate _operationGate;
 
     public ManagedProjectRemovalService(
         ProjectCatalog catalog,
         IProjectCacheRepository cacheRepository,
-        ISettingsRepository settingsRepository)
-        : this(catalog, cacheRepository, new SettingsMutationService(settingsRepository))
+        ISettingsRepository settingsRepository,
+        ProjectCatalogOperationGate operationGate)
+        : this(
+            catalog,
+            cacheRepository,
+            new SettingsMutationService(settingsRepository),
+            operationGate)
     {
     }
 
     public ManagedProjectRemovalService(
         ProjectCatalog catalog,
         IProjectCacheRepository cacheRepository,
-        SettingsMutationService settings)
+        SettingsMutationService settings,
+        ProjectCatalogOperationGate operationGate)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(cacheRepository);
         ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(operationGate);
 
         _catalog = catalog;
         _cacheRepository = cacheRepository;
         _settings = settings;
+        _operationGate = operationGate;
     }
 
     public async Task<ManagedProjectRemovalResult> RemoveMissingAsync(
@@ -46,6 +55,21 @@ public sealed class ManagedProjectRemovalService
     {
         ArgumentNullException.ThrowIfNull(projectPath);
 
+        await _operationGate.WaitAsync(cancellationToken);
+        try
+        {
+            return await RemoveMissingCoreAsync(projectPath, cancellationToken);
+        }
+        finally
+        {
+            _operationGate.Release();
+        }
+    }
+
+    private async Task<ManagedProjectRemovalResult> RemoveMissingCoreAsync(
+        ProjectPath projectPath,
+        CancellationToken cancellationToken)
+    {
         if (!_catalog.TryGet(projectPath, out var project))
         {
             return ManagedProjectRemovalResult.NotFound;

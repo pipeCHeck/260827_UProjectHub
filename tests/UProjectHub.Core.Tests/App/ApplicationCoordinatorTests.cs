@@ -516,6 +516,7 @@ public sealed class ApplicationCoordinatorTests
             newProject: newProject,
             localization: localization);
         var dispatcher = new RecordingDispatcher(order, main);
+        var catalogOperationGate = new ProjectCatalogOperationGate();
         var fixture = new Fixture(
             settingsRepository,
             projectCache,
@@ -546,6 +547,7 @@ public sealed class ApplicationCoordinatorTests
             projectCache,
             engineCache,
             catalog,
+            catalogOperationGate,
             currentEngines,
             theme,
             main,

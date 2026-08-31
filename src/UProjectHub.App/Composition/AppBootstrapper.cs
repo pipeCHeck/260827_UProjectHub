@@ -79,6 +79,7 @@ public sealed class AppBootstrapper
             clock);
 
         var catalog = new ProjectCatalog();
+        var catalogOperationGate = new ProjectCatalogOperationGate();
         var currentEngines = new CurrentEngineSnapshot();
         var dispatcher = new WpfUiDispatcher(
             Application.Current?.Dispatcher
@@ -86,7 +87,8 @@ public sealed class AppBootstrapper
         var removalService = new ManagedProjectRemovalService(
             catalog,
             projectCacheRepository,
-            settingsMutations);
+            settingsMutations,
+            catalogOperationGate);
         var processLauncher = new ProcessLauncher();
         var externalProcessRunner = new ExternalProcessRunner();
         var unrealEditorLauncher = new UnrealEditorLauncher(processLauncher, clock);
@@ -237,6 +239,7 @@ public sealed class AppBootstrapper
             projectCacheRepository,
             engineCacheRepository,
             catalog,
+            catalogOperationGate,
             currentEngines,
             themeService,
             mainViewModel,

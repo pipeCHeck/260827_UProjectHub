@@ -22,7 +22,7 @@ pwsh -File scripts/verify.ps1
 | Check | Status | Evidence |
 |---|---|---|
 | Restore | PASS | `dotnet restore UProjectHub.sln` completed successfully. |
-| Full solution tests | PASS | 545 passed, 0 failed, 0 skipped. |
+| Full solution tests | PASS | 547 passed, 0 failed, 0 skipped. |
 | Release build | PASS | 0 warnings, 0 errors. |
 | Whitespace validation | PASS | `git diff --check` returned exit code 0; Git emitted only LF-to-CRLF working-copy notices. |
 | Safety-contract checks | PASS | All boundary checks listed below completed successfully. |

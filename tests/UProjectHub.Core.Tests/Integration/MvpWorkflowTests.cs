@@ -198,11 +198,13 @@ public sealed class MvpWorkflowTests
             dispatcher,
             main.SetProjects,
             batchSize: 32);
+        var catalogOperationGate = new ProjectCatalogOperationGate();
         var coordinator = new ApplicationCoordinator(
             settingsRepository,
             projectCacheRepository,
             signalingEngineCache,
             catalog,
+            catalogOperationGate,
             currentEngines,
             themeService,
             main,
@@ -279,7 +281,8 @@ public sealed class MvpWorkflowTests
                 new ManagedProjectRemovalService(
                     catalog,
                     projectCacheRepository,
-                    settingsRepository),
+                    settingsRepository,
+                    catalogOperationGate),
                 new UnrealEditorLauncher(
                     processLauncher,
                     new FakeClock(SuccessfulLaunch)),

@@ -48,7 +48,7 @@ public sealed class ApplicationCoordinator
     private readonly ProjectGitStatusStore? _gitStatuses;
     private readonly IUiDispatcher _dispatcher;
     private readonly IAppLogger _logger;
-    private readonly SemaphoreSlim _operationGate = new(1, 1);
+    private readonly ProjectCatalogOperationGate _operationGate;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private readonly object _taskGate = new();
     private readonly HashSet<Task> _runningTasks = [];
@@ -59,6 +59,7 @@ public sealed class ApplicationCoordinator
         IProjectCacheRepository projectCacheRepository,
         IEngineCacheRepository engineCacheRepository,
         ProjectCatalog catalog,
+        ProjectCatalogOperationGate operationGate,
         CurrentEngineSnapshot engines,
         ThemeService themeService,
         MainViewModel mainViewModel,
@@ -74,6 +75,7 @@ public sealed class ApplicationCoordinator
         _projectCacheRepository = projectCacheRepository ?? throw new ArgumentNullException(nameof(projectCacheRepository));
         _engineCacheRepository = engineCacheRepository ?? throw new ArgumentNullException(nameof(engineCacheRepository));
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
+        _operationGate = operationGate ?? throw new ArgumentNullException(nameof(operationGate));
         _engines = engines ?? throw new ArgumentNullException(nameof(engines));
         _themeService = themeService ?? throw new ArgumentNullException(nameof(themeService));
         _localizationService = localizationService;
@@ -230,7 +232,7 @@ public sealed class ApplicationCoordinator
         Func<Task<BackgroundRefreshResult>> operation,
         CancellationToken cancellationToken)
     {
-        if (!await _operationGate.WaitAsync(0, cancellationToken))
+        if (!await _operationGate.TryWaitAsync(cancellationToken))
         {
             _logger.Warning($"{operationName} was skipped because another operation is active.");
             return null;

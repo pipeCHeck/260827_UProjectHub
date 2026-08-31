@@ -452,7 +452,8 @@ public sealed class ProjectActionServiceTests
         var removal = new ManagedProjectRemovalService(
             catalog,
             cacheRepository,
-            settingsMutations);
+            settingsMutations,
+            new ProjectCatalogOperationGate());
         var unrealLauncher = new FakeUnrealEditorLauncher(
             unrealLaunchResult ?? LaunchResult.Succeeded(Now));
         var explorer = new FakeExplorerLauncher();

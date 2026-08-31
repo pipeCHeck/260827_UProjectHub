@@ -354,7 +354,11 @@ public sealed class ProjectContextActionsViewModelTests
             ],
         });
         var cache = new FakeProjectCacheRepository();
-        var removal = new ManagedProjectRemovalService(catalog, cache, settings);
+        var removal = new ManagedProjectRemovalService(
+            catalog,
+            cache,
+            settings,
+            new ProjectCatalogOperationGate());
         var unreal = new FakeUnrealEditorLauncher();
         var explorer = new FakeExplorerLauncher();
         var visualStudio = new FakeVisualStudioLauncher(solutionState);

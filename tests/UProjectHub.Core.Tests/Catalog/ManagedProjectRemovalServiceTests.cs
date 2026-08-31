@@ -28,7 +28,8 @@ public sealed class ManagedProjectRemovalServiceTests
         var service = new ManagedProjectRemovalService(
             catalog,
             repositories.Cache,
-            repositories.Settings);
+            repositories.Settings,
+            new ProjectCatalogOperationGate());
 
         var result = await service.RemoveMissingAsync(targetPath);
 
@@ -72,7 +73,8 @@ public sealed class ManagedProjectRemovalServiceTests
         var service = new ManagedProjectRemovalService(
             catalog,
             repositories.Cache,
-            repositories.Settings);
+            repositories.Settings,
+            new ProjectCatalogOperationGate());
 
         var result = await service.RemoveMissingAsync(targetPath);
 
@@ -103,7 +105,8 @@ public sealed class ManagedProjectRemovalServiceTests
         var service = new ManagedProjectRemovalService(
             catalog,
             cache,
-            new SettingsMutationService(settings));
+            new SettingsMutationService(settings),
+            new ProjectCatalogOperationGate());
 
         await Assert.ThrowsExactlyAsync<IOException>(
             () => service.RemoveMissingAsync(targetPath));
@@ -131,7 +134,8 @@ public sealed class ManagedProjectRemovalServiceTests
         var service = new ManagedProjectRemovalService(
             catalog,
             cache,
-            new SettingsMutationService(settings));
+            new SettingsMutationService(settings),
+            new ProjectCatalogOperationGate());
 
         await Assert.ThrowsExactlyAsync<IOException>(
             () => service.RemoveMissingAsync(targetPath));
@@ -140,6 +144,91 @@ public sealed class ManagedProjectRemovalServiceTests
         Assert.AreEqual(
             targetPath,
             cache.Current.Projects.Single().ProjectFilePath);
+        Assert.AreEqual(initialSettings, settings.Current);
+    }
+
+    [TestMethod]
+    public async Task RefreshThatMakesProjectAvailableDuringRemovalIsNotRemovedAsync()
+    {
+        var targetPath = new ProjectPath(@"D:\Projects\Recovered\Recovered.uproject");
+        var missing = CreateProject(targetPath, "Recovered", ProjectState.Missing);
+        var available = missing with
+        {
+            ProjectState = ProjectState.Available,
+            LastModified = missing.LastModified.AddMinutes(5),
+        };
+        var catalog = CreateCatalog(missing);
+        var initialSettings = CreateSettings(
+            targetPath,
+            retainedPath: null,
+            root: @"D:\Projects");
+        var settings = new RecordingSettingsRepository(initialSettings);
+        var cache = new RecordingProjectCacheRepository(CreateCache(missing));
+        var operationGate = new ProjectCatalogOperationGate();
+        var service = new ManagedProjectRemovalService(
+            catalog,
+            cache,
+            new SettingsMutationService(settings),
+            operationGate);
+
+        await operationGate.WaitAsync();
+        var removal = service.RemoveMissingAsync(targetPath);
+
+        catalog.Upsert(available);
+        cache.Replace(CreateCache(available));
+        operationGate.Release();
+
+        var result = await removal;
+
+        Assert.AreEqual(ManagedProjectRemovalResult.NotMissing, result);
+        Assert.AreEqual(available, catalog.GetSnapshot().Projects.Single());
+        Assert.AreEqual(
+            available.LastModified,
+            cache.Current.Projects.Single().LastModified);
+        Assert.AreEqual(
+            initialSettings.ProjectUserStates.Single(),
+            settings.Current.ProjectUserStates.Single());
+        Assert.AreEqual(0, settings.SaveCount);
+    }
+
+    [TestMethod]
+    public async Task SettingsFailureDoesNotRollbackOverNewerRefreshCacheAsync()
+    {
+        var targetPath = new ProjectPath(@"D:\Projects\Recovered\Recovered.uproject");
+        var missing = CreateProject(targetPath, "Recovered", ProjectState.Missing);
+        var refreshed = missing with
+        {
+            LastModified = missing.LastModified.AddMinutes(5),
+        };
+        var catalog = CreateCatalog(missing);
+        var initialSettings = CreateSettings(
+            targetPath,
+            retainedPath: null,
+            root: @"D:\Projects");
+        var settings = new RecordingSettingsRepository(initialSettings)
+        {
+            SaveException = new IOException("settings unavailable"),
+        };
+        var cache = new RecordingProjectCacheRepository(CreateCache(missing));
+        var operationGate = new ProjectCatalogOperationGate();
+        var service = new ManagedProjectRemovalService(
+            catalog,
+            cache,
+            new SettingsMutationService(settings),
+            operationGate);
+
+        await operationGate.WaitAsync();
+        var removal = service.RemoveMissingAsync(targetPath);
+
+        cache.Replace(CreateCache(refreshed));
+        operationGate.Release();
+
+        await Assert.ThrowsExactlyAsync<IOException>(() => removal);
+
+        Assert.AreEqual(
+            refreshed.LastModified,
+            cache.Current.Projects.Single().LastModified);
+        Assert.AreEqual(missing, catalog.GetSnapshot().Projects.Single());
         Assert.AreEqual(initialSettings, settings.Current);
     }
 
@@ -297,6 +386,8 @@ public sealed class ManagedProjectRemovalServiceTests
             Current = document;
             return Task.CompletedTask;
         }
+
+        public void Replace(ProjectCacheDocument document) => Current = document;
     }
 
     private sealed class RecordingSettingsRepository(AppSettings current)
