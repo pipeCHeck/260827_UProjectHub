@@ -61,7 +61,8 @@
                                          Padding="{DynamicResource Thickness.InputPadding}"
                                          Background="{DynamicResource Brush.Transparent}"
                                          BorderThickness="0"
-                                         Foreground="{TemplateBinding Foreground}"
+                                         Foreground="{DynamicResource Brush.TextPrimary}"
+                                         CaretBrush="{DynamicResource Brush.TextPrimary}"
                                          HorizontalContentAlignment="Stretch"
                                          VerticalContentAlignment="Center" />
                                 <ToggleButton Grid.Column="1"

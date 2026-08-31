@@ -218,6 +218,7 @@
                             <ComboBox x:Name="TagInputComboBox"
                                       MinWidth="220"
                                       Height="{DynamicResource Metric.DetailsInputHeight}"
+                                      behaviors:EditableComboBoxTextBrushBehavior.IsEnabled="True"
                                       Style="{DynamicResource ComboBox.Editable}"
                                       ItemsSource="{Binding TagSuggestions}"
                                       Text="{Binding NewTag, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
