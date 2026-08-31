@@ -28,6 +28,8 @@ public static class EngineResolver
         EngineVersion projectVersion)
     {
         if (!engine.IsUsable
+            || EngineAssociationParser.Parse(engine.Association)
+                is GuidEngineAssociation
             || !EngineVersion.TryParse(
                 engine.DisplayVersion?.Trim(),
                 out var installedVersion))

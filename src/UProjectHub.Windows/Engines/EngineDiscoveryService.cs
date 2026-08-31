@@ -1,5 +1,6 @@
 using System.Security;
 using System.Text.Json;
+using UProjectHub.Core.Engines;
 using UProjectHub.Core.Models;
 
 namespace UProjectHub.Windows.Engines;
@@ -25,7 +26,10 @@ public sealed class EngineDiscoveryService
     {
         var engines = new List<InstalledEngine>();
         var issues = new List<EngineProviderIssue>();
-        var editorPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var physicalEngines = new Dictionary<string, InstalledEngine>(
+            StringComparer.OrdinalIgnoreCase);
+        var engineIdentities = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase);
 
         foreach (var provider in _providers)
         {
@@ -61,14 +65,45 @@ public sealed class EngineDiscoveryService
                     continue;
                 }
 
-                if (editorPaths.Add(canonicalEditorPath))
+                var identity = GetEngineIdentity(canonicalEditorPath, engine.Association);
+                if (!engineIdentities.Add(identity))
                 {
-                    engines.Add(engine);
+                    continue;
                 }
+
+                var candidate = engine;
+                if (physicalEngines.TryGetValue(
+                        canonicalEditorPath,
+                        out var physicalEngine)
+                    && EngineAssociationParser.Parse(engine.Association)
+                        is GuidEngineAssociation registeredAlias)
+                {
+                    candidate = physicalEngine with
+                    {
+                        Association = registeredAlias.Identifier.ToString("B"),
+                    };
+                }
+                else
+                {
+                    physicalEngines.TryAdd(canonicalEditorPath, engine);
+                }
+
+                engines.Add(candidate);
             }
         }
 
         return new EngineDiscoveryResult(engines, issues);
+    }
+
+    private static string GetEngineIdentity(
+        string canonicalEditorPath,
+        string? association)
+    {
+        var associationIdentity = EngineAssociationParser.Parse(association)
+            is GuidEngineAssociation registeredAlias
+            ? registeredAlias.Identifier.ToString("D")
+            : "default";
+        return $"{canonicalEditorPath}\0{associationIdentity}";
     }
 
     private static bool TryCanonicalizeEditorPath(

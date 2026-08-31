@@ -21,6 +21,47 @@ namespace UProjectHub.Core.Tests.App;
 [DoNotParallelize]
 public sealed class PresentationResourceTests
 {
+    [TestMethod]
+    [DataRow("SettingsWindow.xaml", "740")]
+    [DataRow("ProjectDetailsWindow.xaml", "680")]
+    [DataRow("ProjectCleanupWindow.xaml", "720")]
+    public void DialogDefaultsShowPrimaryContentAndRemainBoundedByTheWorkArea(
+        string fileName,
+        string expectedHeight)
+    {
+        var xaml = File.ReadAllText(FindRepositoryFile(
+            "src",
+            "UProjectHub.App",
+            "Views",
+            fileName));
+
+        StringAssert.Contains(xaml, $"Height=\"{expectedHeight}\"");
+        StringAssert.Contains(
+            xaml,
+            "MaxHeight=\"{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height}\"");
+        StringAssert.Contains(xaml, "VerticalScrollBarVisibility=\"Auto\"");
+    }
+
+    [TestMethod]
+    public void CleanupRowsUseCompactSpacingAndHideTheEmptyResultLine()
+    {
+        var xaml = File.ReadAllText(FindRepositoryFile(
+            "src",
+            "UProjectHub.App",
+            "Views",
+            "ProjectCleanupWindow.xaml"));
+
+        StringAssert.Contains(xaml, "Margin=\"0,0,0,6\"");
+        StringAssert.Contains(xaml, "Padding=\"10,8\"");
+        StringAssert.Contains(xaml, "x:Name=\"CleanupResultText\"");
+        StringAssert.Contains(
+            xaml,
+            "<DataTrigger Binding=\"{Binding ResultText}\" Value=\"{x:Null}\">");
+        StringAssert.Contains(
+            xaml,
+            "<Setter Property=\"Visibility\" Value=\"Collapsed\" />");
+    }
+
     [STATestMethod]
     public void DetailsTextCellsUseTheSharedSemanticCellInset()
     {

@@ -255,6 +255,10 @@ Numeric associations are parsed and matched by major/minor version. For example,
 
 GUID associations match only an exactly equal GUID registration.
 
+When the same physical engine is discovered through both a Launcher numeric
+association and an exact registered GUID, both association aliases are kept
+without treating the single installation as two numeric-version matches.
+
 Provider priority must not choose automatically among multiple usable matches. Do not automatically substitute an engine from another Unreal version.
 
 ## 16. Launch Behavior

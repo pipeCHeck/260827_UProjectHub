@@ -95,6 +95,56 @@ public sealed class EngineDiscoveryServiceTests
     }
 
     [TestMethod]
+    public async Task SamePhysicalEditorPreservesDistinctAssociationAliasesAsync()
+    {
+        const string registeredAssociation =
+            "{71b8a2e1-473e-5703-722f-68af180bc590}";
+        using var fixture = TemporaryEditorPaths.Create();
+        var launcher = fixture.CreateEngine(
+            "Launcher57",
+            "5.7",
+            EngineSource.Launcher);
+        var registeredAlias = launcher with
+        {
+            DisplayName = "Registered UE 5.7 alias",
+            Association = registeredAssociation,
+            DisplayVersion = null,
+            Source = EngineSource.SourceBuild,
+        };
+        var service = new EngineDiscoveryService(
+        [
+            FixedEngineProvider.Returning(launcher),
+            FixedEngineProvider.Returning(registeredAlias),
+        ]);
+
+        var result = await service.DiscoverAsync();
+        var launcherResolution = EngineResolver.Resolve("5.7", result.Engines);
+        var registeredResolution = EngineResolver.Resolve(
+            registeredAssociation,
+            result.Engines);
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                launcher,
+                launcher with { Association = registeredAssociation },
+            },
+            result.Engines.ToArray());
+        Assert.AreEqual(
+            EngineResolutionState.Resolved,
+            launcherResolution.State);
+        Assert.AreEqual(
+            EngineResolutionState.Resolved,
+            registeredResolution.State);
+        Assert.AreEqual(
+            "5.7",
+            registeredResolution.ResolvedCandidate!.DisplayVersion);
+        Assert.AreEqual(
+            EngineSource.Launcher,
+            registeredResolution.ResolvedCandidate.Source);
+    }
+
+    [TestMethod]
     public async Task SameVersionAtDifferentEditorPathsRemainsAmbiguousToResolverAsync()
     {
         using var fixture = TemporaryEditorPaths.Create();

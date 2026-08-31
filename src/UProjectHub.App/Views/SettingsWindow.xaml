@@ -5,7 +5,8 @@
         xmlns:infrastructure="clr-namespace:UProjectHub.App.Infrastructure"
         Title="{DynamicResource String.Settings}"
         Width="720"
-        Height="680"
+        Height="740"
+        MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height}"
         MinWidth="600"
         MinHeight="520"
         Background="{DynamicResource Brush.WindowBackground}"
@@ -43,7 +44,7 @@
                             <RowDefinition Height="*" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <ListBox MinHeight="92"
+                        <ListBox MinHeight="72"
                                  ItemsSource="{Binding SearchRoots}"
                                  SelectedItem="{Binding SelectedSearchRoot, Mode=TwoWay}"
                                  Background="{DynamicResource Brush.Surface}"
@@ -71,7 +72,7 @@
                     </Grid>
                 </Border>
 
-                <TextBlock Margin="0,20,0,0"
+                <TextBlock Margin="0,16,0,0"
                            Style="{DynamicResource Text.EmptyTitle}"
                            Text="{DynamicResource String.ManualEngines}" />
                 <Border Margin="0,8,0,0"
@@ -85,7 +86,7 @@
                             <RowDefinition Height="*" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <ListBox MinHeight="76"
+                        <ListBox MinHeight="60"
                                  ItemsSource="{Binding ManualEngineRoots}"
                                  SelectedItem="{Binding SelectedManualEngineRoot, Mode=TwoWay}"
                                  Background="{DynamicResource Brush.Surface}"
@@ -110,7 +111,7 @@
                     </Grid>
                 </Border>
 
-                <TextBlock Margin="0,20,0,0"
+                <TextBlock Margin="0,16,0,0"
                            Style="{DynamicResource Text.EmptyTitle}"
                            Text="{DynamicResource String.Appearance}" />
                 <Grid Margin="0,8,0,0">

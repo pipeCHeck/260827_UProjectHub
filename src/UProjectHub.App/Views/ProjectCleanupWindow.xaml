@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{DynamicResource String.ProjectCleanup}"
         Width="780"
-        Height="700"
+        Height="720"
+        MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height}"
         MinWidth="600"
         MinHeight="520"
         Background="{DynamicResource Brush.WindowBackground}"
@@ -39,7 +40,7 @@
 
         <ScrollViewer x:Name="CleanupScrollViewer"
                       Grid.Row="1"
-                      Margin="{DynamicResource Thickness.DialogSectionGap}"
+                      Margin="0,16,0,16"
                       VerticalScrollBarVisibility="Auto">
             <Grid>
                 <StackPanel>
@@ -63,8 +64,8 @@
                                   ItemsSource="{Binding Items}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Margin="0,0,0,8"
-                                        Padding="12"
+                                <Border Margin="0,0,0,6"
+                                        Padding="10,8"
                                         Background="{DynamicResource Brush.Surface}"
                                         BorderBrush="{DynamicResource Brush.BorderSubtle}"
                                         BorderThickness="1"
@@ -82,12 +83,12 @@
                                         <StackPanel Grid.Column="1">
                                             <TextBlock FontWeight="SemiBold"
                                                        Text="{Binding DisplayName}" />
-                                            <TextBlock Margin="0,3,0,0"
+                                            <TextBlock Margin="0,2,0,0"
                                                        Foreground="{DynamicResource Brush.TextSecondary}"
                                                        Text="{Binding Path, TargetNullValue=No unique path}"
                                                        TextTrimming="CharacterEllipsis"
                                                        ToolTip="{Binding Path}" />
-                                            <StackPanel Margin="0,3,0,0" Orientation="Horizontal">
+                                            <StackPanel Margin="0,2,0,0" Orientation="Horizontal">
                                                 <TextBlock Foreground="{DynamicResource Brush.TextSecondary}"
                                                            Text="{Binding AvailabilityText}" />
                                                 <TextBlock Margin="8,0,0,0"
@@ -95,10 +96,22 @@
                                                            Text="{Binding DetailText}"
                                                            TextWrapping="Wrap" />
                                             </StackPanel>
-                                            <TextBlock Margin="0,3,0,0"
+                                            <TextBlock x:Name="CleanupResultText"
+                                                       Margin="0,2,0,0"
                                                        Foreground="{DynamicResource Brush.TextSecondary}"
                                                        Text="{Binding ResultText}"
-                                                       TextWrapping="Wrap" />
+                                                       TextWrapping="Wrap">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding ResultText}" Value="{x:Null}">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
                                         </StackPanel>
                                         <TextBlock Grid.Column="2"
                                                    Margin="12,0,0,0"
