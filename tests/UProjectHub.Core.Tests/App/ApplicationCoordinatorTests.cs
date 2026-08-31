@@ -11,6 +11,7 @@ using UProjectHub.Core.Models;
 using UProjectHub.Core.Paths;
 using UProjectHub.Core.Searching;
 using UProjectHub.Core.Settings;
+using UProjectHub.Windows.SourceControl;
 using UProjectHub.Core.Sorting;
 using UProjectHub.Core.Time;
 using UProjectHub.Windows.Engines;
@@ -316,6 +317,28 @@ public sealed class ApplicationCoordinatorTests
     }
 
     [TestMethod]
+    public async Task SuccessfulF5RefreshRevalidatesGitOnceAfterFinalSnapshotAsync()
+    {
+        var fixture = CreateFixture(
+            CreateSettings(),
+            [CreateCacheEntry(ProjectState.Available)],
+            [],
+            includeGitStatuses: true);
+        await fixture.Coordinator.StartAsync();
+        await fixture.EngineCache.Saved.Task;
+        await WaitForOperationReadyAsync(fixture.Status);
+        await fixture.Git!.WaitForCallCountAsync(1);
+        var callsBeforeF5 = fixture.Git.CallCount;
+
+        var refreshed = await fixture.Coordinator.RefreshAsync();
+        await fixture.Git.WaitForCallCountAsync(callsBeforeF5 + 1);
+
+        Assert.IsTrue(refreshed);
+        Assert.AreEqual(callsBeforeF5 + 1, fixture.Git.CallCount);
+        await fixture.Coordinator.StopAsync();
+    }
+
+    [TestMethod]
     public async Task ProjectOperations_UsesApplicationCoordinatorForExplicitRescan()
     {
         var fixture = CreateFixture(CreateSettings(), [], []);
@@ -425,7 +448,8 @@ public sealed class ApplicationCoordinatorTests
         AppSettings settings,
         IReadOnlyList<ProjectCacheEntry> projects,
         IReadOnlyList<EngineCacheEntry> engines,
-        List<string>? order = null)
+        List<string>? order = null,
+        bool includeGitStatuses = false)
     {
         var settingsRepository = new FakeSettingsRepository(settings, order);
         var projectCache = new FakeProjectCacheRepository(projects, order);
@@ -453,9 +477,14 @@ public sealed class ApplicationCoordinatorTests
                 new BasicProjectDiagnosticsService(new SystemClock()),
                 solutionLocator,
                 _ => true));
+        var git = includeGitStatuses ? new RecordingGitStatusService() : null;
+        var gitStatuses = git is null
+            ? null
+            : new ProjectGitStatusStore(git, new ImmediateDispatcher());
         var projectList = new ProjectListViewModel(
             localization: localization,
-            diagnostics: diagnosticStore);
+            diagnostics: diagnosticStore,
+            gitStatuses: gitStatuses);
         var search = new SearchFilterViewModel(
             projectList,
             new ProjectQueryParser(),
@@ -485,7 +514,8 @@ public sealed class ApplicationCoordinatorTests
             main,
             dispatcher,
             solutionLocator,
-            diagnosticStore);
+            diagnosticStore,
+            git);
         var background = new BackgroundRefreshService(
             catalog,
             currentEngines,
@@ -510,7 +540,8 @@ public sealed class ApplicationCoordinatorTests
             dispatcher,
             fixture.Logger,
             localization,
-            diagnosticStore);
+            diagnosticStore,
+            gitStatuses);
         return fixture;
     }
 
@@ -562,7 +593,8 @@ public sealed class ApplicationCoordinatorTests
         MainViewModel main,
         RecordingDispatcher dispatcher,
         CountingSolutionLocator solutionLocator,
-        ProjectDiagnosticSnapshotStore diagnosticStore)
+        ProjectDiagnosticSnapshotStore diagnosticStore,
+        RecordingGitStatusService? git)
     {
         public ApplicationCoordinator Coordinator { get; set; } = null!;
         public FakeSettingsRepository Settings { get; } = settings;
@@ -576,6 +608,7 @@ public sealed class ApplicationCoordinatorTests
         public MainViewModel Main { get; } = main;
         public CountingSolutionLocator SolutionLocator { get; } = solutionLocator;
         public ProjectDiagnosticSnapshotStore DiagnosticStore { get; } = diagnosticStore;
+        public RecordingGitStatusService? Git { get; } = git;
         public RecordingLogger Logger { get; } = new();
         public int RefreshCalls { get; private set; }
         public int RescanCalls { get; private set; }
@@ -657,6 +690,50 @@ public sealed class ApplicationCoordinatorTests
             RefreshCalls = 0;
             RescanCalls = 0;
             LightweightDiscoveryCalls = 0;
+        }
+    }
+
+    private sealed class RecordingGitStatusService : IGitStatusService
+    {
+        private int _callCount;
+
+        public int CallCount => Volatile.Read(ref _callCount);
+
+        public Task<GitProjectStatus> GetStatusAsync(
+            string projectDirectory,
+            bool includeRemotes = false,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Interlocked.Increment(ref _callCount);
+            return Task.FromResult(new GitProjectStatus(GitProjectState.Clean));
+        }
+
+        public async Task WaitForCallCountAsync(int expected)
+        {
+            for (var attempt = 0; attempt < 100; attempt++)
+            {
+                if (CallCount >= expected)
+                {
+                    return;
+                }
+
+                await Task.Delay(10);
+            }
+
+            throw new TimeoutException("The expected Git refresh did not start.");
+        }
+    }
+
+    private sealed class ImmediateDispatcher : IUiDispatcher
+    {
+        public Task InvokeAsync(
+            Action action,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            action();
+            return Task.CompletedTask;
         }
     }
 

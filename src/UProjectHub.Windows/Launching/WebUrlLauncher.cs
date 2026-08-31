@@ -35,4 +35,22 @@ public sealed class WebUrlLauncher(IProcessLauncher processLauncher)
 
         return uri.AbsoluteUri;
     }
+
+    internal static string RedactCredentialsForDisplay(string value)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttps
+                && uri.Scheme != Uri.UriSchemeHttp)
+            || string.IsNullOrEmpty(uri.UserInfo))
+        {
+            return value;
+        }
+
+        var sanitized = new UriBuilder(uri)
+        {
+            UserName = string.Empty,
+            Password = string.Empty,
+        };
+        return sanitized.Uri.AbsoluteUri;
+    }
 }

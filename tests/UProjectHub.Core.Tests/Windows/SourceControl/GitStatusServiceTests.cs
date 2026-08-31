@@ -78,22 +78,36 @@ public sealed class GitStatusServiceTests
     }
 
     [TestMethod]
-    public async Task NonRepositoryIsDistinctFromGitFailureAsync()
+    public async Task NonRepositoryIsLocaleIndependentAndDistinctFromRepositoryFailureAsync()
     {
+        var temporaryRoot = Path.Combine(
+            Path.GetTempPath(),
+            $"UProjectHub-GitStatus-{Guid.NewGuid():N}");
+        var plainProject = Path.Combine(temporaryRoot, "PlainProject");
+        var brokenRepository = Path.Combine(temporaryRoot, "BrokenRepository");
+        Directory.CreateDirectory(plainProject);
+        Directory.CreateDirectory(Path.Combine(brokenRepository, ".git"));
         var notRepositoryRunner = new QueueProcessRunner(
             Succeeded("git version 2.50.0\n"),
-            Failed(128, "fatal: not a git repository (or any parent)"));
+            Failed(128, "fatal: kein Git-Repository"));
         var failedRunner = new QueueProcessRunner(
             Succeeded("git version 2.50.0\n"),
             Failed(128, "fatal: unsafe repository ownership"));
 
-        var notRepository = await new GitStatusService(notRepositoryRunner)
-            .GetStatusAsync(@"D:\Work\PlainProject");
-        var failed = await new GitStatusService(failedRunner)
-            .GetStatusAsync(@"D:\Work\OwnedElsewhere");
+        try
+        {
+            var notRepository = await new GitStatusService(notRepositoryRunner)
+                .GetStatusAsync(plainProject);
+            var failed = await new GitStatusService(failedRunner)
+                .GetStatusAsync(brokenRepository);
 
-        Assert.AreEqual(GitProjectState.NotRepository, notRepository.State);
-        Assert.AreEqual(GitProjectState.Failed, failed.State);
+            Assert.AreEqual(GitProjectState.NotRepository, notRepository.State);
+            Assert.AreEqual(GitProjectState.Failed, failed.State);
+        }
+        finally
+        {
+            Directory.Delete(temporaryRoot, recursive: true);
+        }
     }
 
     [TestMethod]
@@ -119,6 +133,31 @@ public sealed class GitStatusServiceTests
             "https://example.com/team/game.git",
             result.Remotes[0].WebUrl);
         Assert.IsNull(result.Remotes[1].WebUrl);
+    }
+
+    [TestMethod]
+    public async Task CredentialedHttpRemoteIsRedactedBeforeLeavingServiceAsync()
+    {
+        var runner = new QueueProcessRunner(
+            Succeeded("git version 2.50.0\n"),
+            Succeeded("D:/Work/Game\n"),
+            Succeeded(string.Empty),
+            Succeeded(
+                "origin\thttps://build-user:secret-token@example.com/team/game.git (fetch)\n"));
+        var service = new GitStatusService(runner);
+
+        var result = await service.GetStatusAsync(
+            @"D:\Work\Game",
+            includeRemotes: true);
+
+        Assert.HasCount(1, result.Remotes);
+        var remote = result.Remotes[0];
+        Assert.AreEqual(
+            "https://example.com/team/game.git",
+            remote.Url);
+        Assert.AreEqual(remote.Url, remote.WebUrl);
+        Assert.IsFalse(remote.Url.Contains("build-user", StringComparison.Ordinal));
+        Assert.IsFalse(remote.Url.Contains("secret-token", StringComparison.Ordinal));
     }
 
     [TestMethod]

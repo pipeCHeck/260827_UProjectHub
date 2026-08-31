@@ -47,7 +47,10 @@ public sealed class GitStatusService : IGitStatusService
         RememberUnavailable(rootResult);
         if (rootResult.Status != ExternalProcessStatus.Succeeded)
         {
-            return ClassifyFailure(rootResult, cancellationToken);
+            return ClassifyRootFailure(
+                rootResult,
+                projectDirectory,
+                cancellationToken);
         }
 
         var repositoryRoot = rootResult.StandardOutputTail.Trim();
@@ -153,22 +156,56 @@ public sealed class GitStatusService : IGitStatusService
                 ErrorMessage: error);
         }
 
-        if (result.Status == ExternalProcessStatus.NonZeroExit
-            && (error.Contains(
-                    "not a git repository",
-                    StringComparison.OrdinalIgnoreCase)
-                || error.Contains(
-                    "not a repository",
-                    StringComparison.OrdinalIgnoreCase)))
-        {
-            return new GitProjectStatus(GitProjectState.NotRepository);
-        }
-
         return new GitProjectStatus(
             GitProjectState.Failed,
             ErrorMessage: result.Status == ExternalProcessStatus.Cancelled
                 ? "The Git command timed out."
                 : error);
+    }
+
+    private static GitProjectStatus ClassifyRootFailure(
+        ExternalProcessResult result,
+        string projectDirectory,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (result.Status == ExternalProcessStatus.NonZeroExit
+            && result.ExitCode == 128
+            && !HasGitMetadataInHierarchy(projectDirectory))
+        {
+            return new GitProjectStatus(GitProjectState.NotRepository);
+        }
+
+        return ClassifyFailure(result, cancellationToken);
+    }
+
+    private static bool HasGitMetadataInHierarchy(string projectDirectory)
+    {
+        try
+        {
+            for (var directory = new DirectoryInfo(
+                     Path.GetFullPath(projectDirectory));
+                 directory is not null;
+                 directory = directory.Parent)
+            {
+                var marker = Path.Combine(directory.FullName, ".git");
+                if (Directory.Exists(marker) || File.Exists(marker))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch (Exception exception) when (
+            exception is IOException
+                or UnauthorizedAccessException
+                or System.Security.SecurityException
+                or NotSupportedException
+                or ArgumentException)
+        {
+            return true;
+        }
     }
 
     private static IReadOnlyList<GitRemote> ParseRemotes(string output)
@@ -197,10 +234,11 @@ public sealed class GitStatusService : IGitStatusService
                 continue;
             }
 
+            var displayUrl = WebUrlLauncher.RedactCredentialsForDisplay(url);
             remotes.Add(new GitRemote(
                 name,
-                url,
-                WebUrlLauncher.NormalizeSafeUrl(url)));
+                displayUrl,
+                WebUrlLauncher.NormalizeSafeUrl(displayUrl)));
         }
 
         return Array.AsReadOnly(remotes.ToArray());

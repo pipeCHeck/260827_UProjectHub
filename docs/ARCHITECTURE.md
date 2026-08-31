@@ -215,7 +215,10 @@ only synchronizes catalog identity and queues missing status work; it never
 waits for Git or performs process I/O. Two background workers publish targeted
 row updates through the UI dispatcher. Explicit Source Control refreshes use a
 priority queue, and per-project revisions prevent older background results or
-removed projects from overwriting current state.
+removed projects from overwriting current state. Cancellation of an initial
+explicit refresh restores background acquisition when no status has been
+published. A completed user Refresh/F5 queues one revalidation from its final
+catalog snapshot rather than from incremental snapshot publications.
 
 ## 6. Discovery Boundaries
 

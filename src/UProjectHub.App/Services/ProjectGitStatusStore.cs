@@ -81,7 +81,10 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
                     continue;
                 }
 
-                var request = CreateRequest(project, includeRemotes: false);
+                var request = CreateRequest(
+                    project,
+                    includeRemotes: false,
+                    isExplicit: false);
                 _backgroundQueue.Enqueue(request);
                 _backgroundPending[path] = request.Completion.Task;
                 pending.Add(request.Completion.Task);
@@ -107,7 +110,11 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
         lock (_gate)
         {
             ThrowIfDisposed();
-            request = CreateRequest(project, includeRemotes, cancellationToken);
+            request = CreateRequest(
+                project,
+                includeRemotes,
+                isExplicit: true,
+                cancellationToken);
             _priorityQueue.Enqueue(request);
         }
 
@@ -115,6 +122,40 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
         return await request.Completion.Task
             .WaitAsync(cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    public Task RevalidateCatalog(IEnumerable<UnrealProject> projects)
+    {
+        ArgumentNullException.ThrowIfNull(projects);
+        var snapshot = projects.ToArray();
+        var pending = new List<Task<GitProjectStatus?>>();
+
+        lock (_gate)
+        {
+            ThrowIfDisposed();
+            foreach (var project in snapshot.Where(project =>
+                         project.ProjectState == ProjectState.Available
+                         && _catalogPaths.Contains(
+                             project.ProjectFilePath.Value)))
+            {
+                var request = CreateRequest(
+                    project,
+                    includeRemotes: false,
+                    isExplicit: false);
+                _backgroundQueue.Enqueue(request);
+                _backgroundPending[project.ProjectFilePath.Value] =
+                    request.Completion.Task;
+                pending.Add(request.Completion.Task);
+            }
+        }
+
+        if (pending.Count == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        _queueSignal.Release(pending.Count);
+        return Task.WhenAll(pending);
     }
 
     public GitProjectStatus? TryGet(UnrealProject project)
@@ -165,6 +206,7 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
     private RefreshRequest CreateRequest(
         UnrealProject project,
         bool includeRemotes,
+        bool isExplicit,
         CancellationToken cancellationToken = default)
     {
         var revision = ++_revision;
@@ -172,6 +214,7 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
         return new RefreshRequest(
             project,
             includeRemotes,
+            isExplicit,
             revision,
             cancellationToken);
     }
@@ -241,6 +284,7 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
                     ? request.CancellationToken
                     : lifetimeToken);
             RemoveBackgroundPending(request);
+            QueueBackgroundFallbackAfterCancelledExplicit(request);
         }
         catch (Exception exception)
         {
@@ -314,6 +358,38 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
         }
 
         request.Completion.TrySetResult(current);
+        QueueBackgroundFallbackAfterCancelledExplicit(request);
+    }
+
+    private void QueueBackgroundFallbackAfterCancelledExplicit(
+        RefreshRequest request)
+    {
+        var queued = false;
+        lock (_gate)
+        {
+            var path = request.Project.ProjectFilePath.Value;
+            if (!_isDisposed
+                && request.IsExplicit
+                && request.CancellationToken.IsCancellationRequested
+                && _catalogPaths.Contains(path)
+                && !_statuses.ContainsKey(path)
+                && _latestRevisions.TryGetValue(path, out var revision)
+                && revision == request.Revision)
+            {
+                var fallback = CreateRequest(
+                    request.Project,
+                    includeRemotes: false,
+                    isExplicit: false);
+                _backgroundQueue.Enqueue(fallback);
+                _backgroundPending[path] = fallback.Completion.Task;
+                queued = true;
+            }
+        }
+
+        if (queued)
+        {
+            _queueSignal.Release();
+        }
     }
 
     private void RemoveBackgroundPending(RefreshRequest request)
@@ -350,6 +426,7 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
     private sealed record RefreshRequest(
         UnrealProject Project,
         bool IncludeRemotes,
+        bool IsExplicit,
         long Revision,
         CancellationToken CancellationToken)
     {

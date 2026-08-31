@@ -292,9 +292,14 @@ Git inspection never delays cached startup or project-list publication. It
 runs in a separate background queue with at most two concurrent queries and
 publishes row results progressively. Git executable availability is shared for
 the process lifetime so an unavailable installation is not probed per project.
+A successfully completed explicit Refresh/F5 queues one background
+revalidation from the final catalog snapshot; incremental batch publication
+does not repeatedly revalidate an existing Git status.
 
 The Source Control section refreshes the selected project immediately, shows
 configured remotes, and may open only validated HTTP or HTTPS remote URLs.
+HTTP or HTTPS remote credentials are removed before a URL reaches display
+state; the raw credential-bearing URL is never presented to the user.
 Git commands are read-only, cancellable, and time-bounded. Commit, Pull, Push,
 Fetch, Checkout, and branch mutation are not included.
 

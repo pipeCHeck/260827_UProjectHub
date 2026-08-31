@@ -87,6 +87,40 @@ public sealed class ProjectGitStatusStoreTests
     }
 
     [TestMethod]
+    public async Task CancelledExplicitRefreshDoesNotDiscardInitialBackgroundStatusAsync()
+    {
+        var service = new ControlledGitStatusService();
+        await using var store = new ProjectGitStatusStore(
+            service,
+            new ImmediateDispatcher(),
+            maxConcurrency: 2);
+        var project = CreateProject(1);
+        var initialBackground = store.UpdateCatalog([project]);
+        await service.WaitForStartedCountAsync(1);
+        using var cancellation = new CancellationTokenSource();
+
+        var explicitRefresh = store.RefreshAsync(
+            project,
+            includeRemotes: true,
+            cancellation.Token);
+        await service.WaitForStartedCountAsync(2);
+        cancellation.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => explicitRefresh);
+        await service.WaitForStartedCountAsync(3);
+        service.CompleteCall(0, GitProjectState.Clean);
+        service.CompleteCall(2, GitProjectState.Changed);
+        await initialBackground.WaitAsync(TimeSpan.FromSeconds(1));
+        await service.WaitForCompletedCountAsync(3);
+
+        Assert.AreEqual(
+            GitProjectState.Changed,
+            store.TryGet(project)!.State);
+        Assert.IsFalse(service.StartedCalls[2].IncludeRemotes);
+    }
+
+    [TestMethod]
     public async Task RemovedProjectDoesNotReturnWhenLateQueryCompletesAsync()
     {
         var service = new ControlledGitStatusService();
@@ -103,6 +137,30 @@ public sealed class ProjectGitStatusStoreTests
         await backgroundRefresh.WaitAsync(TimeSpan.FromSeconds(1));
 
         Assert.IsNull(store.TryGet(project));
+    }
+
+    [TestMethod]
+    public async Task RevalidateCatalogRefreshesExistingStatusOnceInBackgroundAsync()
+    {
+        var service = new ControlledGitStatusService();
+        await using var store = new ProjectGitStatusStore(
+            service,
+            new ImmediateDispatcher(),
+            maxConcurrency: 2);
+        var project = CreateProject(1);
+        var initial = store.UpdateCatalog([project]);
+        await service.WaitForStartedCountAsync(1);
+        service.CompleteCall(0, GitProjectState.Clean);
+        await initial.WaitAsync(TimeSpan.FromSeconds(1));
+
+        var revalidation = store.RevalidateCatalog([project]);
+        await service.WaitForStartedCountAsync(2);
+
+        Assert.AreEqual(GitProjectState.Clean, store.TryGet(project)!.State);
+        service.CompleteCall(1, GitProjectState.Changed);
+        await revalidation.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreEqual(GitProjectState.Changed, store.TryGet(project)!.State);
+        Assert.HasCount(2, service.StartedCalls);
     }
 
     private static UnrealProject CreateProject(int number) => new(

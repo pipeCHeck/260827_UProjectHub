@@ -182,6 +182,11 @@ public sealed class ApplicationCoordinator
             "Background refresh",
             () => _backgroundRefresh.RefreshAsync(settings, cancellationToken),
             cancellationToken);
+        if (result is not null && _gitStatuses is not null)
+        {
+            _ = _gitStatuses.RevalidateCatalog(result.Snapshot.Projects);
+        }
+
         return result is not null;
     }
 
