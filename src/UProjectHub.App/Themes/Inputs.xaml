@@ -1,5 +1,10 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ControlTemplate x:Key="TextBox.EditableComboEditorTemplate"
+                     TargetType="TextBox">
+        <ScrollViewer x:Name="PART_ContentHost" />
+    </ControlTemplate>
+
     <Style TargetType="TextBox">
         <Setter Property="Background" Value="{DynamicResource Brush.Surface}" />
         <Setter Property="Foreground" Value="{DynamicResource Brush.TextPrimary}" />
@@ -63,6 +68,7 @@
                                          BorderThickness="0"
                                          Foreground="{DynamicResource Brush.TextPrimary}"
                                          CaretBrush="{DynamicResource Brush.TextPrimary}"
+                                         SelectionBrush="{DynamicResource Brush.AccentSubtle}"
                                          HorizontalContentAlignment="Stretch"
                                          VerticalContentAlignment="Center" />
                                 <ToggleButton Grid.Column="1"

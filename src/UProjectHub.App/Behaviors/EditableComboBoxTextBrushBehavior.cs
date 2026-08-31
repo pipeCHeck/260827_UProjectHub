@@ -6,6 +6,8 @@ namespace UProjectHub.App.Behaviors;
 public static class EditableComboBoxTextBrushBehavior
 {
     private const string TextBrushResourceKey = "Brush.TextPrimary";
+    private const string EditorTemplateResourceKey =
+        "TextBox.EditableComboEditorTemplate";
 
     public static readonly DependencyProperty IsEnabledProperty =
         DependencyProperty.RegisterAttached(
@@ -55,6 +57,12 @@ public static class EditableComboBoxTextBrushBehavior
             is not TextBox editor)
         {
             return;
+        }
+
+        if (comboBox.TryFindResource(EditorTemplateResourceKey)
+            is ControlTemplate editorTemplate)
+        {
+            editor.Template = editorTemplate;
         }
 
         editor.SetResourceReference(Control.ForegroundProperty, TextBrushResourceKey);

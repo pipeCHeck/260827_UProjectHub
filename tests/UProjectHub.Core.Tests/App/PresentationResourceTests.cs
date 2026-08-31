@@ -2,7 +2,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Media;
+using UProjectHub.App.Behaviors;
 using UProjectHub.App.Controls;
 using UProjectHub.App.Services;
 using UProjectHub.App.ViewModels;
@@ -393,7 +395,7 @@ public sealed class PresentationResourceTests
     }
 
     [STATestMethod]
-    public void EditableTagComboBoxBindsItsEditorTextToTheComboBoxText()
+    public void EditableTagComboBoxRendersAndBindsTextAtNormalDensityHeight()
     {
         var application = Application.Current ?? new Application();
         application.ShutdownMode = ShutdownMode.OnExplicitShutdown;
@@ -405,6 +407,7 @@ public sealed class PresentationResourceTests
         {
             Style = (Style)inputs["ComboBox.Editable"],
             Text = "Seed",
+            Height = 36,
         };
         AddComboBoxResources(comboBox);
         comboBox.Resources["Brush.Transparent"] = Brushes.Transparent;
@@ -412,17 +415,31 @@ public sealed class PresentationResourceTests
         comboBox.Resources["Brush.ControlDisabled"] = Brushes.LightGray;
         comboBox.Resources["Thickness.InputPadding"] = new Thickness(10, 7, 10, 7);
         comboBox.Resources["CornerRadius.Control"] = new CornerRadius(8);
+        comboBox.Resources["TextBox.EditableComboEditorTemplate"] =
+            inputs["TextBox.EditableComboEditorTemplate"];
         var window = new Window { Content = comboBox };
 
         try
         {
             window.Show();
+            _ = window.Activate();
             comboBox.ApplyTemplate();
-            window.UpdateLayout();
             var editor = Assert.IsInstanceOfType<TextBox>(
                 comboBox.Template.FindName("PART_EditableTextBox", comboBox));
+            editor.Style = (Style)inputs[typeof(TextBox)];
+            editor.ApplyTemplate();
+            EditableComboBoxTextBrushBehavior.SetIsEnabled(comboBox, true);
+            editor.ApplyTemplate();
+            _ = editor.Focus();
+            _ = Keyboard.Focus(editor);
+            window.Dispatcher.Invoke(() => { });
+            window.UpdateLayout();
+            var textBoxView = Descendants<FrameworkElement>(editor).Single(
+                element => element.GetType().Name == "TextBoxView");
 
+            Assert.IsTrue(editor.IsKeyboardFocused);
             Assert.AreEqual("Seed", editor.Text);
+            Assert.IsGreaterThan(0, textBoxView.ActualHeight);
 
             editor.Text = "Game";
             window.Dispatcher.Invoke(() => { });
@@ -431,6 +448,7 @@ public sealed class PresentationResourceTests
         }
         finally
         {
+            EditableComboBoxTextBrushBehavior.SetIsEnabled(comboBox, false);
             window.Close();
             application.Resources.MergedDictionaries.Remove(inputs);
             application.Resources.MergedDictionaries.Remove(buttons);
