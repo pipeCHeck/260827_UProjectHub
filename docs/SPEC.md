@@ -294,7 +294,9 @@ publishes row results progressively. Git executable availability is shared for
 the process lifetime so an unavailable installation is not probed per project.
 A successfully completed explicit Refresh/F5 queues one background
 revalidation from the final catalog snapshot; incremental batch publication
-does not repeatedly revalidate an existing Git status.
+does not repeatedly revalidate an existing Git status. When that revalidation
+shares an active Source Control refresh, cancellation of the user-scoped
+refresh still queues one background revalidation.
 
 The Source Control section refreshes the selected project immediately, shows
 configured remotes, and may open only validated HTTP or HTTPS remote URLs.

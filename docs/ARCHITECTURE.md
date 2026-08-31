@@ -220,7 +220,9 @@ explicit refresh restores background acquisition when no status has been
 published. A completed user Refresh/F5 queues one revalidation from its final
 catalog snapshot rather than from incremental snapshot publications. A
 pending explicit Source Control refresh satisfies background work for the same
-project, so background revalidation never supersedes its revision.
+project, so background revalidation never supersedes its revision. If that
+explicit request is canceled, its shared F5 intent is retained until a new
+background request publishes a result.
 
 ## 6. Discovery Boundaries
 

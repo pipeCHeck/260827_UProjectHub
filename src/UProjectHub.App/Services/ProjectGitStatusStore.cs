@@ -22,6 +22,9 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
         _backgroundPending = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Task<GitProjectStatus?>>
         _explicitPending = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, TaskCompletionSource<GitProjectStatus?>>
+        _revalidationsWaitingForExplicit =
+            new(StringComparer.OrdinalIgnoreCase);
     private HashSet<string> _catalogPaths =
         new(StringComparer.OrdinalIgnoreCase);
     private long _revision;
@@ -65,6 +68,12 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
                 _statuses.Remove(removedPath);
                 _latestRevisions[removedPath] = ++_revision;
                 _backgroundPending.Remove(removedPath);
+                if (_revalidationsWaitingForExplicit.Remove(
+                        removedPath,
+                        out var revalidation))
+                {
+                    revalidation.TrySetResult(null);
+                }
             }
 
             _catalogPaths = currentPaths;
@@ -139,6 +148,7 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(projects);
         var snapshot = projects.ToArray();
         var pending = new List<Task<GitProjectStatus?>>();
+        var signalCount = 0;
 
         lock (_gate)
         {
@@ -149,9 +159,19 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
                              project.ProjectFilePath.Value)))
             {
                 var path = project.ProjectFilePath.Value;
-                if (_explicitPending.TryGetValue(path, out var explicitRefresh))
+                if (_explicitPending.ContainsKey(path))
                 {
-                    pending.Add(explicitRefresh);
+                    if (!_revalidationsWaitingForExplicit.TryGetValue(
+                            path,
+                            out var revalidation))
+                    {
+                        revalidation =
+                            new TaskCompletionSource<GitProjectStatus?>(
+                                TaskCreationOptions.RunContinuationsAsynchronously);
+                        _revalidationsWaitingForExplicit[path] = revalidation;
+                    }
+
+                    pending.Add(revalidation.Task);
                     continue;
                 }
 
@@ -162,6 +182,7 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
                 _backgroundQueue.Enqueue(request);
                 _backgroundPending[path] = request.Completion.Task;
                 pending.Add(request.Completion.Task);
+                signalCount++;
             }
         }
 
@@ -170,7 +191,11 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
             return Task.CompletedTask;
         }
 
-        _queueSignal.Release(pending.Count);
+        if (signalCount > 0)
+        {
+            _queueSignal.Release(signalCount);
+        }
+
         return Task.WhenAll(pending);
     }
 
@@ -212,8 +237,15 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
         {
             CancelPending(_priorityQueue);
             CancelPending(_backgroundQueue);
+            foreach (var revalidation in
+                     _revalidationsWaitingForExplicit.Values)
+            {
+                revalidation.TrySetCanceled(_lifetimeCancellation.Token);
+            }
+
             _backgroundPending.Clear();
             _explicitPending.Clear();
+            _revalidationsWaitingForExplicit.Clear();
         }
 
         _lifetimeCancellation.Dispose();
@@ -339,6 +371,7 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
         var path = request.Project.ProjectFilePath.Value;
         var applied = false;
         GitProjectStatus? current;
+        TaskCompletionSource<GitProjectStatus?>? sharedRevalidation = null;
         lock (_gate)
         {
             if (_catalogPaths.Contains(path)
@@ -347,6 +380,9 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
             {
                 _statuses[path] = status;
                 applied = true;
+                _revalidationsWaitingForExplicit.Remove(
+                    path,
+                    out sharedRevalidation);
             }
 
             current = _statuses.TryGetValue(path, out var stored) ? stored : null;
@@ -355,6 +391,7 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
         }
 
         request.Completion.TrySetResult(current);
+        sharedRevalidation?.TrySetResult(status);
         if (applied)
         {
             StatusChanged?.Invoke(
@@ -391,7 +428,8 @@ public sealed class ProjectGitStatusStore : IAsyncDisposable
                 && request.IsExplicit
                 && request.CancellationToken.IsCancellationRequested
                 && _catalogPaths.Contains(path)
-                && !_statuses.ContainsKey(path)
+                && (_revalidationsWaitingForExplicit.ContainsKey(path)
+                    || !_statuses.ContainsKey(path))
                 && _latestRevisions.TryGetValue(path, out var revision)
                 && revision == request.Revision)
             {

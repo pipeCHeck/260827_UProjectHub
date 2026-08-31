@@ -195,6 +195,42 @@ public sealed class ProjectGitStatusStoreTests
         Assert.IsTrue(service.StartedCalls[1].IncludeRemotes);
     }
 
+    [TestMethod]
+    public async Task CancelledExplicitRefreshCannotConsumeSharedCatalogRevalidationAsync()
+    {
+        var service = new ControlledGitStatusService();
+        await using var store = new ProjectGitStatusStore(
+            service,
+            new ImmediateDispatcher(),
+            maxConcurrency: 2);
+        var project = CreateProject(1);
+        var initial = store.UpdateCatalog([project]);
+        await service.WaitForStartedCountAsync(1);
+        service.CompleteCall(0, GitProjectState.Clean);
+        await initial.WaitAsync(TimeSpan.FromSeconds(1));
+        using var cancellation = new CancellationTokenSource();
+
+        var explicitRefresh = store.RefreshAsync(
+            project,
+            includeRemotes: true,
+            cancellation.Token);
+        await service.WaitForStartedCountAsync(2);
+        var revalidation = store.RevalidateCatalog([project]);
+
+        cancellation.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => explicitRefresh);
+        await service.WaitForStartedCountAsync(3);
+        Assert.IsFalse(service.StartedCalls[2].IncludeRemotes);
+
+        service.CompleteCall(2, GitProjectState.Changed);
+        await revalidation.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.AreEqual(GitProjectState.Changed, store.TryGet(project)!.State);
+        Assert.HasCount(3, service.StartedCalls);
+    }
+
     private static UnrealProject CreateProject(int number) => new(
         $"Game{number}",
         new ProjectPath($@"D:\Projects\Game{number}\Game{number}.uproject"),
