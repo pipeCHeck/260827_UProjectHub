@@ -12,7 +12,7 @@ public sealed class MainViewModelTests
     {
         var viewModel = CreateViewModel();
 
-        Assert.AreEqual("Unreal Projects", viewModel.Title);
+        Assert.AreEqual("UProject Hub", viewModel.Title);
         Assert.AreEqual(0, viewModel.ProjectCount);
         Assert.AreEqual("0 projects", viewModel.ProjectCountText);
         Assert.AreEqual("Ready", viewModel.StatusBar.StatusText);

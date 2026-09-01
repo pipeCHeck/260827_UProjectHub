@@ -43,7 +43,7 @@ public sealed class MainViewModel : ObservableObject
             () => refreshAction is not null);
     }
 
-    public string Title => Localize("String.AppTitle", "Unreal Projects");
+    public string Title => Localize("String.AppTitle", "UProject Hub");
 
     public int ProjectCount => _projectCount;
 

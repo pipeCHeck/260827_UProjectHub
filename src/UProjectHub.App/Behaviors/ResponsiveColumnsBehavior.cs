@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using UProjectHub.Core.Settings;
 
 namespace UProjectHub.App.Behaviors;
@@ -80,11 +81,13 @@ public static class ResponsiveColumnsBehavior
 
         dataGrid.Loaded -= OnDataGridLoaded;
         dataGrid.SizeChanged -= OnDataGridSizeChanged;
+        dataGrid.IsVisibleChanged -= OnDataGridIsVisibleChanged;
 
         if ((bool)eventArgs.NewValue)
         {
             dataGrid.Loaded += OnDataGridLoaded;
             dataGrid.SizeChanged += OnDataGridSizeChanged;
+            dataGrid.IsVisibleChanged += OnDataGridIsVisibleChanged;
             Apply(dataGrid);
         }
     }
@@ -107,6 +110,25 @@ public static class ResponsiveColumnsBehavior
     private static void OnDataGridSizeChanged(object sender, SizeChangedEventArgs eventArgs)
     {
         Apply((DataGrid)sender);
+    }
+
+    private static void OnDataGridIsVisibleChanged(
+        object sender,
+        DependencyPropertyChangedEventArgs eventArgs)
+    {
+        if (eventArgs.NewValue is true)
+        {
+            var dataGrid = (DataGrid)sender;
+            _ = dataGrid.Dispatcher.BeginInvoke(
+                DispatcherPriority.ContextIdle,
+                () =>
+                {
+                    if (GetIsEnabled(dataGrid) && dataGrid.IsVisible)
+                    {
+                        Apply(dataGrid);
+                    }
+                });
+        }
     }
 
     private static void Apply(DataGrid dataGrid)

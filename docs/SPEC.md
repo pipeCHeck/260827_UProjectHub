@@ -312,7 +312,7 @@ Required keyboard behavior:
 - `Up` / `Down`: move list selection;
 - `Enter`: open selected project;
 - `Ctrl+F`: focus search;
-- `F5`: refresh known projects;
+- `F5`: refresh known projects and perform lightweight discovery;
 - `Esc`: clear active search when appropriate or close transient UI.
 
 `Delete` performs no destructive project action.
@@ -328,9 +328,15 @@ Updates already-known projects:
 - meaningful modification time;
 - engine resolution.
 
+It also performs the same bounded lightweight discovery used at startup across
+configured and Unreal-known roots. This checks each root and its immediate
+children so a newly created top-level project can appear without restarting,
+but it does not perform a recursive Rescan.
+
 **Rescan Projects**
 
-Searches configured roots again to discover newly created/moved projects.
+Recursively searches configured roots again to discover newly created/moved
+projects that are not found by lightweight discovery.
 
 The UI must distinguish these operations.
 

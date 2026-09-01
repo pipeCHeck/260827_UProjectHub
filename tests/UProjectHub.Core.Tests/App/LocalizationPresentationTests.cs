@@ -31,13 +31,13 @@ public sealed class LocalizationPresentationTests
         var snapshot = Snapshot(project);
 
         main.SetProjects(snapshot);
-        Assert.AreEqual("Unreal Projects", main.Title);
+        Assert.AreEqual("UProject Hub", main.Title);
         Assert.AreEqual("1 projects", main.ProjectCountText);
         Assert.AreEqual("Showing 1 of 1", list.ShowingCountText);
 
         localization.ApplyLanguage(AppLanguage.Korean);
 
-        Assert.AreEqual("Unreal 프로젝트", main.Title);
+        Assert.AreEqual("UProject Hub", main.Title);
         Assert.AreEqual("프로젝트 1개", main.ProjectCountText);
         Assert.AreEqual("전체 1개 중 1개 표시", list.ShowingCountText);
         Assert.AreEqual("Game", list.Rows[0].Name);

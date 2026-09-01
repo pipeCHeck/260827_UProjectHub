@@ -53,7 +53,7 @@ A full recursive Rescan is a separate, explicit user action. The MVP does not of
 
 ### Refresh
 
-Works on already-known projects.
+Refreshes already-known projects and performs bounded lightweight discovery.
 
 Refresh:
 
@@ -62,9 +62,15 @@ Refresh:
 - recomputes activity when needed;
 - updates engine resolution.
 
+After updating known projects, Refresh checks configured and Unreal-known roots
+at the root and immediate-child level. This discovers common newly created
+top-level projects without a restart and without turning Refresh into a full
+recursive scan.
+
 ### Rescan
 
-Searches configured roots for additional `.uproject` files.
+Recursively searches configured roots for additional `.uproject` files that
+lightweight discovery may not reach.
 
 Rescan may discover:
 

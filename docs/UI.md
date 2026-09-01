@@ -23,7 +23,7 @@ If a One UI 7-inspired treatment makes the project list slower to scan or harder
 
 Conceptual layout:
 
-    Unreal Projects                                      [Settings]
+    UProject Hub                                         [Settings]
 
     28 projects
 
@@ -52,9 +52,11 @@ The design should feel like a refined desktop utility, not a game launcher store
 
 The main content starts with:
 
-- large page title: `Unreal Projects`;
+- large page title: `UProject Hub`;
 - smaller project-count subtitle;
 - settings action aligned away from the title.
+
+The UProject Hub brand icon is shared by the executable and every application window.
 
 Do not add a traditional `File / Edit / View / Tools` menu bar unless a future feature specifically requires it.
 
@@ -325,7 +327,7 @@ Required:
 - `Up` / `Down`: change selected project;
 - `Enter`: open selected project;
 - `Ctrl+F`: focus search;
-- `F5`: refresh known projects;
+- `F5`: refresh known projects and perform bounded lightweight discovery;
 - `Esc`: clear transient search/menu state.
 
 `Delete` does not delete projects.
@@ -415,6 +417,11 @@ Example:
 Settings should remain simple and avoid a complex tree/navigation structure unless the app grows substantially.
 
 The folder picker and folder drag-and-drop always add a persistent project search root. The app does not change that meaning based on whether the selected folder currently contains a `.uproject` directly. Discovery and explicit Rescan search within the root.
+
+Manual engine registration accepts only an Unreal Engine root containing a
+readable `Engine\Build\Build.version` and the expected
+`Engine\Binaries\Win64\UnrealEditor.exe`. The Settings surface explains this
+requirement near the manual-engine picker; invalid folders are not persisted.
 
 ## 20. Themes
 

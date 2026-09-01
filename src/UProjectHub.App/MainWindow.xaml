@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:UProjectHub.App.Controls"
         Title="{Binding Title}"
+        Icon="/UProjectHub.App;component/Assets/UProjectHub.ico"
         Width="1120"
         Height="700"
         MinWidth="800"

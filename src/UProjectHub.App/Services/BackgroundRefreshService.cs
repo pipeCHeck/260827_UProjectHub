@@ -111,7 +111,7 @@ public sealed class BackgroundRefreshService
 
         var projectIssues = new List<ProjectDiscoveryIssue>(projectResult.Issues);
         var knownRoots = new UnrealKnownProjectRootsResult([], []);
-        if (operationKind == OperationKind.Startup)
+        if (operationKind != OperationKind.Rescan)
         {
             knownRoots = await _knownRootProvider
                 .GetKnownRootsAsync(cancellationToken)

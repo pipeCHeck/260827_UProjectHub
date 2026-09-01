@@ -260,8 +260,8 @@ public sealed class MvpWorkflowTests
 
             var shallowCallsBeforeRefresh = shallowDiscoveryCalls;
             Assert.IsTrue(await coordinator.RefreshAsync());
-            Assert.AreEqual(shallowCallsBeforeRefresh, shallowDiscoveryCalls);
-            Assert.AreEqual(0, rescanCalls, "F5 Refresh must not discover or Rescan.");
+            Assert.AreEqual(shallowCallsBeforeRefresh + 1, shallowDiscoveryCalls);
+            Assert.AreEqual(0, rescanCalls, "F5 Refresh must not run a recursive Rescan.");
 
             var rescanResult = await coordinator.RescanAsync();
             Assert.IsTrue(rescanResult.IsSuccess);

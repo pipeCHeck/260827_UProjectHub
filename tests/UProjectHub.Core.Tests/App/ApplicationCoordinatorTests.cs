@@ -159,7 +159,7 @@ public sealed class ApplicationCoordinatorTests
         Assert.AreEqual(AppThemeMode.Dark, fixture.Theme.EffectiveTheme);
         Assert.AreEqual(RowDensity.Compact, fixture.Theme.ActiveDensity);
         Assert.AreEqual(AppLanguage.Korean, fixture.Localization.CurrentLanguage);
-        Assert.AreEqual("Unreal 프로젝트", fixture.Main.Title);
+        Assert.AreEqual("UProject Hub", fixture.Main.Title);
         Assert.IsTrue(fixture.Main.SearchFilter!.FavoritesOnly);
         Assert.AreEqual(settings.ActiveSort, fixture.Main.SearchFilter.ActiveSort);
         Assert.AreEqual(settings.ColumnLayout.Single(), fixture.Main.ProjectList.ColumnLayout.Single());
@@ -308,7 +308,7 @@ public sealed class ApplicationCoordinatorTests
     }
 
     [TestMethod]
-    public async Task F5RefreshNeverCallsRescanAndExplicitRescanUsesCurrentPersistedRoots()
+    public async Task F5RefreshUsesLightweightDiscoveryWithoutRescanAndExplicitRescanUsesCurrentPersistedRoots()
     {
         var fixture = CreateFixture(CreateSettings(), [], []);
         await fixture.Coordinator.StartAsync();
@@ -323,7 +323,7 @@ public sealed class ApplicationCoordinatorTests
         Assert.IsTrue(rescanned.IsSuccess);
         Assert.AreEqual(1, fixture.RefreshCalls);
         Assert.AreEqual(1, fixture.RescanCalls);
-        Assert.AreEqual(0, fixture.LightweightDiscoveryCalls);
+        Assert.AreEqual(1, fixture.LightweightDiscoveryCalls);
         CollectionAssert.AreEqual(
             CreateSettings().ProjectSearchRoots.ToArray(),
             fixture.LastRescanRoots!.ToArray());
@@ -479,9 +479,7 @@ public sealed class ApplicationCoordinatorTests
             resources,
             source => new ResourceDictionary
             {
-                ["String.AppTitle"] = source.OriginalString.Contains("ko", StringComparison.OrdinalIgnoreCase)
-                    ? "Unreal 프로젝트"
-                    : "Unreal Projects",
+                ["String.AppTitle"] = "UProject Hub",
                 ["String.StatusReady"] = "Ready",
             });
         var status = new StatusBarViewModel(localization);

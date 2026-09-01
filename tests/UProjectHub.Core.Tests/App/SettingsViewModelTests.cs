@@ -1,16 +1,59 @@
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 using UProjectHub.App.Infrastructure;
 using UProjectHub.App.Behaviors;
 using UProjectHub.App.Services;
 using UProjectHub.App.ViewModels;
+using UProjectHub.App.Views;
 using UProjectHub.Core.Catalog;
 using UProjectHub.Core.Discovery;
 using UProjectHub.Core.Settings;
+using ThemeMode = UProjectHub.Core.Settings.ThemeMode;
 
 namespace UProjectHub.Core.Tests.App;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class SettingsViewModelTests
 {
+    [STATestMethod]
+    public void SettingsPathItemsUseTheSemanticPrimaryTextBrush()
+    {
+        var fixture = CreateFixture(new AppSettings());
+        var window = new SettingsWindow(fixture.ViewModel);
+        var semanticText = new SolidColorBrush(Colors.WhiteSmoke);
+        var bodyStyle = new Style(typeof(TextBlock));
+        bodyStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, semanticText));
+        var pathLists = LogicalDescendants<ListBox>(window)
+            .Where(listBox => listBox.ItemTemplate is not null)
+            .ToArray();
+
+        Assert.HasCount(2, pathLists);
+        foreach (var listBox in pathLists)
+        {
+            var itemText = Assert.IsInstanceOfType<TextBlock>(
+                listBox.ItemTemplate!.LoadContent());
+            itemText.Resources["Text.Body"] = bodyStyle;
+
+            Assert.AreSame(semanticText, itemText.Foreground);
+        }
+    }
+
+    [STATestMethod]
+    public void SettingsExplainsWhichFoldersCanBeAddedAsManualEngines()
+    {
+        var fixture = CreateFixture(new AppSettings());
+        var window = new SettingsWindow(fixture.ViewModel);
+        const string expected = "Select an Unreal Engine root containing Build.version and UnrealEditor.exe.";
+        window.Resources["String.ManualEngineRootHint"] = expected;
+
+        var hint = Assert.IsInstanceOfType<TextBlock>(
+            window.FindName("ManualEngineRootHintText"));
+
+        Assert.AreEqual(expected, hint.Text);
+    }
+
     [TestMethod]
     public async Task Load_PresentsExistingSettingsWithoutStartingRescan()
     {
@@ -274,6 +317,23 @@ public sealed class SettingsViewModelTests
             new SettingsViewModel(operations, picker),
             operations,
             picker);
+    }
+
+    private static IEnumerable<T> LogicalDescendants<T>(DependencyObject root)
+        where T : DependencyObject
+    {
+        foreach (var child in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>())
+        {
+            if (child is T match)
+            {
+                yield return match;
+            }
+
+            foreach (var descendant in LogicalDescendants<T>(child))
+            {
+                yield return descendant;
+            }
+        }
     }
 
     private static System.Windows.ResourceDictionary CreateOptionDictionary(

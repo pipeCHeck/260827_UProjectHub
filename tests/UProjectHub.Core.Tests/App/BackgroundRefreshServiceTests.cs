@@ -81,9 +81,55 @@ public sealed class BackgroundRefreshServiceTests
 
         Assert.AreEqual(1, refreshCalls);
         Assert.AreEqual(0, rescanCalls);
-        Assert.AreEqual(0, lightweightCalls);
+        Assert.AreEqual(1, lightweightCalls);
         Assert.AreEqual(33, dispatcher.InvokeCount);
         Assert.HasCount(1000, result.Snapshot.Projects);
+    }
+
+    [TestMethod]
+    public async Task RefreshDiscoversNewImmediateChildProjectWithoutRunningRecursiveRescan()
+    {
+        using var tree = new TemporaryLightweightTree();
+        var configuredRoot = tree.CreateDirectory("Configured");
+        tree.WriteProject(
+            Path.Combine(configuredRoot, "NewGame"),
+            "NewGame.uproject",
+            valid: true);
+        tree.WriteProject(
+            Path.Combine(configuredRoot, "Nested", "TooDeep"),
+            "TooDeep.uproject",
+            valid: true);
+        var catalog = new ProjectCatalog();
+        var discovery = new ProjectDiscoveryService(
+            new ProjectRootScanner(new SystemProjectDirectoryEnumerator()),
+            new ProjectMetadataLoader(
+                new UProjectParser(),
+                new ProjectActivityDetector(new ProjectActivityPolicy())));
+        var rescanCalls = 0;
+        var service = CreateService(
+            catalog,
+            new RecordingDispatcher(),
+            rescan: (roots, settings, progress, cancellationToken) =>
+            {
+                rescanCalls++;
+                return Task.FromResult(new ProjectRefreshResult([], []));
+            },
+            discoverLightweight: (roots, settings, excluded, cancellationToken, loaded) =>
+                discovery.DiscoverShallowAsync(
+                    roots,
+                    settings,
+                    excluded,
+                    cancellationToken,
+                    loaded));
+
+        var result = await service.RefreshAsync(new AppSettings
+        {
+            ProjectSearchRoots = [configuredRoot],
+        });
+
+        Assert.HasCount(1, result.Snapshot.Projects);
+        Assert.AreEqual("NewGame", result.Snapshot.Projects[0].Name);
+        Assert.AreEqual(0, rescanCalls);
     }
 
     [TestMethod]

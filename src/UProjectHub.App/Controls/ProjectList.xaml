@@ -182,21 +182,21 @@
                 </DataGridTemplateColumn>
 
                 <DataGridTextColumn Header="{DynamicResource String.EngineVersion}"
-                                    Width="145"
+                                    Width="135"
                                     MinWidth="135"
                                     CanUserSort="True"
                                     SortMemberPath="EngineVersion"
                                     ElementStyle="{StaticResource DataGrid.TextCellContent}"
                                     Binding="{Binding EngineDisplay}" />
                 <DataGridTextColumn Header="{DynamicResource String.Type}"
-                                    Width="105"
+                                    Width="90"
                                     MinWidth="90"
                                     CanUserSort="True"
                                     SortMemberPath="ProjectType"
                                     ElementStyle="{StaticResource DataGrid.TextCellContent}"
                                     Binding="{Binding TypeDisplay}" />
                 <DataGridTemplateColumn Header="{DynamicResource String.Git}"
-                                        Width="120"
+                                        Width="110"
                                         MinWidth="110"
                                         CanUserSort="False"
                                         SortMemberPath="GitState">
@@ -223,14 +223,14 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <DataGridTextColumn Header="{DynamicResource String.LastModified}"
-                                    Width="135"
+                                    Width="125"
                                     MinWidth="125"
                                     CanUserSort="True"
                                     SortMemberPath="LastModified"
                                     ElementStyle="{StaticResource DataGrid.TextCellContent}"
                                     Binding="{Binding LastModified, Converter={StaticResource RelativeTimeConverter}, ConverterParameter=CalendarDate}" />
                 <DataGridTextColumn Header="{DynamicResource String.LastLaunched}"
-                                    Width="135"
+                                    Width="125"
                                     MinWidth="125"
                                     CanUserSort="True"
                                     SortMemberPath="LastLaunched"

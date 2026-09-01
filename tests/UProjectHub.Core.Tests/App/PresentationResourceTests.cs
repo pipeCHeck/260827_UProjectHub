@@ -4,11 +4,14 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using UProjectHub.App.Behaviors;
 using UProjectHub.App.Controls;
 using UProjectHub.App.Services;
 using UProjectHub.App.ViewModels;
 using UProjectHub.App.Views;
+using UProjectHub.Core.Catalog;
 using UProjectHub.Core.Diagnostics;
 using UProjectHub.Core.Models;
 using UProjectHub.Core.Paths;
@@ -23,6 +26,52 @@ namespace UProjectHub.Core.Tests.App;
 [DoNotParallelize]
 public sealed class PresentationResourceTests
 {
+    [TestMethod]
+    public void ApplicationAndWindowsReferenceTheLoadableBrandedIcon()
+    {
+        var iconPath = FindRepositoryFile(
+            "src",
+            "UProjectHub.App",
+            "Assets",
+            "UProjectHub.ico");
+        using var iconStream = File.OpenRead(iconPath);
+        var decoder = new IconBitmapDecoder(
+            iconStream,
+            BitmapCreateOptions.PreservePixelFormat,
+            BitmapCacheOption.OnLoad);
+        var sizes = decoder.Frames
+            .Select(frame => frame.PixelWidth)
+            .Order()
+            .ToArray();
+
+        CollectionAssert.AreEquivalent(
+            new[] { 16, 20, 24, 32, 40, 48, 64, 96, 128, 256 },
+            sizes);
+
+        var windowFiles = new[]
+        {
+            FindRepositoryFile("src", "UProjectHub.App", "MainWindow.xaml"),
+            FindRepositoryFile("src", "UProjectHub.App", "Views", "SettingsWindow.xaml"),
+            FindRepositoryFile("src", "UProjectHub.App", "Views", "ProjectDetailsWindow.xaml"),
+            FindRepositoryFile("src", "UProjectHub.App", "Views", "GenerateProjectFilesWindow.xaml"),
+            FindRepositoryFile("src", "UProjectHub.App", "Views", "ProjectCleanupWindow.xaml"),
+        };
+        foreach (var windowFile in windowFiles)
+        {
+            StringAssert.Contains(
+                File.ReadAllText(windowFile),
+                "Icon=\"/UProjectHub.App;component/Assets/UProjectHub.ico\"");
+        }
+
+        var projectFile = File.ReadAllText(FindRepositoryFile(
+            "src",
+            "UProjectHub.App",
+            "UProjectHub.App.csproj"));
+        StringAssert.Contains(
+            projectFile,
+            "<ApplicationIcon>Assets\\UProjectHub.ico</ApplicationIcon>");
+    }
+
     [TestMethod]
     [DataRow("SettingsWindow.xaml", "740")]
     [DataRow("ProjectDetailsWindow.xaml", "680")]
@@ -432,7 +481,9 @@ public sealed class PresentationResourceTests
             editor.ApplyTemplate();
             _ = editor.Focus();
             _ = Keyboard.Focus(editor);
-            window.Dispatcher.Invoke(() => { });
+            window.Dispatcher.Invoke(
+                DispatcherPriority.ApplicationIdle,
+                () => { });
             window.UpdateLayout();
             var textBoxView = Descendants<FrameworkElement>(editor).Single(
                 element => element.GetType().Name == "TextBoxView");
@@ -505,6 +556,114 @@ public sealed class PresentationResourceTests
 
         StringAssert.Contains(xaml, "SortMemberPath=\"GitState\"");
         StringAssert.Contains(xaml, "Command=\"{Binding SourceControlCommand}\"");
+    }
+
+    [STATestMethod]
+    public void ProjectListStartsAuxiliaryColumnsAtTheirMinimumWidths()
+    {
+        var application = Application.Current ?? new Application();
+        var dataGridResources = LoadDictionary("Themes/DataGrid.xaml");
+        application.Resources.MergedDictionaries.Add(dataGridResources);
+
+        try
+        {
+            var projectList = new ProjectList();
+            var dataGrid = Assert.IsInstanceOfType<DataGrid>(
+                projectList.FindName("ProjectDataGrid"));
+            var expectedWidths = new Dictionary<string, double>
+            {
+                ["EngineVersion"] = 135d,
+                ["ProjectType"] = 90d,
+                ["GitState"] = 110d,
+                ["LastModified"] = 125d,
+                ["LastLaunched"] = 125d,
+            };
+
+            foreach (var (sortMemberPath, expectedWidth) in expectedWidths)
+            {
+                var column = dataGrid.Columns.SingleOrDefault(candidate =>
+                    string.Equals(
+                        candidate.SortMemberPath,
+                        sortMemberPath,
+                        StringComparison.Ordinal));
+                Assert.IsNotNull(column);
+
+                Assert.AreEqual(expectedWidth, column.MinWidth);
+                Assert.AreEqual(DataGridLengthUnitType.Pixel, column.Width.UnitType);
+                Assert.AreEqual(expectedWidth, column.Width.Value);
+            }
+
+            var projectColumn = dataGrid.Columns.SingleOrDefault(column =>
+                string.Equals(column.SortMemberPath, "Name", StringComparison.Ordinal));
+            Assert.IsNotNull(projectColumn);
+            Assert.IsTrue(projectColumn.Width.IsStar);
+        }
+        finally
+        {
+            application.Resources.MergedDictionaries.Remove(dataGridResources);
+        }
+    }
+
+    [STATestMethod]
+    public void ProjectListRecalculatesResponsiveColumnsWhenCachedRowsBecomeVisible()
+    {
+        var application = Application.Current ?? new Application();
+        var dataGridResources = LoadDictionary("Themes/DataGrid.xaml");
+        application.Resources.MergedDictionaries.Add(dataGridResources);
+        var viewModel = new ProjectListViewModel();
+        var projectList = new ProjectList { DataContext = viewModel };
+        var window = new Window
+        {
+            Width = 1120,
+            Height = 700,
+            Content = projectList,
+        };
+
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var dataGrid = Assert.IsInstanceOfType<DataGrid>(
+                projectList.FindName("ProjectDataGrid"));
+            Assert.AreEqual(Visibility.Collapsed, dataGrid.Visibility);
+
+            viewModel.SetColumnLayout([]);
+            var catalog = new ProjectCatalog();
+            catalog.Upsert(new UnrealProject(
+                "Game",
+                new ProjectPath(@"C:\Projects\Game\Game.uproject"),
+                "5.8",
+                "5.8",
+                ProjectType.Cpp,
+                DateTimeOffset.UnixEpoch,
+                null,
+                false,
+                ProjectState.Available,
+                EngineResolutionState.Resolved));
+            viewModel.SetSnapshot(catalog.GetSnapshot());
+            window.UpdateLayout();
+            window.Dispatcher.Invoke(
+                DispatcherPriority.SystemIdle,
+                () => { });
+            window.UpdateLayout();
+
+            Assert.AreEqual(Visibility.Visible, dataGrid.Visibility);
+            Assert.IsTrue(dataGrid.IsVisible);
+            Assert.IsGreaterThanOrEqualTo(
+                ResponsiveColumnsBehavior.WideThreshold,
+                dataGrid.ActualWidth);
+            foreach (var columnId in new[] { "ProjectType", "GitState", "LastLaunched" })
+            {
+                var column = dataGrid.Columns.Single(candidate =>
+                    string.Equals(candidate.SortMemberPath, columnId, StringComparison.Ordinal));
+                Assert.AreEqual(Visibility.Visible, column.Visibility, columnId);
+            }
+        }
+        finally
+        {
+            window.Close();
+            application.Resources.MergedDictionaries.Remove(dataGridResources);
+        }
     }
 
     [STATestMethod]

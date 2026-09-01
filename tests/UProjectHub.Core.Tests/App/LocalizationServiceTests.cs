@@ -86,6 +86,7 @@ public sealed class LocalizationServiceTests
         "String.RescanProjects",
         "String.ManualEngines",
         "String.AddEngineRoot",
+        "String.ManualEngineRootHint",
         "String.Appearance",
         "String.Theme",
         "String.RowDensity",
@@ -156,8 +157,8 @@ public sealed class LocalizationServiceTests
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!
             .InformationalVersion;
 
-        Assert.AreEqual("0.6.9 r", informationalVersion);
-        Assert.AreEqual("v0.6.9 r", AppVersion.Display);
+        Assert.AreEqual("0.6.14 r", informationalVersion);
+        Assert.AreEqual("v0.6.14 r", AppVersion.Display);
     }
 
     private static int CountLocalizationDictionaries(ResourceDictionary resources) =>

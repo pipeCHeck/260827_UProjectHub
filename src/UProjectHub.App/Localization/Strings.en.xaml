@@ -1,7 +1,7 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=System.Runtime">
-    <sys:String x:Key="String.AppTitle">Unreal Projects</sys:String>
+    <sys:String x:Key="String.AppTitle">UProject Hub</sys:String>
     <sys:String x:Key="String.ProjectCountFormat">{0} projects</sys:String>
     <sys:String x:Key="String.ShowingCountFormat">Showing {0} of {1}</sys:String>
     <sys:String x:Key="String.SearchPlaceholder">Search projects...</sys:String>
@@ -145,6 +145,7 @@
     <sys:String x:Key="String.RescanProjects">Rescan projects</sys:String>
     <sys:String x:Key="String.ManualEngines">Manual Unreal Engines</sys:String>
     <sys:String x:Key="String.AddEngineRoot">+ Add engine root</sys:String>
+    <sys:String x:Key="String.ManualEngineRootHint">Only Unreal Engine roots containing Engine\Build\Build.version and Engine\Binaries\Win64\UnrealEditor.exe can be added.</sys:String>
     <sys:String x:Key="String.Appearance">Appearance</sys:String>
     <sys:String x:Key="String.Theme">Theme</sys:String>
     <sys:String x:Key="String.RowDensity">Row density</sys:String>

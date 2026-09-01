@@ -4,6 +4,7 @@
         xmlns:behaviors="clr-namespace:UProjectHub.App.Behaviors"
         xmlns:infrastructure="clr-namespace:UProjectHub.App.Infrastructure"
         Title="{DynamicResource String.Settings}"
+        Icon="/UProjectHub.App;component/Assets/UProjectHub.ico"
         Width="720"
         Height="740"
         MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height}"
@@ -53,6 +54,7 @@
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock Padding="6,4"
+                                               Style="{DynamicResource Text.Body}"
                                                Text="{Binding}"
                                                TextTrimming="CharacterEllipsis"
                                                ToolTip="{Binding}" />
@@ -75,6 +77,11 @@
                 <TextBlock Margin="0,16,0,0"
                            Style="{DynamicResource Text.EmptyTitle}"
                            Text="{DynamicResource String.ManualEngines}" />
+                <TextBlock x:Name="ManualEngineRootHintText"
+                           Margin="0,6,0,0"
+                           Style="{DynamicResource Text.Secondary}"
+                           Text="{DynamicResource String.ManualEngineRootHint}"
+                           TextWrapping="Wrap" />
                 <Border Margin="0,8,0,0"
                         Padding="8"
                         Background="{DynamicResource Brush.Surface}"
@@ -95,6 +102,7 @@
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock Padding="6,4"
+                                               Style="{DynamicResource Text.Body}"
                                                Text="{Binding}"
                                                TextTrimming="CharacterEllipsis"
                                                ToolTip="{Binding}" />

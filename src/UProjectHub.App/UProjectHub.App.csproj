@@ -4,7 +4,8 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
-    <UProjectHubVersion>0.6.9</UProjectHubVersion>
+    <ApplicationIcon>Assets\UProjectHub.ico</ApplicationIcon>
+    <UProjectHubVersion>0.6.14</UProjectHubVersion>
     <Version>$(UProjectHubVersion)</Version>
     <AssemblyVersion>$(UProjectHubVersion).0</AssemblyVersion>
     <FileVersion>$(UProjectHubVersion).0</FileVersion>
@@ -13,6 +14,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Resource Include="Assets\UProjectHub.ico" />
     <ProjectReference Include="..\UProjectHub.Core\UProjectHub.Core.csproj" />
     <ProjectReference Include="..\UProjectHub.Windows\UProjectHub.Windows.csproj" />
   </ItemGroup>

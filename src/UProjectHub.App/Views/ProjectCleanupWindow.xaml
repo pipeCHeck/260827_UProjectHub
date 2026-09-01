@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{DynamicResource String.ProjectCleanup}"
+        Icon="/UProjectHub.App;component/Assets/UProjectHub.ico"
         Width="780"
         Height="720"
         MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height}"
